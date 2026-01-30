@@ -1,0 +1,21 @@
+server:
+  port: ${SERVER_PORT:8085}
+
+spring:
+  data:
+    mongodb:
+      host: ${MONGODB_HOST:localhost}
+      port: ${MONGODB_PORT:27017}
+      database: ${MONGODB_NOTIFICATION_DATABASE:leafy_notification}
+      username: ${MONGODB_USERNAME:admin}
+      password: ${MONGODB_PASSWORD:admin123}
+      authentication-database: admin
+
+notification:
+  email:
+    enabled: ${NOTIFICATION_EMAIL_ENABLED:true}
+    from: ${NOTIFICATION_EMAIL_FROM:noreply@leafy.com}
+  sms:
+    enabled: ${NOTIFICATION_SMS_ENABLED:false}
+  push:
+    enabled: ${NOTIFICATION_PUSH_ENABLED:false}
