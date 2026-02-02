@@ -11,7 +11,9 @@ import com.leafy.authservice.utils.UserValidationUtils;
 import com.leafy.common.enums.Role;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -26,12 +28,13 @@ import org.springframework.transaction.annotation.Transactional;
 @RequiredArgsConstructor
 @Slf4j
 @Transactional
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserServiceImpl implements UserService {
 
-    private final UserRepository userRepository;
-    private final UserMapper userMapper;
-    private final UserValidationUtils validationUtils;
-    private final PasswordEncoder passwordEncoder;
+    UserRepository userRepository;
+    UserMapper userMapper;
+    UserValidationUtils validationUtils;
+    PasswordEncoder passwordEncoder;
 
     @Override
     public UserResponse createUser(UserCreateRequest request) {
@@ -222,20 +225,6 @@ public class UserServiceImpl implements UserService {
         user.setPassword(passwordEncoder.encode(newPassword));
         userRepository.save(user);
         log.info("Password changed successfully for user with ID: {}", userId);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public long countUsersByRole(Role role) {
-        log.info("Counting users by role: {}", role);
-        return userRepository.countByRole(role);
-    }
-
-    @Override
-    @Transactional(readOnly = true)
-    public long countActiveUsers() {
-        log.info("Counting active users");
-        return userRepository.countByActiveTrue();
     }
 
     @Override

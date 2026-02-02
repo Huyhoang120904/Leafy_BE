@@ -40,6 +40,13 @@ public class CommonSecurityConfig {
                     // Permit base endpoints
                     auth.requestMatchers("/").permitAll();
                     auth.requestMatchers("/error", "/actuator/**").permitAll();
+                    
+                    // Swagger/OpenAPI endpoints
+                    auth.requestMatchers("/v3/api-docs/**").permitAll();
+                    auth.requestMatchers("/swagger-ui/**").permitAll();
+                    auth.requestMatchers("/swagger-ui.html").permitAll();
+                    auth.requestMatchers("/swagger-resources/**").permitAll();
+                    auth.requestMatchers("/webjars/**").permitAll();
 
                     // Permit configured public endpoints
                     if (securityProperties.getPublicEndpoints() != null

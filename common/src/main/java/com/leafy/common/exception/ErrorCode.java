@@ -18,6 +18,12 @@ public enum ErrorCode {
         AUTH_DEVICE_ID_REQUIRED(HttpStatus.BAD_REQUEST, 1007, "error.auth.device.id.required"),
         AUTH_DEVICE_MISMATCH(HttpStatus.FORBIDDEN, 1008, "error.auth.device.mismatch"),
         AUTH_SESSION_KICKED(HttpStatus.UNAUTHORIZED, 1009, "error.auth.session.kicked"),
+        TOKEN_REVOKED(HttpStatus.UNAUTHORIZED, 1010, "error.token.revoked"),
+        TOKEN_REPLAY_DETECTED(HttpStatus.UNAUTHORIZED, 1011, "error.token.replay.detected"),
+        RATE_LIMIT_EXCEEDED(HttpStatus.TOO_MANY_REQUESTS, 1012, "error.rate.limit.exceeded"),
+        REFRESH_TOKEN_NOT_FOUND(HttpStatus.UNAUTHORIZED, 1013, "error.refresh.token.not.found"),
+        REFRESH_TOKEN_INVALID(HttpStatus.UNAUTHORIZED, 1014, "error.refresh.token.invalid"),
+        TOKEN_FAMILY_REVOKED(HttpStatus.UNAUTHORIZED, 1015, "error.token.family.revoked"),
 
         // User account errors (2xxx)
         ACC_PHONE_NUMBER_ALREADY_USED(HttpStatus.CONFLICT, 2001, "error.acc.phone.number.already.used"),
@@ -36,6 +42,7 @@ public enum ErrorCode {
         OTP_INVALID(HttpStatus.BAD_REQUEST, 2012, "error.otp.invalid"),
         OTP_PURPOSE_MISMATCH(HttpStatus.BAD_REQUEST, 2013, "error.otp.purpose.mismatch"),
         OTP_NOT_FOUND(HttpStatus.NOT_FOUND, 2014, "error.otp.not.found"),
+        REGISTRATION_DATA_EXPIRED(HttpStatus.BAD_REQUEST, 2015, "error.registration.data.expired"),
 
         // Role and permission errors (21xx)
         ROLE_NOT_FOUND(HttpStatus.NOT_FOUND, 2101, "error.role.not.found"),

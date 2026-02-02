@@ -1,0 +1,752 @@
+{
+  "info": {
+    "name": "Leafy API - Authentication & Device Management",
+    "description": "Complete API collection for testing authentication flows and device management with User-Agent based device detection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "12345678"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8060/api",
+      "type": "string"
+    },
+    {
+      "key": "accessToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refreshToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "deviceId",
+      "value": "test-device-001",
+      "type": "string"
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Login - Web Browser",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.result && jsonData.result.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                  "        console.log('Access token saved:', jsonData.result.accessToken);",
+                  "    }",
+                  "    if (jsonData.result && jsonData.result.refreshToken) {",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.result.refreshToken);",
+                  "        console.log('Refresh token saved:', jsonData.result.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+                "description": "Desktop Chrome on Windows"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "{{deviceId}}",
+                "description": "Unique device identifier"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"appVersion\": null\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login from web browser (Chrome on Windows). Device type will be detected as WEB from User-Agent."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Mobile iOS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.result && jsonData.result.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                  "    }",
+                  "    if (jsonData.result && jsonData.result.refreshToken) {",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.result.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                "description": "iPhone iOS Safari"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "iphone-device-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"appVersion\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login from iPhone. Device type will be detected as MOBILE."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - Android Mobile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.result && jsonData.result.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                  "    }",
+                  "    if (jsonData.result && jsonData.result.refreshToken) {",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.result.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/112.0.0.0 Mobile Safari/537.36",
+                "description": "Android Samsung device"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "android-device-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"appVersion\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login from Android device. Device type will be detected as MOBILE."
+          },
+          "response": []
+        },
+        {
+          "name": "Login - iPad Tablet",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.result && jsonData.result.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                  "    }",
+                  "    if (jsonData.result && jsonData.result.refreshToken) {",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.result.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+                "description": "iPad tablet"
+              },
+              {
+                "key": "X-Device-ID",
+                "value": "ipad-device-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"appVersion\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "login"]
+            },
+            "description": "Login from iPad. Device type will be detected as TABLET."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token - Web",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.result && jsonData.result.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Cookie",
+                "value": "refreshToken={{refreshToken}}",
+                "description": "For web clients, refresh token is in cookie"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh"]
+            },
+            "description": "Refresh access token for web clients using HttpOnly cookie."
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token - Mobile",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.result && jsonData.result.accessToken) {",
+                  "        pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                  "    }",
+                  "    if (jsonData.result && jsonData.result.refreshToken) {",
+                  "        pm.collectionVariables.set('refreshToken', jsonData.result.refreshToken);",
+                  "    }",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "User-Agent",
+                "value": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/refresh/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "refresh", "mobile"]
+            },
+            "description": "Refresh access token for mobile clients. Returns both new access and refresh tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout - Web",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Cookie",
+                "value": "refreshToken={{refreshToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout"]
+            },
+            "description": "Logout web client. Blacklists both access and refresh tokens."
+          },
+          "response": []
+        },
+        {
+          "name": "Logout - Mobile",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/auth/logout/mobile",
+              "host": ["{{baseUrl}}"],
+              "path": ["auth", "logout", "mobile"]
+            },
+            "description": "Logout mobile client. Blacklists both tokens."
+          },
+          "response": []
+        }
+      ],
+      "description": "Authentication endpoints with device-aware login flows"
+    },
+    {
+      "name": "Device Management",
+      "item": [
+        {
+          "name": "Get All User Devices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "if (pm.response.code === 200) {",
+                  "    var jsonData = pm.response.json();",
+                  "    console.log('User devices:', JSON.stringify(jsonData.result, null, 2));",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "devices"]
+            },
+            "description": "Get list of all registered devices for the authenticated user. Shows device type, name, platform, last used time, etc."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Specific Device",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices/:deviceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "devices", ":deviceId"],
+              "variable": [
+                {
+                  "key": "deviceId",
+                  "value": "{{deviceId}}",
+                  "description": "Device ID to remove"
+                }
+              ]
+            },
+            "description": "Remove a specific device and blacklist its refresh token."
+          },
+          "response": []
+        },
+        {
+          "name": "Remove All Other Devices",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{accessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/v1/devices/others",
+              "host": ["{{baseUrl}}"],
+              "path": ["v1", "devices", "others"]
+            },
+            "description": "Remove all devices except the current one. Useful for 'Sign out from all other devices' feature."
+          },
+          "response": []
+        }
+      ],
+      "description": "Device management endpoints for viewing and managing user devices"
+    },
+    {
+      "name": "Testing Scenarios",
+      "item": [
+        {
+          "name": "Test: Login Same Device Type Twice",
+          "item": [
+            {
+              "name": "1. Login as WEB (First Time)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Login successful', function() {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "if (pm.response.code === 200) {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.collectionVariables.set('accessToken', jsonData.result.accessToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "User-Agent",
+                    "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "web-device-001"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Login as WEB (Second Time - Should Logout First)",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Login successful', function() {",
+                      "    pm.response.to.have.status(200);",
+                      "});",
+                      "pm.test('Returns new tokens', function() {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.result.accessToken).to.exist;",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "User-Agent",
+                    "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "web-device-002"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                },
+                "description": "This should automatically logout the first WEB device and allow only one WEB device active."
+              },
+              "response": []
+            },
+            {
+              "name": "3. Get Devices - Should Show Only One WEB",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Only one WEB device exists', function() {",
+                      "    var jsonData = pm.response.json();",
+                      "    var webDevices = jsonData.result.filter(d => d.deviceType === 'WEB');",
+                      "    pm.expect(webDevices.length).to.equal(1);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/devices",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "devices"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Test that logging in with same device type logs out the previous device"
+        },
+        {
+          "name": "Test: Multiple Device Types",
+          "item": [
+            {
+              "name": "1. Login as WEB",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "User-Agent",
+                    "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "web-001"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "2. Login as MOBILE",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "User-Agent",
+                    "value": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "mobile-001"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"appVersion\": \"1.0.0\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "3. Login as TABLET",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "key": "User-Agent",
+                    "value": "Mozilla/5.0 (iPad; CPU OS 17_0 like Mac OS X) AppleWebKit/605.1.15"
+                  },
+                  {
+                    "key": "X-Device-ID",
+                    "value": "tablet-001"
+                  }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\",\n  \"appVersion\": \"1.0.0\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["auth", "login"]
+                }
+              },
+              "response": []
+            },
+            {
+              "name": "4. Get All Devices - Should Show 3 Types",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Three different device types exist', function() {",
+                      "    var jsonData = pm.response.json();",
+                      "    pm.expect(jsonData.result.length).to.equal(3);",
+                      "    var types = jsonData.result.map(d => d.deviceType);",
+                      "    pm.expect(types).to.include('WEB');",
+                      "    pm.expect(types).to.include('MOBILE');",
+                      "    pm.expect(types).to.include('TABLET');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/v1/devices",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["v1", "devices"]
+                }
+              },
+              "response": []
+            }
+          ],
+          "description": "Test that multiple device types can coexist (WEB, MOBILE, TABLET, DESKTOP)"
+        }
+      ],
+      "description": "Complete test scenarios for device management features"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  }
+}

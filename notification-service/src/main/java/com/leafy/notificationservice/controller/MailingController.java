@@ -4,9 +4,11 @@ import com.leafy.common.dto.ApiResponse;
 import com.leafy.notificationservice.dto.request.EmailRequest;
 import com.leafy.notificationservice.dto.request.TemplateEmailRequest;
 import com.leafy.notificationservice.dto.response.EmailResponse;
-import com.leafy.notificationservice.service.MailingService;
+import com.leafy.notificationservice.service.mail.MailingService;
 import jakarta.validation.Valid;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,12 +22,13 @@ import java.util.Map;
  * REST Controller for email operations
  */
 @RestController
-@RequestMapping("/api/v1/mailing")
+@RequestMapping("/mailing")
 @RequiredArgsConstructor
 @Slf4j
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class MailingController {
 
-    private final MailingService mailingService;
+    MailingService mailingService;
 
     /**
      * Send an email

@@ -21,6 +21,12 @@ public class BrevoConfig {
         log.info("Initializing Brevo API Client");
         ApiClient apiClient = sendinblue.Configuration.getDefaultApiClient();
         apiClient.setApiKey(brevoProperties.getApiKey());
+        
+        // Set connection and read timeout to 60 seconds
+        apiClient.setConnectTimeout(60000);
+        apiClient.setReadTimeout(60000);
+        
+        log.info("Brevo API Client configured with 60s timeout");
         return apiClient;
     }
 

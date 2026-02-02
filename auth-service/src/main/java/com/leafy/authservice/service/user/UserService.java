@@ -156,21 +156,6 @@ public interface UserService {
     void changePassword(String userId, String newPassword);
 
     /**
-     * Get count of users by role
-     *
-     * @param role the role
-     * @return count of users
-     */
-    long countUsersByRole(Role role);
-
-    /**
-     * Get count of active users
-     *
-     * @return count of active users
-     */
-    long countActiveUsers();
-
-    /**
      * Check if email exists
      *
      * @param email the email

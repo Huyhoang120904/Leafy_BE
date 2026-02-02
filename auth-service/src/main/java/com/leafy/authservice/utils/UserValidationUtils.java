@@ -4,7 +4,9 @@ import com.leafy.authservice.model.User;
 import com.leafy.authservice.repository.UserRepository;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
+import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.FieldDefaults;
 import org.springframework.stereotype.Component;
 
 import java.util.Optional;
@@ -14,9 +16,10 @@ import java.util.Optional;
  */
 @Component
 @RequiredArgsConstructor
+@FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class UserValidationUtils {
 
-    private final UserRepository userRepository;
+    UserRepository userRepository;
 
     /**
      * Validate that email is not already in use

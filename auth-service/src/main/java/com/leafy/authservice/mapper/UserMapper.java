@@ -24,12 +24,6 @@ public interface UserMapper {
      * @param request the create request
      * @return the user entity
      */
-    @Mapping(target = "id", ignore = true)
-    @Mapping(target = "createdAt", ignore = true)
-    @Mapping(target = "lastModifiedAt", ignore = true)
-    @Mapping(target = "createdBy", ignore = true)
-    @Mapping(target = "lastModifiedBy", ignore = true)
-    @Mapping(target = "active", constant = "true")
     User toEntity(UserCreateRequest request);
 
     /**
