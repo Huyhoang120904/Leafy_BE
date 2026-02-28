@@ -1,11 +1,10 @@
-package com.leafy.plantmanagementservice.model;
+package com.leafy.plantmanagementservice.dto.request.plant;
 
-import com.leafy.common.model.BaseModel;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.FieldType;
-import org.springframework.data.mongodb.core.mapping.MongoId;
+
 import java.time.LocalDateTime;
 
 @Getter
@@ -13,26 +12,31 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Document(collection = "plants")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Plant extends BaseModel {
+public class PlantCreateRequest {
 
-    @MongoId(FieldType.OBJECT_ID)
-    String id;
-
+    @NotBlank(message = "Plant number is required")
     String plantNumber;
+
+    @NotBlank(message = "Plant status is required")
     String plantStatus;
+
     String nickName;
     String tagCode;
     String batchNumber;
     String sourceType;
     String motherPlantId;
+
     LocalDateTime plantingDate;
     LocalDateTime germinationDate;
     LocalDateTime actualHarvestDate;
+
+    @PositiveOrZero(message = "Total yield must be positive or zero")
     Double totalYieldKg;
 
-    // Relationships
+    @NotBlank(message = "Species ID is required")
     String speciesId;
+
+    @NotBlank(message = "Farm plot ID is required")
     String farmPlotId;
 }

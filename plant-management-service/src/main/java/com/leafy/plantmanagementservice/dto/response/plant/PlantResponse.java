@@ -1,11 +1,8 @@
-package com.leafy.plantmanagementservice.model;
+package com.leafy.plantmanagementservice.dto.response.plant;
 
-import com.leafy.common.model.BaseModel;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.FieldType;
-import org.springframework.data.mongodb.core.mapping.MongoId;
+
 import java.time.LocalDateTime;
 
 @Getter
@@ -13,13 +10,9 @@ import java.time.LocalDateTime;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Document(collection = "plants")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Plant extends BaseModel {
-
-    @MongoId(FieldType.OBJECT_ID)
+public class PlantResponse {
     String id;
-
     String plantNumber;
     String plantStatus;
     String nickName;
@@ -31,8 +24,6 @@ public class Plant extends BaseModel {
     LocalDateTime germinationDate;
     LocalDateTime actualHarvestDate;
     Double totalYieldKg;
-
-    // Relationships
     String speciesId;
     String farmPlotId;
 }

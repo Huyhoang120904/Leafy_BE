@@ -1,11 +1,8 @@
-package com.leafy.plantmanagementservice.model;
+package com.leafy.plantmanagementservice.dto.request.species;
 
-import com.leafy.common.model.BaseModel;
+import jakarta.validation.constraints.PositiveOrZero;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.FieldType;
-import org.springframework.data.mongodb.core.mapping.MongoId;
 
 import java.util.List;
 import java.util.Map;
@@ -15,24 +12,32 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Document(collection = "species")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Species extends BaseModel {
-
-    @MongoId(FieldType.OBJECT_ID)
-    String id;
+public class SpeciesUpdateRequest {
 
     String commonName;
+
     String cultivarName;
+
+    @PositiveOrZero(message = "Water frequency days must be positive or zero")
     Integer waterFrequencyDays;
+
     String lightRequirements;
+
+    @PositiveOrZero(message = "Days to maturity must be positive or zero")
     Integer daysToMaturity;
+
     String plantingWindow;
+
     String plantingSeason;
+
     Map<String, Object> idealEnv;
+
+    @PositiveOrZero(message = "Spacing must be positive or zero")
     Double spacing;
+
+    @PositiveOrZero(message = "Expected yield must be positive or zero")
     Double expectedYieldKg;
 
-    // Relationships
     List<String> commonDiseaseIds;
 }

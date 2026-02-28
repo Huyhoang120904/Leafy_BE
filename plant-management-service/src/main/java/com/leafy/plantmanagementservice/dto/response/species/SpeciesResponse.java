@@ -1,11 +1,7 @@
-package com.leafy.plantmanagementservice.model;
+package com.leafy.plantmanagementservice.dto.response.species;
 
-import com.leafy.common.model.BaseModel;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
-import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.FieldType;
-import org.springframework.data.mongodb.core.mapping.MongoId;
 
 import java.util.List;
 import java.util.Map;
@@ -15,13 +11,9 @@ import java.util.Map;
 @AllArgsConstructor
 @NoArgsConstructor
 @Builder
-@Document(collection = "species")
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class Species extends BaseModel {
-
-    @MongoId(FieldType.OBJECT_ID)
+public class SpeciesResponse {
     String id;
-
     String commonName;
     String cultivarName;
     Integer waterFrequencyDays;
@@ -32,7 +24,5 @@ public class Species extends BaseModel {
     Map<String, Object> idealEnv;
     Double spacing;
     Double expectedYieldKg;
-
-    // Relationships
     List<String> commonDiseaseIds;
 }
