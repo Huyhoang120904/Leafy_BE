@@ -97,6 +97,18 @@ spring:
                     name: plantManagementServiceCircuitBreaker
                     fallbackUri: forward:/fallback/plant-management-service
 
+            # Species Service Routes (Plant Management)
+            - id: species-service
+              uri: lb://plant-management-service
+              predicates:
+                - Path=/api/species/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: plantManagementServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/plant-management-service
+
             # Profile Service Routes
             - id: profile-service
               uri: lb://profile-service

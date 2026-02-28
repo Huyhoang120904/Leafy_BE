@@ -26,7 +26,7 @@ public class SpeciesController {
     private final SpeciesService speciesService;
 
     @PostMapping
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<SpeciesResponse>> createSpecies(
             @Valid @RequestBody SpeciesCreateRequest request) {
         log.info("POST /species - Creating new species");
@@ -36,7 +36,7 @@ public class SpeciesController {
     }
 
     @PutMapping("/{speciesId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<SpeciesResponse>> updateSpecies(
             @PathVariable String speciesId,
             @Valid @RequestBody SpeciesUpdateRequest request) {
@@ -70,7 +70,7 @@ public class SpeciesController {
     }
 
     @DeleteMapping("/{speciesId}")
-    @PreAuthorize("hasAuthority('ADMIN')")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteSpecies(@PathVariable String speciesId) {
         log.info("DELETE /species/{} - Deleting species", speciesId);
         speciesService.deleteSpecies(speciesId);
