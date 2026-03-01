@@ -83,8 +83,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Login from web browser (Chrome on Windows). Device type will be detected as WEB from User-Agent."
           },
@@ -134,8 +139,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Login from iPhone. Device type will be detected as MOBILE."
           },
@@ -185,8 +195,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Login from Android device. Device type will be detected as MOBILE."
           },
@@ -236,8 +251,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/login",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "login"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
             },
             "description": "Login from iPad. Device type will be detected as TABLET."
           },
@@ -276,8 +296,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/refresh",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "refresh"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh"
+              ]
             },
             "description": "Refresh access token for web clients using HttpOnly cookie."
           },
@@ -322,8 +347,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/refresh/mobile",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "refresh", "mobile"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "refresh",
+                "mobile"
+              ]
             },
             "description": "Refresh access token for mobile clients. Returns both new access and refresh tokens."
           },
@@ -345,8 +376,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/auth/logout",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout"
+              ]
             },
             "description": "Logout web client. Blacklists both access and refresh tokens."
           },
@@ -372,8 +408,14 @@
             },
             "url": {
               "raw": "{{baseUrl}}/auth/logout/mobile",
-              "host": ["{{baseUrl}}"],
-              "path": ["auth", "logout", "mobile"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "logout",
+                "mobile"
+              ]
             },
             "description": "Logout mobile client. Blacklists both tokens."
           },
@@ -411,8 +453,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/devices",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "devices"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices"
+              ]
             },
             "description": "Get list of all registered devices for the authenticated user. Shows device type, name, platform, last used time, etc."
           },
@@ -430,8 +477,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/devices/:deviceId",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "devices", ":deviceId"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices",
+                ":deviceId"
+              ],
               "variable": [
                 {
                   "key": "deviceId",
@@ -456,8 +509,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/v1/devices/others",
-              "host": ["{{baseUrl}}"],
-              "path": ["v1", "devices", "others"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "v1",
+                "devices",
+                "others"
+              ]
             },
             "description": "Remove all devices except the current one. Useful for 'Sign out from all other devices' feature."
           },
@@ -496,8 +555,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/files/upload",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "upload"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "upload"
+              ]
             },
             "description": "Upload file to S3 and create metadata record"
           },
@@ -515,8 +579,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/download/:fileId",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "download", ":fileId"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "download",
+                ":fileId"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -541,8 +611,15 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/download/s3-key/:s3Key",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "download", "s3-key", ":s3Key"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "download",
+                "s3-key",
+                ":s3Key"
+              ],
               "variable": [
                 {
                   "key": "s3Key",
@@ -567,8 +644,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/presigned-url/:fileId?expirationMinutes=60",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "presigned-url", ":fileId"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "presigned-url",
+                ":fileId"
+              ],
               "query": [
                 {
                   "key": "expirationMinutes",
@@ -608,8 +691,12 @@
             },
             "url": {
               "raw": "{{baseUrl}}/files",
-              "host": ["{{baseUrl}}"],
-              "path": ["files"]
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files"
+              ]
             },
             "description": "Create file metadata record"
           },
@@ -635,8 +722,13 @@
             },
             "url": {
               "raw": "{{baseUrl}}/files/:fileId",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", ":fileId"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                ":fileId"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -661,8 +753,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/:fileId",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", ":fileId"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                ":fileId"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -687,8 +784,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/:fileId/details",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", ":fileId", "details"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                ":fileId",
+                "details"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -713,8 +816,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/s3-key/:s3Key",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "s3-key", ":s3Key"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "s3-key",
+                ":s3Key"
+              ],
               "variable": [
                 {
                   "key": "s3Key",
@@ -739,8 +848,12 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files?page=0&size=20&sortBy=createdAt&sortDir=DESC",
-              "host": ["{{baseUrl}}"],
-              "path": ["files"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -780,8 +893,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/active?page=0&size=20&sortBy=createdAt&sortDir=DESC",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "active"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "active"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -821,8 +939,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/user/:uploadedBy?page=0&size=20&sortBy=createdAt&sortDir=DESC",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "user", ":uploadedBy"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "user",
+                ":uploadedBy"
+              ],
               "query": [
                 {
                   "key": "page",
@@ -869,8 +993,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/search?searchTerm=example&page=0&size=20&sortBy=createdAt&sortDir=DESC",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "search"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "search"
+              ],
               "query": [
                 {
                   "key": "searchTerm",
@@ -915,8 +1044,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/:fileId",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", ":fileId"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                ":fileId"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -941,8 +1075,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/:fileId/activate",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", ":fileId", "activate"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                ":fileId",
+                "activate"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -967,8 +1107,14 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/:fileId/deactivate",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", ":fileId", "deactivate"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                ":fileId",
+                "deactivate"
+              ],
               "variable": [
                 {
                   "key": "fileId",
@@ -993,8 +1139,13 @@
             ],
             "url": {
               "raw": "{{baseUrl}}/files/check-s3-key?s3Key=files/example.pdf",
-              "host": ["{{baseUrl}}"],
-              "path": ["files", "check-s3-key"],
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "files",
+                "check-s3-key"
+              ],
               "query": [
                 {
                   "key": "s3Key",
@@ -1057,8 +1208,13 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/auth/login",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["auth", "login"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
                 }
               },
               "response": []
@@ -1104,8 +1260,13 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/auth/login",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["auth", "login"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
                 },
                 "description": "This should automatically logout the first WEB device and allow only one WEB device active."
               },
@@ -1138,8 +1299,13 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/v1/devices",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["v1", "devices"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "devices"
+                  ]
                 }
               },
               "response": []
@@ -1174,8 +1340,13 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/auth/login",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["auth", "login"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
                 }
               },
               "response": []
@@ -1204,8 +1375,13 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/auth/login",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["auth", "login"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
                 }
               },
               "response": []
@@ -1234,8 +1410,13 @@
                 },
                 "url": {
                   "raw": "{{baseUrl}}/auth/login",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["auth", "login"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "auth",
+                    "login"
+                  ]
                 }
               },
               "response": []
@@ -1270,8 +1451,13 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/v1/devices",
-                  "host": ["{{baseUrl}}"],
-                  "path": ["v1", "devices"]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "v1",
+                    "devices"
+                  ]
                 }
               },
               "response": []
@@ -1281,6 +1467,282 @@
         }
       ],
       "description": "Complete test scenarios for device management features"
+    },
+    {
+      "name": "Disease Detection Service",
+      "item": [
+        {
+          "name": "Prediction",
+          "item": [
+            {
+              "name": "Predict Disease (Base)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/diseases/predict",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "diseases",
+                    "predict"
+                  ]
+                },
+                "description": "Classification endpoint for image prediction"
+              },
+              "response": []
+            },
+            {
+              "name": "Predict Disease (TFLite)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/diseases/predict/tflite",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "diseases",
+                    "predict",
+                    "tflite"
+                  ]
+                },
+                "description": "Classification endpoint using TFLite model"
+              },
+              "response": []
+            },
+            {
+              "name": "Health Check (Prediction)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/diseases/predict/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "diseases",
+                    "predict",
+                    "health"
+                  ]
+                },
+                "description": "Health check endpoint for prediction service"
+              },
+              "response": []
+            }
+          ],
+          "description": "Plant disease prediction endpoints"
+        },
+        {
+          "name": "Leaf Detection",
+          "item": [
+            {
+              "name": "Detect Leaf",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/detect-leaf?model_type=custom&confidence=0.25",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "detect-leaf"
+                  ],
+                  "query": [
+                    {
+                      "key": "model_type",
+                      "value": "custom",
+                      "description": "Model to use: 'custom' or 'base'"
+                    },
+                    {
+                      "key": "confidence",
+                      "value": "0.25",
+                      "description": "Confidence threshold"
+                    }
+                  ]
+                },
+                "description": "Detect leaves in an image"
+              },
+              "response": []
+            },
+            {
+              "name": "Visualize Detected Leaves",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/detect-leaf/visualize?model_type=custom&confidence=0.25&box_color=green&box_thickness=3",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "detect-leaf",
+                    "visualize"
+                  ],
+                  "query": [
+                    {
+                      "key": "model_type",
+                      "value": "custom"
+                    },
+                    {
+                      "key": "confidence",
+                      "value": "0.25"
+                    },
+                    {
+                      "key": "box_color",
+                      "value": "green"
+                    },
+                    {
+                      "key": "box_thickness",
+                      "value": "3"
+                    }
+                  ]
+                },
+                "description": "Detect leaves and return visualization image"
+              },
+              "response": []
+            },
+            {
+              "name": "Crop Detected Leaves",
+              "request": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": []
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/detect-leaf/crop?model_type=custom&confidence=0.25&padding=10&return_format=zip",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "detect-leaf",
+                    "crop"
+                  ],
+                  "query": [
+                    {
+                      "key": "model_type",
+                      "value": "custom"
+                    },
+                    {
+                      "key": "confidence",
+                      "value": "0.25"
+                    },
+                    {
+                      "key": "padding",
+                      "value": "10"
+                    },
+                    {
+                      "key": "return_format",
+                      "value": "zip",
+                      "description": "'zip' or 'single'"
+                    }
+                  ]
+                },
+                "description": "Detect and crop leaves from an image"
+              },
+              "response": []
+            },
+            {
+              "name": "Health Check (Leaf Detection)",
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/detect-leaf/health",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "detect-leaf",
+                    "health"
+                  ]
+                },
+                "description": "Health check endpoint for leaf detection service"
+              },
+              "response": []
+            }
+          ],
+          "description": "Leaf detection endpoints"
+        }
+      ],
+      "description": "Endpoints for Disease Detection and Leaf Detection"
     }
   ],
   "auth": {
