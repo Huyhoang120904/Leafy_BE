@@ -1281,6 +1281,223 @@
         }
       ],
       "description": "Complete test scenarios for device management features"
+    },
+    {
+      "name": "RAG Service",
+      "description": "Retrieval-Augmented Generation service — document ingestion, conversational Q&A, treatment plan management, and health check.",
+      "item": [
+        {
+          "name": "Ingestion",
+          "description": "Upload and process documents into the Qdrant vector store.",
+          "item": [
+            {
+              "name": "Ingest Document",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "body": {
+                  "mode": "formdata",
+                  "formdata": [
+                    {
+                      "key": "file",
+                      "type": "file",
+                      "src": [],
+                      "description": "PDF, DOCX, or TXT file (max 20 MB)"
+                    },
+                    {
+                      "key": "category",
+                      "value": "agronomy",
+                      "type": "text",
+                      "description": "High-level domain category (optional)"
+                    },
+                    {
+                      "key": "variety",
+                      "value": "corn",
+                      "type": "text",
+                      "description": "Crop variety or sub-category (optional)"
+                    },
+                    {
+                      "key": "user_id",
+                      "value": "{{userId}}",
+                      "type": "text",
+                      "description": "Owner user ID for row-level vector filtering (optional)"
+                    }
+                  ]
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/ingest",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "ingest"]
+                },
+                "description": "Upload a document and queue it for async chunking + embedding. Poll GET /tasks/{task_id} to track progress."
+              },
+              "response": []
+            },
+            {
+              "name": "List All Ingestion Tasks",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/tasks",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "tasks"]
+                },
+                "description": "Returns all document ingestion tasks tracked in-memory (newest first)."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Ingestion Task Status",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/tasks/:task_id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "tasks", ":task_id"],
+                  "variable": [
+                    {
+                      "key": "task_id",
+                      "value": "",
+                      "description": "UUID returned by POST /ingest"
+                    }
+                  ]
+                },
+                "description": "Retrieve current status of a single ingestion task. Status values: pending | processing | completed | failed."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Chat",
+          "description": "RAG-powered Q&A via the LangGraph pipeline.",
+          "item": [
+            {
+              "name": "Ask a Question (RAG Chat)",
+              "request": {
+                "method": "POST",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+                  { "key": "Content-Type", "value": "application/json" }
+                ],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"question\": \"What are the common diseases affecting corn crops?\",\n  \"user_id\": \"{{userId}}\",\n  \"language\": \"English\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/chat",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "chat"]
+                },
+                "description": "Submit a natural-language question through the RAG pipeline (HyDE → Hybrid Search → Reranker → LLM Generation → Self-correction). Set user_id to restrict retrieval to that user's uploaded documents."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Treatment Plans",
+          "description": "CRUD for persisted TreatmentPlan documents (MongoDB).",
+          "item": [
+            {
+              "name": "List Treatment Plans",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/treatment-plans/?page=0&size=20",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "treatment-plans", ""],
+                  "query": [
+                    {
+                      "key": "page",
+                      "value": "0",
+                      "description": "Zero-based page number"
+                    },
+                    {
+                      "key": "size",
+                      "value": "20",
+                      "description": "Plans per page (max 100)"
+                    }
+                  ]
+                },
+                "description": "List treatment plans. ADMIN sees all; USER sees only their own."
+              },
+              "response": []
+            },
+            {
+              "name": "Get Treatment Plan by ID",
+              "request": {
+                "method": "GET",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/treatment-plans/:plan_id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "treatment-plans", ":plan_id"],
+                  "variable": [
+                    {
+                      "key": "plan_id",
+                      "value": "",
+                      "description": "Treatment plan UUID"
+                    }
+                  ]
+                },
+                "description": "Retrieve a single TreatmentPlan by its UUID. Owner or ADMIN only."
+              },
+              "response": []
+            },
+            {
+              "name": "Delete Treatment Plan",
+              "request": {
+                "method": "DELETE",
+                "header": [
+                  { "key": "Authorization", "value": "Bearer {{accessToken}}" }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/rag/v1/treatment-plans/:plan_id",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["rag", "v1", "treatment-plans", ":plan_id"],
+                  "variable": [
+                    {
+                      "key": "plan_id",
+                      "value": "",
+                      "description": "Treatment plan UUID"
+                    }
+                  ]
+                },
+                "description": "Hard-delete a TreatmentPlan. Owner or ADMIN only."
+              },
+              "response": []
+            }
+          ]
+        },
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/rag/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["rag", "health"]
+            },
+            "description": "Returns service liveness status and LangSmith tracing configuration."
+          },
+          "response": []
+        }
+      ]
     }
   ],
   "auth": {

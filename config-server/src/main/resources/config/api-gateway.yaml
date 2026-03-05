@@ -109,6 +109,18 @@ spring:
                     name: profileServiceCircuitBreaker
                     fallbackUri: forward:/fallback/profile-service
 
+            # RAG Service Routes
+            - id: rag-service
+              uri: lb://rag-service
+              predicates:
+                - Path=/api/rag/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: ragServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/rag-service
+
             # OpenAPI Documentation Routes for Auth Service
             - id: auth-service-openapi
               uri: lb://auth-service
@@ -164,6 +176,14 @@ spring:
                 - Path=/profile-service/v3/api-docs/**
               filters:
                 - RewritePath=/profile-service/v3/api-docs, /v3/api-docs
+
+            # OpenAPI Documentation Routes for RAG Service
+            - id: rag-service-openapi
+              uri: lb://rag-service
+              predicates:
+                - Path=/rag-service/v3/api-docs/**
+              filters:
+                - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
 
           globalCors:
             cors-configurations:
@@ -263,6 +283,8 @@ resilience4j:
         baseConfig: default
       profileServiceCircuitBreaker:
         baseConfig: default
+      ragServiceCircuitBreaker:
+        baseConfig: default
 
   timelimiter:
     configs:
@@ -283,6 +305,8 @@ resilience4j:
         baseConfig: default
       profileServiceCircuitBreaker:
         baseConfig: default
+      ragServiceCircuitBreaker:
+        timeoutDuration: 120s
 
 # JWT Configuration
 jwt:
@@ -314,6 +338,8 @@ springdoc:
         url: /plant-management-service/v3/api-docs
       - name: profile-service
         url: /profile-service/v3/api-docs
+      - name: rag-service
+        url: /rag-service/v3/api-docs
     operations-sorter: method
     tags-sorter: alpha
     display-request-duration: true

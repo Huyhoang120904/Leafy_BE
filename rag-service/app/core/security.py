@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse
 
 logger = logging.getLogger(__name__)
 
+
 class UserPrincipal(BaseModel):
     id: str
     email: str
@@ -18,41 +19,50 @@ class UserPrincipal(BaseModel):
     user_agent: Optional[str] = None
     request_device_id: Optional[str] = None
 
+
 class SecurityContextMiddleware(BaseHTTPMiddleware):
+    """
+    Mirrors Spring Security's SecurityContextFilter.
+    Reads X-User-* headers forwarded by the API Gateway and attaches a
+    UserPrincipal to request.state.user for downstream use.
+    """
+
+    PUBLIC_PATHS = ["/", "/health", "/v3/api-docs", "/openapi.json", "/docs", "/redoc"]
+
     def __init__(self, app, public_paths: Optional[List[str]] = None):
         super().__init__(app)
-        self.public_paths = public_paths or ["/", "/health", "/v3/api-docs", "/openapi.json", "/internal/"]
+        self.public_paths = public_paths or self.PUBLIC_PATHS
 
     def _is_public_path(self, path: str) -> bool:
         for p in self.public_paths:
-            if path == p or (p.endswith('/') and path.startswith(p)):
+            if path == p:
                 return True
-            if path.startswith(p) and p not in ["/", "/health"]: # Exclude exact matches from prefixing mistakenly
+            if p.endswith("/") and path.startswith(p):
                 return True
         return False
 
     async def dispatch(self, request: Request, call_next):
         path = request.url.path
 
-        # 1. Parse Headers (mimics Spring's SecurityContextFilter)
         user_id = request.headers.get("X-User-Id")
         email = request.headers.get("X-User-Email")
-        
-        user_principal = None
-        if user_id is not None and email is not None:
+
+        if user_id and email:
             try:
                 roles_header = request.headers.get("X-User-Roles", "")
                 roles = [r.strip() for r in roles_header.split(",") if r.strip()]
-                
-                # Check for ROLE_ prefix equivalent to Spring
                 authorities = [r if r.startswith("ROLE_") else f"ROLE_{r}" for r in roles]
                 if not authorities:
                     authorities = ["ROLE_USER"]
 
                 remaining_ttl_str = request.headers.get("X-Remaining-TTL")
-                remaining_ttl = int(remaining_ttl_str) if remaining_ttl_str and remaining_ttl_str.isdigit() else None
+                remaining_ttl = (
+                    int(remaining_ttl_str)
+                    if remaining_ttl_str and remaining_ttl_str.isdigit()
+                    else None
+                )
 
-                user_principal = UserPrincipal(
+                request.state.user = UserPrincipal(
                     id=user_id,
                     email=email,
                     roles=authorities,
@@ -62,43 +72,46 @@ class SecurityContextMiddleware(BaseHTTPMiddleware):
                     user_agent=request.headers.get("User-Agent"),
                     request_device_id=request.headers.get("X-Device-ID"),
                 )
-                
-                # Attach to request state
-                request.state.user = user_principal
-                logger.debug(f"Security context set for user: {email} ({user_id}), Device: {user_principal.device_id}")
+                logger.debug("Security context set for user: %s (%s)", email, user_id)
             except Exception as e:
-                logger.error(f"Error setting security context: {str(e)}")
+                logger.error("Error setting security context: %s", e)
 
-        # 2. Check Authorization (mimics Spring's SecurityConfig)
         if not self._is_public_path(path):
             if not getattr(request.state, "user", None):
-                logger.warning(f"Unauthorized access to {path}. Headers received: {request.headers}")
+                logger.warning("Unauthorized access to %s", path)
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
-                    content={"detail": "Authentication required. Missing user context headers."}
+                    content={
+                        "code": 4001,
+                        "message": "Authentication required. Missing user context headers.",
+                        "result": None,
+                    },
                 )
 
-        response = await call_next(request)
-        return response
+        return await call_next(request)
 
-# Dependency to get current user from request state
+
 def get_current_user(request: Request) -> UserPrincipal:
+    """FastAPI dependency — returns the UserPrincipal from request state."""
     user = getattr(request.state, "user", None)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
+            detail="Not authenticated",
         )
     return user
 
-# Dependency to check roles
+
 def require_roles(required_roles: List[str]):
+    """FastAPI dependency factory — checks that the user has at least one required role."""
     def role_checker(user: UserPrincipal = Depends(get_current_user)):
         user_roles = set(user.roles)
-        if not any(role in user_roles or f"ROLE_{role}" in user_roles for role in required_roles):
+        if not any(
+            role in user_roles or f"ROLE_{role}" in user_roles for role in required_roles
+        ):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions"
+                detail="Insufficient permissions",
             )
         return user
     return role_checker

@@ -1,48 +1,51 @@
 import uvicorn
 import py_eureka_client.eureka_client as eureka_client
 import os
+import socket
 from dotenv import load_dotenv
 
 env_path = os.path.join(os.path.dirname(__file__), '..', '.env')
 load_dotenv(env_path)
 
-from main import app, settings
+# Import app and settings AFTER dotenv is loaded
+from app.main import app  # noqa: E402
+from app.config.settings import settings  # noqa: E402
 
-def get_eureka_server():
-    return os.getenv("EUREKA_CLIENT_SERVICEURL_DEFAULTZONE", settings.eureka_server)
 
-def get_server_port():
-    port = os.getenv("SERVER_PORT_DISEASE_CLASSIFICATION")
-    if not port:
-        port = os.getenv("SERVER_PORT")
-    return int(port) if port else settings.server_port
+def _get_ip() -> str:
+    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        s.connect(('10.255.255.255', 1))
+        return s.getsockname()[0]
+    except Exception:
+        return '127.0.0.1'
+    finally:
+        s.close()
 
-def get_app_name():
+
+def _get_port() -> int:
+    raw = os.getenv("SERVER_PORT_RAG") or os.getenv("SERVER_PORT")
+    return int(raw) if raw else settings.server_port
+
+
+def _get_app_name() -> str:
     return os.getenv("SPRING_APPLICATION_NAME", settings.app_name)
 
-if __name__ == "__main__":
-    port = get_server_port()
-    app_name = get_app_name()
-    eureka_server = get_eureka_server()
 
-    # Register to Eureka
-    import socket
-    def get_ip():
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        try:
-            s.connect(('10.255.255.255', 1))
-            IP = s.getsockname()[0]
-        except Exception:
-            IP = '127.0.0.1'
-        finally:
-            s.close()
-        return IP
+def _get_eureka_server() -> str:
+    return os.getenv("EUREKA_CLIENT_SERVICEURL_DEFAULTZONE", settings.eureka_server)
+
+
+if __name__ == "__main__":
+    port = _get_port()
+    app_name = _get_app_name()
+    eureka_server = _get_eureka_server()
 
     eureka_client.init(
         eureka_server=eureka_server,
         app_name=app_name,
         instance_port=port,
-        instance_host=get_ip(),
+        instance_host=_get_ip(),
     )
 
-    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
+    uvicorn.run("app.main:app", host="0.0.0.0", port=port, reload=True)

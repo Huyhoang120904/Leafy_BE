@@ -3,7 +3,6 @@ package com.leafy.apigateway.controller;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
@@ -16,34 +15,40 @@ import java.util.Map;
 @RequestMapping("/fallback")
 public class FallbackController {
 
-    @GetMapping("/auth-service")
+    @RequestMapping("/auth-service")
     public Mono<ResponseEntity<Map<String, Object>>> authServiceFallback() {
         log.warn("Auth service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("Auth service is temporarily unavailable"));
     }
 
-    @GetMapping("/user-service")
+    @RequestMapping("/user-service")
     public Mono<ResponseEntity<Map<String, Object>>> userServiceFallback() {
         log.warn("User service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("User service is temporarily unavailable"));
     }
 
-    @GetMapping("/farm-service")
+    @RequestMapping("/farm-service")
     public Mono<ResponseEntity<Map<String, Object>>> farmServiceFallback() {
         log.warn("Farm service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("Farm service is temporarily unavailable"));
     }
 
-    @GetMapping("/file-service")
+    @RequestMapping("/file-service")
     public Mono<ResponseEntity<Map<String, Object>>> fileServiceFallback() {
         log.warn("File service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("File service is temporarily unavailable"));
     }
 
-    @GetMapping("/notification-service")
+    @RequestMapping("/notification-service")
     public Mono<ResponseEntity<Map<String, Object>>> notificationServiceFallback() {
         log.warn("Notification service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("Notification service is temporarily unavailable"));
+    }
+
+    @RequestMapping("/rag-service")
+    public Mono<ResponseEntity<Map<String, Object>>> ragServiceFallback() {
+        log.warn("RAG service is unavailable - Circuit breaker activated");
+        return Mono.just(createFallbackResponse("RAG service is temporarily unavailable"));
     }
 
     private ResponseEntity<Map<String, Object>> createFallbackResponse(String message) {
