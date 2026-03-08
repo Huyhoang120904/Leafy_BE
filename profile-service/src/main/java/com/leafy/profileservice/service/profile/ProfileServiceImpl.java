@@ -6,8 +6,14 @@ import com.leafy.profileservice.dto.request.profile.ProfileCreateRequest;
 import com.leafy.profileservice.dto.request.profile.ProfileUpdateRequest;
 import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
+import com.leafy.profileservice.mapper.CertificateMapper;
 import com.leafy.profileservice.mapper.ProfileMapper;
+import com.leafy.profileservice.model.ApprovalRequest;
+import com.leafy.profileservice.model.Certificate;
 import com.leafy.profileservice.model.Profile;
+import com.leafy.profileservice.model.enums.CertificateStatus;
+import com.leafy.profileservice.model.enums.UserRole;
+import com.leafy.profileservice.repository.ApprovalRequestRepository;
 import com.leafy.profileservice.repository.ProfileRepository;
 import com.leafy.profileservice.client.AuthClient;
 import com.leafy.profileservice.client.dto.UserResponse;
@@ -18,6 +24,9 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of ProfileService
@@ -30,7 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 public class ProfileServiceImpl implements ProfileService {
 
     private final ProfileRepository profileRepository;
+    private final ApprovalRequestRepository approvalRequestRepository;
     private final ProfileMapper profileMapper;
+    private final CertificateMapper certificateMapper;
     private final AuthClient authClient;
 
     @Override
@@ -84,8 +95,7 @@ public class ProfileServiceImpl implements ProfileService {
     public ProfileResponse getProfileById(String profileId) {
         log.info("Getting profile by ID: {}", profileId);
         Profile profile = getProfileEntityById(profileId);
-        ProfileResponse response = profileMapper.toResponse(profile);
-        return enrichWithUserInfo(response, profile.getUserId());
+        return buildFullProfileResponse(profile);
     }
 
     @Override
@@ -94,7 +104,7 @@ public class ProfileServiceImpl implements ProfileService {
         log.info("Getting profile details by ID: {}", profileId);
         Profile profile = getProfileEntityById(profileId);
         ProfileDetailsResponse response = profileMapper.toDetailsResponse(profile);
-        enrichWithUserInfo(response, profile.getUserId());
+        enrichProfileDetailsResponse(response, profile);
         return response;
     }
 
@@ -117,8 +127,7 @@ public class ProfileServiceImpl implements ProfileService {
                     log.error("Profile not found for user ID: {}", userId);
                     return new AppException(ErrorCode.ACC_ACCOUNT_NOT_FOUND);
                 });
-        ProfileResponse response = profileMapper.toResponse(profile);
-        return enrichWithUserInfo(response, userId);
+        return buildFullProfileResponse(profile);
     }
 
     @Override
@@ -126,7 +135,7 @@ public class ProfileServiceImpl implements ProfileService {
     public Page<ProfileResponse> getAllProfiles(Pageable pageable) {
         log.info("Getting all profiles with pagination");
         Page<Profile> profiles = profileRepository.findAll(pageable);
-        return profiles.map(profile -> enrichWithUserInfo(profileMapper.toResponse(profile), profile.getUserId()));
+        return profiles.map(this::buildFullProfileResponse);
     }
 
     @Override
@@ -134,7 +143,7 @@ public class ProfileServiceImpl implements ProfileService {
     public Page<ProfileResponse> getActiveProfiles(Pageable pageable) {
         log.info("Getting all active profiles with pagination");
         Page<Profile> profiles = profileRepository.findByActiveTrue(pageable);
-        return profiles.map(profile -> enrichWithUserInfo(profileMapper.toResponse(profile), profile.getUserId()));
+        return profiles.map(this::buildFullProfileResponse);
     }
 
     @Override
@@ -142,7 +151,7 @@ public class ProfileServiceImpl implements ProfileService {
     public Page<ProfileResponse> searchProfiles(String searchTerm, Pageable pageable) {
         log.info("Searching profiles with term: {}", searchTerm);
         Page<Profile> profiles = profileRepository.searchProfiles(searchTerm, pageable);
-        return profiles.map(profile -> enrichWithUserInfo(profileMapper.toResponse(profile), profile.getUserId()));
+        return profiles.map(this::buildFullProfileResponse);
     }
 
     @Override
@@ -150,13 +159,21 @@ public class ProfileServiceImpl implements ProfileService {
         log.info("Deleting profile with ID: {}", profileId);
         Profile profile = getProfileEntityById(profileId);
         profileRepository.delete(profile);
+        // 5. Delete associated approval requests
+        approvalRequestRepository.deleteByProfileId(profileId);
         log.info("Profile deleted successfully with ID: {}", profileId);
     }
 
     @Override
     public void deleteProfileByUserId(String userId) {
-        log.info("Deleting profile by user ID: {}", userId);
-        profileRepository.deleteByUserId(userId);
+        log.info("Deleting profile for user ID: {}", userId);
+        Profile profile = profileRepository.findByUserId(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.ACC_ACCOUNT_NOT_FOUND));
+
+        profileRepository.delete(profile);
+
+        // Delete associated approval requests
+        approvalRequestRepository.deleteByProfileId(profile.getId());
         log.info("Profile deleted successfully for user ID: {}", userId);
     }
 
@@ -167,8 +184,7 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setActive(true);
         Profile activatedProfile = profileRepository.save(profile);
         log.info("Profile activated successfully with ID: {}", profileId);
-        ProfileResponse response = profileMapper.toResponse(activatedProfile);
-        return enrichWithUserInfo(response, activatedProfile.getUserId());
+        return buildFullProfileResponse(activatedProfile);
     }
 
     @Override
@@ -178,14 +194,26 @@ public class ProfileServiceImpl implements ProfileService {
         profile.setActive(false);
         Profile deactivatedProfile = profileRepository.save(profile);
         log.info("Profile deactivated successfully with ID: {}", profileId);
-        ProfileResponse response = profileMapper.toResponse(deactivatedProfile);
-        return enrichWithUserInfo(response, deactivatedProfile.getUserId());
+        return buildFullProfileResponse(deactivatedProfile);
     }
 
     @Override
     @Transactional(readOnly = true)
     public boolean existsByUserId(String userId) {
         return profileRepository.existsByUserId(userId);
+    }
+
+    private ProfileResponse buildFullProfileResponse(Profile profile) {
+        ProfileResponse response = profileMapper.toResponse(profile);
+
+        // Map ONLY APPROVED certificates back to the profile wrapper
+        List<Certificate> approvedCertificates = approvalRequestRepository.findByProfileId(profile.getId()).stream()
+                .filter(req -> req.getStatus() == CertificateStatus.APPROVED)
+                .flatMap(req -> req.getCertificates().stream())
+                .toList();
+        response.setCertificates(certificateMapper.toDtoList(approvedCertificates));
+
+        return enrichWithUserInfo(response, profile.getUserId());
     }
 
     private ProfileResponse enrichWithUserInfo(ProfileResponse response, String userId) {
@@ -198,22 +226,39 @@ public class ProfileServiceImpl implements ProfileService {
             }
         } catch (Exception e) {
             log.warn("Failed to fetch user info for userId: {}. Error: {}", userId, e.getMessage());
-            // It's acceptable to return profile without user info if auth-service fails
         }
         return response;
     }
 
-    private void enrichWithUserInfo(ProfileDetailsResponse response, String userId) {
+    private void enrichProfileDetailsResponse(ProfileDetailsResponse response, Profile profile) {
         try {
-            ApiResponse<UserResponse> apiResponse = authClient.getUserById(userId);
+            ApiResponse<UserResponse> apiResponse = authClient.getUserById(profile.getUserId());
             if (apiResponse != null && apiResponse.data() != null) {
                 UserResponse user = apiResponse.data();
                 response.setEmail(user.getEmail());
                 response.setPhoneNumber(user.getPhoneNumber());
             }
         } catch (Exception e) {
-            log.warn("Failed to fetch user info for userId: {}. Error: {}", userId, e.getMessage());
-            // It's acceptable to return profile without user info if auth-service fails
+            log.warn("Failed to fetch user info for userId: {}. Error: {}", profile.getUserId(), e.getMessage());
         }
+
+        // Map ONLY APPROVED certificates back to the profile wrapper
+        List<Certificate> approvedCertificates = approvalRequestRepository.findByProfileId(profile.getId()).stream()
+                .filter(req -> req.getStatus() == CertificateStatus.APPROVED)
+                .flatMap(req -> req.getCertificates().stream())
+                .toList();
+        response.setCertificates(certificateMapper.toDtoList(approvedCertificates));
+    }
+
+    @Override
+    public ProfileResponse verifyProfile(String profileId) {
+        log.info("Verifying profile ID: {}", profileId);
+        Profile profile = getProfileEntityById(profileId);
+
+        profile.setIsVerified(true);
+        Profile savedProfile = profileRepository.save(profile);
+        log.info("Profile marked as verified successfully.");
+
+        return buildFullProfileResponse(savedProfile);
     }
 }

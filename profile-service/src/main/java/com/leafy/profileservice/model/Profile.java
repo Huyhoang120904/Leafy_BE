@@ -1,6 +1,7 @@
 package com.leafy.profileservice.model;
 
 import com.leafy.common.model.BaseModel;
+import com.leafy.profileservice.model.enums.UserRole;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -47,9 +48,20 @@ public class Profile extends BaseModel {
     String avatar;
 
     /**
-     * URL to user's certificate document
+     * User's primary role in the platform
      */
-    String certificate;
+    UserRole role;
+
+    /**
+     * User's area of specialty (e.g., crop types, soil analysis)
+     */
+    String specialty;
+
+    /**
+     * Flag indicating if the user has been verified by an admin
+     */
+    @Builder.Default
+    Boolean isVerified = false;
 
     /**
      * User's biography or description

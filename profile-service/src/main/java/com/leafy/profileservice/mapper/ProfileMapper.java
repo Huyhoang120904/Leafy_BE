@@ -16,10 +16,7 @@ import java.util.List;
  * Mapper interface for Profile entity and DTOs
  * Uses MapStruct for automatic mapping generation
  */
-@Mapper(
-        componentModel = "spring",
-        nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE
-)
+@Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface ProfileMapper {
 
     /**
@@ -28,6 +25,8 @@ public interface ProfileMapper {
      * @param request the create request
      * @return the profile entity
      */
+    @Mapping(target = "id", ignore = true)
+    @Mapping(target = "isVerified", ignore = true)
     Profile toEntity(ProfileCreateRequest request);
 
     /**
@@ -36,6 +35,9 @@ public interface ProfileMapper {
      * @param profile the profile entity
      * @return the profile response
      */
+    @Mapping(target = "email", ignore = true)
+    @Mapping(target = "phoneNumber", ignore = true)
+    @Mapping(target = "certificates", ignore = true)
     ProfileResponse toResponse(Profile profile);
 
     /**
@@ -44,6 +46,9 @@ public interface ProfileMapper {
      * @param profile the profile entity
      * @return the profile details response
      */
+    @Mapping(target = "email", ignore = true)
+    @Mapping(target = "phoneNumber", ignore = true)
+    @Mapping(target = "certificates", ignore = true)
     ProfileDetailsResponse toDetailsResponse(Profile profile);
 
     /**
@@ -66,5 +71,9 @@ public interface ProfileMapper {
     @Mapping(target = "lastModifiedAt", ignore = true)
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "lastModifiedBy", ignore = true)
+    @Mapping(target = "active", ignore = true)
+    @Mapping(target = "fullName", ignore = true)
+    @Mapping(target = "profilePicture", ignore = true)
+    @Mapping(target = "isVerified", ignore = true)
     void updateEntityFromRequest(ProfileUpdateRequest request, @MappingTarget Profile profile);
 }

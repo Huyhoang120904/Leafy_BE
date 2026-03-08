@@ -1,7 +1,10 @@
 package com.leafy.profileservice.dto.request.profile;
 
 import com.leafy.profileservice.dto.request.preferences.UserPreferenceRequest;
+import com.leafy.profileservice.model.enums.UserRole;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -25,9 +28,13 @@ public class ProfileCreateRequest {
 
     String avatar;
 
-    String certificate;
+    @NotNull(message = "Role is required")
+    UserRole role;
+
+    String specialty;
 
     String bio;
 
+    @Valid
     UserPreferenceRequest userPreference;
 }

@@ -133,4 +133,12 @@ public interface ProfileService {
      * @return true if exists, false otherwise
      */
     boolean existsByUserId(String userId);
+
+    /**
+     * Mark a profile as verified
+     *
+     * @param profileId the profile ID
+     * @return the updated profile response
+     */
+    ProfileResponse verifyProfile(String profileId);
 }

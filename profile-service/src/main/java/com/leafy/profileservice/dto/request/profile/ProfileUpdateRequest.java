@@ -1,6 +1,7 @@
 package com.leafy.profileservice.dto.request.profile;
 
 import com.leafy.profileservice.dto.request.preferences.UserPreferenceRequest;
+import com.leafy.profileservice.model.enums.UserRole;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -14,13 +15,11 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProfileUpdateRequest {
 
-    String fullName;
-
-    String profilePicture;
-
     String avatar;
 
-    String certificate;
+    UserRole role;
+
+    String specialty;
 
     String bio;
 

@@ -1,6 +1,8 @@
 package com.leafy.profileservice.dto.response.profile;
 
+import com.leafy.profileservice.dto.CertificateDto;
 import com.leafy.profileservice.dto.response.preferences.UserPreferenceResponse;
+import com.leafy.profileservice.model.enums.UserRole;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -26,7 +28,13 @@ public class ProfileDetailsResponse {
 
     String avatar;
 
-    String certificate;
+    UserRole role;
+
+    String specialty;
+
+    java.util.List<CertificateDto> certificates;
+
+    Boolean isVerified;
 
     String bio;
 

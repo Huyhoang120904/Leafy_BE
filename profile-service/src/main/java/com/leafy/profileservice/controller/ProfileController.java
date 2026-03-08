@@ -276,6 +276,20 @@ public class ProfileController {
     }
 
     /**
+     * Mark a profile as verified
+     *
+     * @param profileId the profile ID
+     * @return the updated profile response
+     */
+    @PatchMapping("/{profileId}/verify")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProfileResponse>> verifyProfile(@PathVariable String profileId) {
+        log.info("PATCH /profiles/{}/verify - Marking profile as verified", profileId);
+        ProfileResponse response = profileService.verifyProfile(profileId);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
      * Check if profile exists for user ID
      *
      * @param userId the user ID
