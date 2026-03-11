@@ -5,7 +5,6 @@ import com.leafy.common.model.BaseModel;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.mapping.Document;
-import org.springframework.data.mongodb.core.mapping.FieldType;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
 @Getter
@@ -17,8 +16,7 @@ import org.springframework.data.mongodb.core.mapping.MongoId;
 @EqualsAndHashCode(callSuper = false)
 @Document("user")
 public class User extends BaseModel {
-
-    @MongoId(FieldType.OBJECT_ID)
+    @MongoId
     String id;
 
     String email;
