@@ -10,18 +10,12 @@ spring:
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
       authentication-database: admin
+  servlet:
+    multipart:
+      max-file-size: 50MB
+      max-request-size: 50MB
 
-# File upload configuration
-file:
-  upload:
-    max-size: ${FILE_UPLOAD_MAX_SIZE}
-    allowed-extensions: ${FILE_UPLOAD_ALLOWED_EXTENSIONS}
-  storage:
-    type: ${FILE_STORAGE_TYPE}
-    local:
-      path: ${FILE_STORAGE_LOCAL_PATH}
-    s3:
-      bucket: ${FILE_STORAGE_S3_BUCKET}
-      region: ${FILE_STORAGE_S3_REGION}
-      access-key: ${FILE_STORAGE_S3_ACCESS_KEY}
-      secret-key: ${FILE_STORAGE_S3_SECRET_KEY}
+aws:
+  s3:
+    bucket: leafy-meida-storage
+  region: ap-southeast-1

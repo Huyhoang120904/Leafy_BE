@@ -1,27 +1,22 @@
-package com.leafy.authservice.service.user;
+package com.leafy.common.security.service;
 
 import com.leafy.common.utils.ServiceSecurityUtils;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 /**
- * Security service for user-related authorization checks
+ * Implementation of UserSecurityService for generic authorization checks.
  */
 @Service("userSecurityService")
 @Slf4j
-public class UserSecurityService {
+public class UserSecurityServiceImpl implements UserSecurityService {
 
-    /**
-     * Check if the current authenticated user is the same as the specified user ID
-     *
-     * @param userId the user ID to check
-     * @return true if current user matches the user ID, false otherwise
-     */
+    @Override
     public boolean isCurrentUser(String userId) {
         try {
             String currentUserId = ServiceSecurityUtils.getCurrentAccountId();
             boolean isCurrentUser = currentUserId.equals(userId);
-            log.debug("Checking if current user ({}) matches target user ({}): {}", 
+            log.debug("Checking if current user ({}) matches target user ({}): {}",
                     currentUserId, userId, isCurrentUser);
             return isCurrentUser;
         } catch (Exception e) {
