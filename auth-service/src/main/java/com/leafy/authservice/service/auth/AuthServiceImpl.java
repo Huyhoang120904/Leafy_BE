@@ -1,5 +1,7 @@
 package com.leafy.authservice.service.auth;
 
+import com.leafy.authservice.client.ProfileClient;
+import com.leafy.authservice.client.dto.CreateProfileRequest;
 import com.leafy.authservice.dto.JwtPayload;
 import com.leafy.authservice.dto.request.InitialRegisterRequest;
 import com.leafy.authservice.dto.request.LoginRequest;
@@ -59,6 +61,7 @@ public class AuthServiceImpl implements AuthService {
     OtpService otpService;
     RegistrationDataRepository registrationDataRepository;
     RefreshSessionService refreshSessionService;
+    ProfileClient profileClient;
 
     @NonFinal
     @Value("${security.rate-limit.login.max-attempts:5}")
@@ -152,6 +155,13 @@ public class AuthServiceImpl implements AuthService {
 
         registrationDataRepository.delete(registrationData);
         otpService.deleteOtp(verifyRequest.getEmail());
+
+        try {
+            profileClient.createProfile(new CreateProfileRequest(savedUser.getId()));
+            log.info("Profile creation requested for user: {}", savedUser.getId());
+        } catch (Exception e) {
+            log.error("Failed to create profile for user {}: {}", savedUser.getId(), e.getMessage());
+        }
 
         return authenticateAndBuildResponse(
             savedUser,

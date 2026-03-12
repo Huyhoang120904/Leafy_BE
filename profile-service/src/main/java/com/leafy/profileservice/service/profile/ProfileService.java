@@ -22,6 +22,14 @@ public interface ProfileService {
     ProfileResponse createProfile(ProfileCreateRequest request);
 
     /**
+     * Create a minimal profile for a newly registered user (internal use only)
+     *
+     * @param userId the user ID from auth service
+     * @return the created profile response
+     */
+    ProfileResponse createProfileInternal(String userId);
+
+    /**
      * Update an existing profile
      *
      * @param profileId the profile ID

@@ -1,4 +1,4 @@
-package com.leafy.userservice.config;
+package com.leafy.profileservice.config;
 
 import com.leafy.common.config.SecurityProperties;
 import com.leafy.common.security.SecurityContextFilter;
@@ -14,10 +14,6 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 
-/**
- * Service-specific Security Configuration
- * Replaces CommonSecurityConfig
- */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
@@ -60,7 +56,7 @@ public class SecurityConfig {
                 })
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {
-                            // Let @RestControllerAdvice handle exceptions, don't return 403
+                            // Let @RestControllerAdvice handle exceptions
                         }))
                 .addFilterBefore(securityContextFilter, UsernamePasswordAuthenticationFilter.class);
 

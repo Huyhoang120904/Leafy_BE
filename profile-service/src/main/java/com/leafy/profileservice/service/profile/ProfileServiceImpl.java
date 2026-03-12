@@ -64,6 +64,28 @@ public class ProfileServiceImpl implements ProfileService {
     }
 
     @Override
+    public ProfileResponse createProfileInternal(String userId) {
+        log.info("Creating minimal profile for new user: {}", userId);
+
+        if (profileRepository.existsByUserId(userId)) {
+            log.warn("Profile already exists for user ID: {}", userId);
+            throw new AppException(ErrorCode.ACC_ACCOUNT_NOT_FOUND);
+        }
+
+        Profile profile = Profile.builder()
+                .userId(userId)
+                .role(UserRole.FARMER)
+                .isVerified(false)
+                .build();
+        profile.setActive(true);
+
+        Profile savedProfile = profileRepository.save(profile);
+        log.info("Minimal profile created successfully for user: {}", userId);
+
+        return profileMapper.toResponse(savedProfile);
+    }
+
+    @Override
     public ProfileResponse updateProfile(String profileId, ProfileUpdateRequest request) {
         log.info("Updating profile with ID: {}", profileId);
 
