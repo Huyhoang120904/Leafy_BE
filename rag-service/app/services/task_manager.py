@@ -14,7 +14,7 @@ class TaskInfo(BaseModel):
     status: TaskStatus
     created_at: datetime
     updated_at: datetime
-    message: Optional[str] = None
+    message_key: Optional[str] = None
     file_info: Optional[Dict] = None
     error: Optional[str] = None
 
@@ -37,19 +37,25 @@ class TaskManager:
             status=TaskStatus.PENDING,
             created_at=now,
             updated_at=now,
-            message="Task created",
+            message_key="task.created",
             file_info=file_info
         )
         self._tasks[task_id] = task
         return task
 
-    def update_task(self, task_id: str, status: TaskStatus, message: str = None, error: str = None):
+    def update_task(
+        self,
+        task_id: str,
+        status: TaskStatus,
+        message_key: str = None,
+        error: str = None,
+    ):
         if task_id in self._tasks:
             task = self._tasks[task_id]
             task.status = status
             task.updated_at = datetime.utcnow()
-            if message:
-                task.message = message
+            if message_key:
+                task.message_key = message_key
             if error:
                 task.error = error
 

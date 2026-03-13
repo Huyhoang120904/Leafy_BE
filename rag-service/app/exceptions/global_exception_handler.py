@@ -4,6 +4,7 @@ from fastapi.exceptions import RequestValidationError
 from starlette.responses import JSONResponse
 
 from app.exceptions.app_exception import AppException
+from app.i18n import get_message, resolve_locale
 
 logger = logging.getLogger(__name__)
 
@@ -13,30 +14,33 @@ def register_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(AppException)
     async def app_exception_handler(request: Request, exc: AppException):
+        locale = resolve_locale(request)
+        message = exc.detail or get_message(exc.error_code.message_key, locale)
         logger.warning(
             "AppException [%s] on %s %s: %s",
             exc.error_code.name,
             request.method,
             request.url.path,
-            exc.detail,
+            message,
         )
         return JSONResponse(
             status_code=exc.error_code.http_status,
             content={
                 "code": exc.error_code.code,
-                "message": exc.detail,
+                "message": message,
                 "result": None,
             },
         )
 
     @app.exception_handler(RequestValidationError)
     async def validation_exception_handler(request: Request, exc: RequestValidationError):
+        locale = resolve_locale(request)
         logger.warning("Validation error on %s %s: %s", request.method, request.url.path, exc.errors())
         return JSONResponse(
             status_code=422,
             content={
                 "code": 4220,
-                "message": "Request validation failed",
+                "message": get_message("error.validation.error", locale),
                 "result": exc.errors(),
             },
         )
@@ -55,11 +59,12 @@ def register_exception_handlers(app: FastAPI) -> None:
             exc,
             exc_info=True,
         )
+        locale = resolve_locale(request)
         return JSONResponse(
             status_code=500,
             content={
                 "code": 5000,
-                "message": f"{type(exc).__name__}: {exc}",
+                "message": get_message("error.sys.uncategorized", locale),
                 "result": None,
             },
         )

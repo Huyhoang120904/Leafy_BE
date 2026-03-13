@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 
 from app.agents.rag_agent import rag_app
 from app.core.security import get_current_user, UserPrincipal
@@ -9,6 +9,7 @@ from app.dto.chat.chat_dto import ChatRequest, ChatResponse
 from app.dto.response.api_response import ApiResponse
 from app.exceptions.app_exception import AppException
 from app.exceptions.error_code import ErrorCode
+from app.i18n import get_message, resolve_locale
 from app.models.treatment_plan_doc import TreatmentPlanDoc
 from app.repositories.treatment_plan_repository import get_treatment_plan_repository
 
@@ -28,6 +29,7 @@ router = APIRouter()
     },
 )
 async def chat(
+    request_context: Request,
     request: ChatRequest,
     current_user: UserPrincipal = Depends(get_current_user),
 ):
@@ -56,7 +58,7 @@ async def chat(
         final_state = await rag_app.ainvoke(initial_state)
     except Exception as e:
         logger.error("RAG pipeline error for user %s: %s", current_user.id, e, exc_info=True)
-        raise AppException(ErrorCode.RAG_PIPELINE_ERROR, str(e))
+        raise AppException(ErrorCode.RAG_PIPELINE_ERROR)
 
     # ── Persist TreatmentPlan to MongoDB (if pipeline produced one) ────────────
     saved_plan_id = None
@@ -94,12 +96,14 @@ async def chat(
             # Save errors are logged but NEVER propagate to the caller
             logger.error("Failed to persist TreatmentPlan: %s", e, exc_info=True)
 
+    locale = resolve_locale(request_context)
+
     result = ChatResponse(
-        answer=final_state.get("generation", "I could not generate an answer."),
+        answer=final_state.get("generation", get_message("response.chat.no_answer", locale)),
         documents=final_state.get("documents", []),
         treatment_plan=generated_plan,
         plant_id=final_state.get("plant_id"),
         web_search_results=final_state.get("web_search_results", []),
         saved_plan_id=saved_plan_id,
     )
-    return ApiResponse.success(result=result)
+    return ApiResponse.success(result=result, locale=locale)
