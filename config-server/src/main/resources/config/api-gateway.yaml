@@ -208,6 +208,26 @@ spring:
                 - Path=/rag-service/v3/api-docs/**
               filters:
                 - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
+                
+            # Disease Classification Service Routes
+            - id: disease-classification-service
+              uri: lb://disease-classification-service
+              predicates:
+                - Path=/api/diseases/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: diseaseClassificationServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/disease-classification-service
+
+            # OpenAPI Documentation Routes for Disease Classification Service
+            - id: disease-classification-service-openapi
+              uri: lb://disease-classification-service
+              predicates:
+                - Path=/disease-classification-service/v3/api-docs/**
+              filters:
+                - RewritePath=/disease-classification-service/v3/api-docs, /v3/api-docs
 
           globalCors:
             cors-configurations:
@@ -308,6 +328,8 @@ resilience4j:
       profileServiceCircuitBreaker:
         baseConfig: default
       ragServiceCircuitBreaker:
+         baseConfig: default
+      diseaseClassificationServiceCircuitBreaker:
         baseConfig: default
 
   timelimiter:
@@ -331,6 +353,8 @@ resilience4j:
         baseConfig: default
       ragServiceCircuitBreaker:
         timeoutDuration: 120s
+      diseaseClassificationServiceCircuitBreaker:
+        baseConfig: default
 
 # JWT Configuration
 jwt:
@@ -364,6 +388,8 @@ springdoc:
         url: /profile-service/v3/api-docs
       - name: rag-service
         url: /rag-service/v3/api-docs
+      - name: disease-classification-service
+        url: /disease-classification-service/v3/api-docs
     operations-sorter: method
     tags-sorter: alpha
     display-request-duration: true
