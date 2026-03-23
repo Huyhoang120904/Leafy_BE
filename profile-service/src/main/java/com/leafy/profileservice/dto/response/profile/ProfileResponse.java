@@ -1,8 +1,5 @@
 package com.leafy.profileservice.dto.response.profile;
-
-import com.leafy.profileservice.dto.response.preferences.UserPreferenceResponse;
-import com.leafy.profileservice.dto.CertificateDto;
-import com.leafy.profileservice.model.enums.UserRole;
+import com.leafy.common.enums.ProfileRole;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -28,7 +25,7 @@ public class ProfileResponse {
 
     String avatar;
 
-    UserRole role;
+    ProfileRole role;
 
     String specialty;
 

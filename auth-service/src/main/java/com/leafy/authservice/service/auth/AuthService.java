@@ -1,5 +1,6 @@
 package com.leafy.authservice.service.auth;
 
+import com.leafy.authservice.dto.request.ChangePasswordRequest;
 import com.leafy.authservice.dto.request.InitialRegisterRequest;
 import com.leafy.authservice.dto.request.LoginRequest;
 import com.leafy.authservice.dto.request.LogoutDeviceRequest;
@@ -17,6 +18,13 @@ import jakarta.servlet.http.HttpServletResponse;
  * Handles authentication flows: registration, login, token refresh, and logout
  */
 public interface AuthService {
+    
+    /**
+     * Change user password
+     *
+     * @param request the change password request
+     */
+    void changePassword(ChangePasswordRequest request);
     
     /**
      * Initiate registration process (Step 1)

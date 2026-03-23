@@ -1,4 +1,4 @@
-package com.leafy.profileservice.model.enums;
+package com.leafy.searchservice.model.enums;
 
 /**
  * User roles in the platform

@@ -3,11 +3,11 @@ package com.leafy.authservice.service.auth;
 import com.leafy.authservice.client.ProfileClient;
 import com.leafy.authservice.client.dto.CreateProfileRequest;
 import com.leafy.authservice.dto.JwtPayload;
+import com.leafy.authservice.dto.request.ChangePasswordRequest;
 import com.leafy.authservice.dto.request.InitialRegisterRequest;
 import com.leafy.authservice.dto.request.LoginRequest;
 import com.leafy.authservice.dto.request.LogoutDeviceRequest;
 import com.leafy.authservice.dto.request.RefreshTokenRequest;
-import com.leafy.authservice.dto.request.RegisterRequest;
 import com.leafy.authservice.dto.request.VerifyOtpRequest;
 import com.leafy.authservice.dto.response.AuthResponse;
 import com.leafy.authservice.dto.response.RegistrationInitResponse;
@@ -26,6 +26,7 @@ import com.leafy.common.enums.Role;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.common.utils.JwtUtil;
+import com.leafy.common.utils.ServiceSecurityUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -39,7 +40,6 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.util.Arrays;
-import java.util.UUID;
 
 /**
  * Authentication Service implementation
@@ -89,6 +89,29 @@ public class AuthServiceImpl implements AuthService {
     static final int COOKIE_MAX_AGE = 2592000; // 30 days
     
     @Override
+    public void changePassword(ChangePasswordRequest request) {
+        String userId = ServiceSecurityUtils.getCurrentAccountId();
+        log.info("Changing password for user: {}", userId);
+
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new AppException(ErrorCode.ACC_PASSWORD_MISMATCH);
+        }
+
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
+
+        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
+            log.warn("Invalid old password for user: {}", userId);
+            throw new AppException(ErrorCode.AUTH_INVALID_CREDENTIALS);
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
+
+        log.info("Password changed successfully for user: {}", userId);
+    }
+
+    @Override
     public RegistrationInitResponse initiateRegistration(InitialRegisterRequest request) {
         log.info("Initiating registration for email: {}", request.getEmail());
 
@@ -97,6 +120,7 @@ public class AuthServiceImpl implements AuthService {
 
         RegistrationData registrationData = RegistrationData.builder()
                 .email(request.getEmail())
+            .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
                 .hashedPassword(passwordEncoder.encode(request.getPassword()))
                 .appVersion(request.getAppVersion())
@@ -157,7 +181,12 @@ public class AuthServiceImpl implements AuthService {
         otpService.deleteOtp(verifyRequest.getEmail());
 
         try {
-            profileClient.createProfile(new CreateProfileRequest(savedUser.getId()));
+            profileClient.createProfile(CreateProfileRequest.builder()
+                    .userId(savedUser.getId())
+                    .fullName(registrationData.getFullName())
+                    .email(savedUser.getEmail())
+                    .phoneNumber(savedUser.getPhoneNumber())
+                    .build());
             log.info("Profile creation requested for user: {}", savedUser.getId());
         } catch (Exception e) {
             log.error("Failed to create profile for user {}: {}", savedUser.getId(), e.getMessage());

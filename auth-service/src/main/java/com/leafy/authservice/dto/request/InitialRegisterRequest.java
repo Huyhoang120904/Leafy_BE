@@ -18,6 +18,9 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class InitialRegisterRequest {
 
+    @NotBlank(message = "{validation.fullName.required}")
+    String fullName;
+
     @NotBlank(message = "{validation.email.required}")
     @Email(message = "{validation.email.invalid}")
     String email;

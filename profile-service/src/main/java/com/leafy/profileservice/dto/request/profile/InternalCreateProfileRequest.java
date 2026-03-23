@@ -16,4 +16,10 @@ public class InternalCreateProfileRequest {
 
     @NotBlank(message = "{validation.userId.required}")
     String userId;
+
+    String fullName;
+
+    String email;
+
+    String phoneNumber;
 }

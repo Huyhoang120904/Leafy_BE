@@ -25,6 +25,18 @@ spring:
                     name: authServiceCircuitBreaker
                     fallbackUri: forward:/fallback/auth-service
 
+            # Auth Service Routes
+            - id: auth-service-seed
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/seed/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: authServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/auth-service
+
             # Device Management Routes (Auth Service)
             - id: device-service
               uri: lb://auth-service
@@ -145,6 +157,18 @@ spring:
                     name: ragServiceCircuitBreaker
                     fallbackUri: forward:/fallback/rag-service
 
+            # Search Service Routes
+            - id: search-service
+              uri: lb://search-service
+              predicates:
+                - Path=/api/search/**
+              filters:
+                - RewritePath=/api/search/(?<segment>.*), /$\{segment}
+                - name: CircuitBreaker
+                  args:
+                    name: searchServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/search-service
+
             # OpenAPI Documentation Routes for Auth Service
             - id: auth-service-openapi
               uri: lb://auth-service
@@ -208,6 +232,14 @@ spring:
                 - Path=/rag-service/v3/api-docs/**
               filters:
                 - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
+
+            # OpenAPI Documentation Routes for Search Service
+            - id: search-service-openapi
+              uri: lb://search-service
+              predicates:
+                - Path=/search-service/v3/api-docs/**
+              filters:
+                - RewritePath=/search-service/v3/api-docs, /v3/api-docs
 
             # Disease Detection Service Routes
             - id: disease-detection-service
@@ -329,6 +361,8 @@ resilience4j:
         baseConfig: default
       ragServiceCircuitBreaker:
         baseConfig: default
+      searchServiceCircuitBreaker:
+        baseConfig: default
       diseaseClassificationServiceCircuitBreaker:
         baseConfig: default
 
@@ -353,6 +387,8 @@ resilience4j:
         baseConfig: default
       ragServiceCircuitBreaker:
         timeoutDuration: 120s
+      searchServiceCircuitBreaker:
+        baseConfig: default
       diseaseClassificationServiceCircuitBreaker:
         baseConfig: default
 
@@ -388,6 +424,8 @@ springdoc:
         url: /profile-service/v3/api-docs
       - name: rag-service
         url: /rag-service/v3/api-docs
+      - name: search-service
+        url: /search-service/v3/api-docs
       - name: disease-detection-service
         url: /disease-detection-service/v3/api-docs
     operations-sorter: method

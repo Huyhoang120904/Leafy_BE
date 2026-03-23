@@ -1,10 +1,10 @@
 package com.leafy.authservice.controller;
 
+import com.leafy.authservice.dto.request.ChangePasswordRequest;
 import com.leafy.authservice.dto.request.InitialRegisterRequest;
 import com.leafy.authservice.dto.request.LoginRequest;
 import com.leafy.authservice.dto.request.LogoutDeviceRequest;
 import com.leafy.authservice.dto.request.RefreshTokenRequest;
-import com.leafy.authservice.dto.request.RegisterRequest;
 import com.leafy.authservice.dto.request.ResendOtpRequest;
 import com.leafy.authservice.dto.request.VerifyOtpRequest;
 import com.leafy.authservice.dto.response.AuthResponse;
@@ -20,9 +20,7 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
-import lombok.experimental.NonFinal;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -242,5 +240,21 @@ public class AuthController {
         authService.logoutOther(request, response);
 
         return ResponseEntity.noContent().build();
+    }
+
+    /**
+     * Change password endpoint
+     *
+     * @param request the change password request
+     * @return success message
+     */
+    @PostMapping("/change-password")
+    public ResponseEntity<ApiResponse<String>> changePassword(
+            @Valid @RequestBody ChangePasswordRequest request) {
+        log.info("POST /auth/change-password");
+        
+        authService.changePassword(request);
+        
+        return ResponseEntity.ok(ApiResponse.success("Password changed successfully"));
     }
 }

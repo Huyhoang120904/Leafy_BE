@@ -14,6 +14,13 @@ public class KafkaTopicProperties {
     private UserEvents userEvents = new UserEvents();
     private MessageEvents messageEvents = new MessageEvents();
     private NotificationEvents notificationEvents = new NotificationEvents();
+    private ProfileEvents profileEvents = new ProfileEvents();
+
+    @Getter
+    @Setter
+    public static class ProfileEvents {
+        private String created = "profile.created";
+    }
 
     @Getter
     @Setter

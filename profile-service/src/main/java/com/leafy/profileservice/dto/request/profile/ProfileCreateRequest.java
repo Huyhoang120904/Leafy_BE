@@ -1,7 +1,7 @@
 package com.leafy.profileservice.dto.request.profile;
 
+import com.leafy.common.enums.ProfileRole;
 import com.leafy.profileservice.dto.request.preferences.UserPreferenceRequest;
-import com.leafy.profileservice.model.enums.UserRole;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -29,7 +29,7 @@ public class ProfileCreateRequest {
     String avatar;
 
     @NotNull(message = "{validation.profile.role.required}")
-    UserRole role;
+    ProfileRole role;
 
     String specialty;
 

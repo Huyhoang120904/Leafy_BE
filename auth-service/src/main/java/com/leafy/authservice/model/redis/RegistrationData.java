@@ -29,6 +29,11 @@ public class RegistrationData {
      */
     @Indexed
     String email;
+
+    /**
+     * Full name
+     */
+    String fullName;
     
     /**
      * Phone number
