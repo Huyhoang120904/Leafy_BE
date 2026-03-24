@@ -17,6 +17,21 @@ services:
     networks:
       - leafy-network
 
+  postgresql:
+    image: postgres:16-alpine
+    container_name: leafy-postgresql
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: leafy_iot_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    networks:
+      - leafy-network
+
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: leafy-kafka
@@ -81,3 +96,4 @@ volumes:
   mongodb_config:
   kafka_data:
   redis_data:
+  postgresql_data:
