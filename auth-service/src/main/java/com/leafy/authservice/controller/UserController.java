@@ -3,7 +3,9 @@ package com.leafy.authservice.controller;
 import com.leafy.authservice.dto.request.UserCreateRequest;
 import com.leafy.authservice.dto.request.UserUpdateRequest;
 import com.leafy.authservice.dto.response.UserDetailsResponse;
+import com.leafy.authservice.dto.response.UserProfileSeederResponse;
 import com.leafy.authservice.dto.response.UserResponse;
+import com.leafy.authservice.service.seeder.UserProfileSeederService;
 import com.leafy.authservice.service.user.UserService;
 import com.leafy.common.dto.ApiResponse;
 import com.leafy.common.enums.Role;
@@ -32,6 +34,7 @@ import java.util.Map;
 public class UserController {
 
     private final UserService userService;
+    private final UserProfileSeederService userProfileSeederService;
 
     /**
      * Create a new user
@@ -174,6 +177,15 @@ public class UserController {
         Pageable pageable = PageRequest.of(page, size, sort);
         
         Page<UserResponse> response = userService.searchUsers(searchTerm, pageable);
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    @GetMapping("/seed")
+    @PreAuthorize("hasAuthority('ADMIN')")
+    public ResponseEntity<ApiResponse<UserProfileSeederResponse>> seedUsersAndProfilesViaGet(
+            @RequestParam(name = "q", defaultValue = "10") int quantity) {
+        log.info("GET /users/seed - Seeding users and profiles. Quantity: {}", quantity);
+        UserProfileSeederResponse response = userProfileSeederService.seedUsersAndProfiles(quantity);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

@@ -15,14 +15,20 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostServiceImpl implements PostService {
+
+    private static final List<PostType> FEED_AND_SHARED_TYPES = List.of(PostType.FEED, PostType.SHARE);
 
     PostRepository postRepository;
     PostMapper postMapper;
@@ -58,6 +64,12 @@ public class PostServiceImpl implements PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new AppException(ErrorCode.SYS_UNCATEGORIZED)); 
         return postMapper.toResponse(post);
+    }
+
+    @Override
+    public Page<PostResponse> getAllFeedAndSharedPosts(Pageable pageable) {
+        return postRepository.findByPostTypeIn(FEED_AND_SHARED_TYPES, pageable)
+                .map(postMapper::toResponse);
     }
 
     @Override

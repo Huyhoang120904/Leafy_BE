@@ -29,25 +29,13 @@ spring:
             - id: device-service
               uri: lb://auth-service
               predicates:
-                - Path=/api/devices/**
+                - Path=/api/devices/**,/api/users/**
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
                   args:
                     name: authServiceCircuitBreaker
                     fallbackUri: forward:/fallback/auth-service
-
-            # User Service Routes
-            - id: user-service
-              uri: lb://user-service
-              predicates:
-                - Path=/api/users/**
-              filters:
-                - StripPrefix=1
-                - name: CircuitBreaker
-                  args:
-                    name: userServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/user-service
 
             # Farm Service Routes
             - id: farm-service
@@ -208,7 +196,7 @@ spring:
                 - Path=/rag-service/v3/api-docs/**
               filters:
                 - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
-                
+
             # Disease Classification Service Routes
             - id: disease-classification-service
               uri: lb://disease-classification-service
@@ -245,9 +233,10 @@ spring:
             - id: community-feed-service-openapi
               uri: lb://community-feed-service
               predicates:
-                - Path=/community-feed-service/v3/api-docs/**
+                - Path=/community-feed-service/v3/api-docs, /community-feed-service/v3/api-docs/**, /community-feed-service/v3/api-doc, /community-feed-service/v3/api-doc/**
               filters:
                 - RewritePath=/community-feed-service/v3/api-docs, /v3/api-docs
+                - RewritePath=/community-feed-service/v3/api-doc, /v3/api-doc
 
           globalCors:
             cors-configurations:
@@ -348,7 +337,7 @@ resilience4j:
       profileServiceCircuitBreaker:
         baseConfig: default
       ragServiceCircuitBreaker:
-         baseConfig: default
+        baseConfig: default
       diseaseClassificationServiceCircuitBreaker:
         baseConfig: default
       communityFeedServiceCircuitBreaker:
