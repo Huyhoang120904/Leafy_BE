@@ -10,6 +10,15 @@ spring:
       username: ${MONGODB_USERNAME}
       password: ${MONGODB_PASSWORD}
       authentication-database: admin
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS}
+    consumer:
+      group-id: notification-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.trusted.packages: "*"
 
 bondhub:
   security:
@@ -30,3 +39,10 @@ notification:
     enabled: ${NOTIFICATION_SMS_ENABLED}
   push:
     enabled: ${NOTIFICATION_PUSH_ENABLED}
+  kafka:
+    topics:
+      alertTriggered: iot.alert.triggered
+
+firebase:
+  enabled: true
+  configPath: /opt/secrets/firebase-service-account.json
