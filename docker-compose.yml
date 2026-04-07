@@ -32,21 +32,6 @@ services:
     networks:
       - leafy-network
 
-  postgresql-farm:
-    image: postgres:16-alpine
-    container_name: leafy-postgresql-farm
-    restart: unless-stopped
-    ports:
-      - "5433:5432"   # ⚠️ KHÁC 5432 để tránh conflict
-    environment:
-      POSTGRES_DB: leafy_farm_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
-    volumes:
-      - postgresql_farm_data:/var/lib/postgresql/data
-    networks:
-      - leafy-network
-
   kafka:
     image: confluentinc/cp-kafka:7.5.0
     container_name: leafy-kafka
