@@ -1,9 +1,9 @@
 package com.leafy.profileservice.controller;
 
 import com.leafy.common.dto.ApiResponse;
-import com.leafy.profileservice.dto.ApprovalRequestDto;
 import com.leafy.profileservice.dto.request.profile.CreateApprovalRequest;
 import com.leafy.profileservice.dto.request.profile.UpdateCertificateStatusRequest;
+import com.leafy.profileservice.dto.response.profile.ApprovalRequestDto;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import com.leafy.profileservice.service.certificate.CertificateService;
 import jakarta.validation.Valid;

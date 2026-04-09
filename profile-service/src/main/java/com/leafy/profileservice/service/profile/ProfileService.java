@@ -1,12 +1,16 @@
 package com.leafy.profileservice.service.profile;
 
 import com.leafy.profileservice.dto.request.profile.ProfileCreateRequest;
+import com.leafy.profileservice.dto.request.profile.InternalCreateProfileRequest;
 import com.leafy.profileservice.dto.request.profile.ProfileUpdateRequest;
 import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
+import com.leafy.profileservice.dto.response.profile.UserSyncResponse;
 import com.leafy.profileservice.model.Profile;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 /**
  * Service interface for Profile management
@@ -20,6 +24,14 @@ public interface ProfileService {
      * @return the created profile response
      */
     ProfileResponse createProfile(ProfileCreateRequest request);
+
+    /**
+     * Create a minimal profile for a newly registered user (internal use only)
+     *
+    * @param request the internal create request from auth service
+     * @return the created profile response
+     */
+    ProfileResponse createProfileInternal(InternalCreateProfileRequest request);
 
     /**
      * Update an existing profile
@@ -133,6 +145,15 @@ public interface ProfileService {
      * @return true if exists, false otherwise
      */
     boolean existsByUserId(String userId);
+
+    /**
+     * Get users in cursor-based batches for internal synchronization.
+     *
+     * @param lastId cursor ID (exclusive); null or blank to start from beginning
+     * @param size   batch size
+     * @return list of sync responses
+     */
+    List<UserSyncResponse> getUsersBatch(String lastId, int size);
 
     /**
      * Mark a profile as verified

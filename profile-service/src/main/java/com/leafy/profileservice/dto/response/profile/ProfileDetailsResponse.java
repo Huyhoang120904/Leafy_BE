@@ -1,8 +1,7 @@
 package com.leafy.profileservice.dto.response.profile;
 
-import com.leafy.profileservice.dto.CertificateDto;
+import com.leafy.common.enums.ProfileRole;
 import com.leafy.profileservice.dto.response.preferences.UserPreferenceResponse;
-import com.leafy.profileservice.model.enums.UserRole;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -28,7 +27,7 @@ public class ProfileDetailsResponse {
 
     String avatar;
 
-    UserRole role;
+    ProfileRole role;
 
     String specialty;
 
@@ -37,6 +36,18 @@ public class ProfileDetailsResponse {
     Boolean isVerified;
 
     String bio;
+
+    String addressLine;
+
+    String provinceCode;
+
+    String districtCode;
+
+    String wardCode;
+
+    Double latitude;
+
+    Double longitude;
 
     UserPreferenceResponse userPreference;
 

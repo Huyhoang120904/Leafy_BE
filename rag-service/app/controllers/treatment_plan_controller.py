@@ -1,12 +1,13 @@
 import logging
 from typing import List, Optional
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, Request
 
 from app.core.security import get_current_user, require_roles, UserPrincipal
 from app.dto.response.api_response import ApiResponse
 from app.exceptions.app_exception import AppException
 from app.exceptions.error_code import ErrorCode
+from app.i18n import get_message, resolve_locale
 from app.repositories.treatment_plan_repository import get_treatment_plan_repository
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ router = APIRouter()
     },
 )
 async def list_treatment_plans(
+    request: Request,
     page: int = Query(0, ge=0, description="Zero-based page number."),
     size: int = Query(20, ge=1, le=100, description="Number of plans per page."),
     current_user: UserPrincipal = Depends(get_current_user),
@@ -42,7 +44,8 @@ async def list_treatment_plans(
     else:
         plans = repo.find_by_user(user_id=current_user.id, skip=skip, limit=size)
 
-    return ApiResponse.success(result=plans)
+    locale = resolve_locale(request)
+    return ApiResponse.success(result=plans, locale=locale)
 
 
 @router.get(
@@ -56,6 +59,7 @@ async def list_treatment_plans(
     },
 )
 async def get_treatment_plan(
+    request: Request,
     plan_id: str,
     current_user: UserPrincipal = Depends(get_current_user),
 ):
@@ -70,7 +74,8 @@ async def get_treatment_plan(
     if not is_admin and plan.get("userId") != current_user.id:
         raise AppException(ErrorCode.TREATMENT_PLAN_ACCESS_DENIED)
 
-    return ApiResponse.success(result=plan)
+    locale = resolve_locale(request)
+    return ApiResponse.success(result=plan, locale=locale)
 
 
 @router.delete(
@@ -84,6 +89,7 @@ async def get_treatment_plan(
     },
 )
 async def delete_treatment_plan(
+    request: Request,
     plan_id: str,
     current_user: UserPrincipal = Depends(get_current_user),
 ):
@@ -100,4 +106,8 @@ async def delete_treatment_plan(
 
     repo.delete_by_id(plan_id)
     logger.info("TreatmentPlan deleted — planId=%s, by userId=%s", plan_id, current_user.id)
-    return ApiResponse.success(message="Treatment plan deleted successfully.")
+    locale = resolve_locale(request)
+    return ApiResponse.success(
+        message=get_message("response.treatment.plan.deleted", locale),
+        locale=locale,
+    )

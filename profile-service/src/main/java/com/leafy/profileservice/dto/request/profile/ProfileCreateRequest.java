@@ -1,7 +1,7 @@
 package com.leafy.profileservice.dto.request.profile;
 
+import com.leafy.common.enums.ProfileRole;
 import com.leafy.profileservice.dto.request.preferences.UserPreferenceRequest;
-import com.leafy.profileservice.model.enums.UserRole;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -18,22 +18,34 @@ import lombok.experimental.FieldDefaults;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class ProfileCreateRequest {
 
-    @NotBlank(message = "User ID is required")
+    @NotBlank(message = "{validation.userId.required}")
     String userId;
 
-    @NotBlank(message = "Full name is required")
+    @NotBlank(message = "{validation.fullName.required}")
     String fullName;
 
     String profilePicture;
 
     String avatar;
 
-    @NotNull(message = "Role is required")
-    UserRole role;
+    @NotNull(message = "{validation.profile.role.required}")
+    ProfileRole role;
 
     String specialty;
 
     String bio;
+
+    String addressLine;
+
+    String provinceCode;
+
+    String districtCode;
+
+    String wardCode;
+
+    Double latitude;
+
+    Double longitude;
 
     @Valid
     UserPreferenceRequest userPreference;

@@ -1,7 +1,7 @@
 package com.leafy.profileservice.model;
 
+import com.leafy.common.enums.ProfileRole;
 import com.leafy.common.model.BaseModel;
-import com.leafy.profileservice.model.enums.UserRole;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -15,8 +15,6 @@ import org.springframework.data.mongodb.core.mapping.MongoId;
  */
 @Getter
 @Setter
-@AllArgsConstructor
-@NoArgsConstructor
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @EqualsAndHashCode(callSuper = false)
@@ -50,7 +48,7 @@ public class Profile extends BaseModel {
     /**
      * User's primary role in the platform
      */
-    UserRole role;
+    ProfileRole role;
 
     /**
      * User's area of specialty (e.g., crop types, soil analysis)
@@ -67,6 +65,36 @@ public class Profile extends BaseModel {
      * User's biography or description
      */
     String bio;
+
+    /**
+     * User's address line
+     */
+    String addressLine;
+
+    /**
+     * Province code
+     */
+    String provinceCode;
+
+    /**
+     * District code
+     */
+    String districtCode;
+
+    /**
+     * Ward code
+     */
+    String wardCode;
+
+    /**
+     * Geographic latitude
+     */
+    Double latitude;
+
+    /**
+     * Geographic longitude
+     */
+    Double longitude;
 
     /**
      * User preferences (embedded document)

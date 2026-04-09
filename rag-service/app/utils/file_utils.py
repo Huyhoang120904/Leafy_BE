@@ -21,19 +21,13 @@ async def validate_file_size(file: UploadFile, limit_mb: int = 20) -> None:
     limit_bytes = limit_mb * 1024 * 1024
     content_length = file.headers.get("content-length")
     if content_length and int(content_length) > limit_bytes:
-        raise AppException(
-            ErrorCode.FILE_TOO_LARGE,
-            f"File size exceeds the {limit_mb} MB limit.",
-        )
+        raise AppException(ErrorCode.FILE_TOO_LARGE)
 
 
 def validate_mime_type(file: UploadFile, allowed_types: List[str]) -> None:
     """Validate file MIME type."""
     if file.content_type not in allowed_types:
-        raise AppException(
-            ErrorCode.UNSUPPORTED_MIME_TYPE,
-            f"Unsupported file type: {file.content_type}. Allowed: {allowed_types}",
-        )
+        raise AppException(ErrorCode.UNSUPPORTED_MIME_TYPE)
 
 
 async def calculate_file_hash(file_path: Path) -> str:

@@ -1,4 +1,4 @@
-package com.leafy.communityfeedservice.model.embedded;
+package com.leafy.searchservice.client.dto;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -7,18 +7,16 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.experimental.FieldDefaults;
 
-import java.util.Map;
-
 @Data
 @Builder
 @NoArgsConstructor
 @AllArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE)
-public class StoryElement {
-    String type;
-    String text;
-    String url;
-    Double x;
-    Double y;
-    Map<String, Object> metadata;
+public class AuthUserResponse {
+
+    String id;
+
+    String email;
+
+    String phoneNumber;
 }

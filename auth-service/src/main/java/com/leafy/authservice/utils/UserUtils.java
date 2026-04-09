@@ -131,7 +131,7 @@ public class UserUtils {
      * @return true if user can perform admin actions, false otherwise
      */
     public static boolean canPerformAdminActions(User user) {
-        return user != null && user.isActive() && isAdmin(user);
+        return user != null && user.getActive() && isAdmin(user);
     }
 
     /**

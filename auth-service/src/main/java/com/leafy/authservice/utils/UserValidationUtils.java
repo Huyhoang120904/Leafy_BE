@@ -83,7 +83,7 @@ public class UserValidationUtils {
      * @throws AppException if user is not active
      */
     public void validateUserIsActive(User user) {
-        if (!user.isActive()) {
+        if (!user.getActive()) {
             throw new AppException(ErrorCode.USER_NOT_FOUND);
         }
     }
