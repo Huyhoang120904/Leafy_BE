@@ -1,9 +1,6 @@
 package com.leafy.authservice.service.auth;
 
-import com.leafy.authservice.client.ProfileClient;
-import com.leafy.authservice.client.dto.CreateProfileRequest;
 import com.leafy.authservice.dto.JwtPayload;
-import com.leafy.authservice.dto.request.ChangePasswordRequest;
 import com.leafy.authservice.dto.request.InitialRegisterRequest;
 import com.leafy.authservice.dto.request.LoginRequest;
 import com.leafy.authservice.dto.request.LogoutDeviceRequest;
@@ -21,12 +18,13 @@ import com.leafy.authservice.service.jwt.JwtService;
 import com.leafy.authservice.service.otp.OtpService;
 import com.leafy.authservice.service.token.RefreshSessionService;
 import com.leafy.authservice.service.token.TokenBlacklistService;
+import com.leafy.authservice.client.ProfileServiceClient;
+import com.leafy.authservice.client.dto.ProfileCreateRequest;
 import com.leafy.common.config.JwtProperties;
 import com.leafy.common.enums.Role;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.common.utils.JwtUtil;
-import com.leafy.common.utils.ServiceSecurityUtils;
 import jakarta.servlet.http.Cookie;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -61,7 +59,7 @@ public class AuthServiceImpl implements AuthService {
     OtpService otpService;
     RegistrationDataRepository registrationDataRepository;
     RefreshSessionService refreshSessionService;
-    ProfileClient profileClient;
+    ProfileServiceClient profileServiceClient;
 
     @NonFinal
     @Value("${security.rate-limit.login.max-attempts:5}")
@@ -89,29 +87,6 @@ public class AuthServiceImpl implements AuthService {
     static final int COOKIE_MAX_AGE = 2592000; // 30 days
     
     @Override
-    public void changePassword(ChangePasswordRequest request) {
-        String userId = ServiceSecurityUtils.getCurrentAccountId();
-        log.info("Changing password for user: {}", userId);
-
-        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
-            throw new AppException(ErrorCode.ACC_PASSWORD_MISMATCH);
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new AppException(ErrorCode.USER_NOT_FOUND));
-
-        if (!passwordEncoder.matches(request.getOldPassword(), user.getPassword())) {
-            log.warn("Invalid old password for user: {}", userId);
-            throw new AppException(ErrorCode.AUTH_INVALID_CREDENTIALS);
-        }
-
-        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
-        userRepository.save(user);
-
-        log.info("Password changed successfully for user: {}", userId);
-    }
-
-    @Override
     public RegistrationInitResponse initiateRegistration(InitialRegisterRequest request) {
         log.info("Initiating registration for email: {}", request.getEmail());
 
@@ -120,8 +95,8 @@ public class AuthServiceImpl implements AuthService {
 
         RegistrationData registrationData = RegistrationData.builder()
                 .email(request.getEmail())
-            .fullName(request.getFullName())
                 .phoneNumber(request.getPhoneNumber())
+                .fullName(request.getFullName())
                 .hashedPassword(passwordEncoder.encode(request.getPassword()))
                 .appVersion(request.getAppVersion())
                 .ttl(registrationDataTtl)
@@ -180,16 +155,21 @@ public class AuthServiceImpl implements AuthService {
         registrationDataRepository.delete(registrationData);
         otpService.deleteOtp(verifyRequest.getEmail());
 
+        String profileId = null;
         try {
-            profileClient.createProfile(CreateProfileRequest.builder()
+            ProfileCreateRequest profileRequest = ProfileCreateRequest.builder()
                     .userId(savedUser.getId())
-                    .fullName(registrationData.getFullName())
-                    .email(savedUser.getEmail())
-                    .phoneNumber(savedUser.getPhoneNumber())
-                    .build());
-            log.info("Profile creation requested for user: {}", savedUser.getId());
+                    .fullName(registrationData.getFullName() != null ? registrationData.getFullName() : savedUser.getEmail().split("@")[0])
+                    .role("FARMER") // match UserRole.FARMER in profile-service
+                    .build();
+
+            var profileResponse = profileServiceClient.createProfile(profileRequest);
+            if (profileResponse != null && profileResponse.data() != null) {
+                profileId = profileResponse.data().getId();
+                log.info("Profile created synchronously for user: {}", savedUser.getId());
+            }
         } catch (Exception e) {
-            log.error("Failed to create profile for user {}: {}", savedUser.getId(), e.getMessage());
+            log.error("Failed to create profile synchronously for user {}: {}", savedUser.getId(), e.getMessage());
         }
 
         return authenticateAndBuildResponse(
@@ -198,7 +178,8 @@ public class AuthServiceImpl implements AuthService {
             userAgent,
             registrationData.getAppVersion(),
             response,
-            "Registration complete with tokens"
+            "Registration complete with tokens",
+            profileId
         );
     }
     
@@ -258,7 +239,8 @@ public class AuthServiceImpl implements AuthService {
                 userAgent,
                 request.getAppVersion(),
                 response,
-                "Login successful"
+                "Login successful",
+                null
         );
     }
     
@@ -537,12 +519,13 @@ public class AuthServiceImpl implements AuthService {
                                                       String userAgent,
                                                       String appVersion,
                                                       HttpServletResponse response,
-                                                      String successLogPrefix) {
+                                                      String successLogPrefix,
+                                                      String profileId) {
         var device = deviceService.registerOrUpdateDevice(user.getId(), deviceId, userAgent, appVersion);
         String finalDeviceId = device.getDeviceId();
         DeviceType deviceType = device.getDeviceType();
 
-        String accessToken = jwtService.generateAccessToken(user, finalDeviceId);
+        String accessToken = jwtService.generateAccessToken(user, finalDeviceId, profileId);
         String refreshToken = jwtService.generateRefreshToken(user, finalDeviceId);
         String accessTokenJti = jwtService.extractJti(accessToken);
 

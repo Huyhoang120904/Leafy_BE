@@ -72,7 +72,6 @@ public interface ProfileMapper {
     @Mapping(target = "createdBy", ignore = true)
     @Mapping(target = "lastModifiedBy", ignore = true)
     @Mapping(target = "active", ignore = true)
-    @Mapping(target = "fullName", ignore = true)
     @Mapping(target = "profilePicture", ignore = true)
     @Mapping(target = "isVerified", ignore = true)
     void updateEntityFromRequest(ProfileUpdateRequest request, @MappingTarget Profile profile);

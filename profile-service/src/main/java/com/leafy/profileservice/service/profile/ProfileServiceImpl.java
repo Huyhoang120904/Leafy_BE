@@ -2,36 +2,34 @@ package com.leafy.profileservice.service.profile;
 
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
-import com.leafy.common.event.profile.ProfileUpsertEvent;
+import com.leafy.common.event.profile.ProfileEvent;
 import com.leafy.common.model.kafka.EventType;
 import com.leafy.common.publisher.OutboxEventPublisher;
 import com.leafy.profileservice.dto.request.profile.ProfileCreateRequest;
-import com.leafy.profileservice.dto.request.profile.InternalCreateProfileRequest;
 import com.leafy.profileservice.dto.request.profile.ProfileUpdateRequest;
 import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
-import com.leafy.profileservice.dto.response.profile.UserSyncResponse;
 import com.leafy.profileservice.mapper.CertificateMapper;
 import com.leafy.profileservice.mapper.ProfileMapper;
+import com.leafy.profileservice.model.ApprovalRequest;
 import com.leafy.profileservice.model.Certificate;
 import com.leafy.profileservice.model.Profile;
 import com.leafy.profileservice.model.enums.CertificateStatus;
+import com.leafy.profileservice.model.enums.UserRole;
 import com.leafy.profileservice.repository.ApprovalRequestRepository;
 import com.leafy.profileservice.repository.ProfileRepository;
 import com.leafy.profileservice.client.AuthClient;
 import com.leafy.profileservice.client.dto.UserResponse;
 import com.leafy.common.dto.ApiResponse;
-import com.leafy.common.enums.ProfileRole;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
-import java.util.Optional;
+import java.util.stream.Collectors;
 
 /**
  * Implementation of ProfileService
@@ -48,7 +46,7 @@ public class ProfileServiceImpl implements ProfileService {
     private final ProfileMapper profileMapper;
     private final CertificateMapper certificateMapper;
     private final AuthClient authClient;
-    private final Optional<OutboxEventPublisher> outboxEventPublisher;
+    private final OutboxEventPublisher outboxEventPublisher;
 
     @Override
     public ProfileResponse createProfile(ProfileCreateRequest request) {
@@ -65,34 +63,7 @@ public class ProfileServiceImpl implements ProfileService {
         Profile savedProfile = profileRepository.save(profile);
         log.info("Profile created successfully with ID: {}", savedProfile.getId());
 
-        ProfileResponse response = profileMapper.toResponse(savedProfile);
-        ProfileResponse enrichedResponse = enrichWithUserInfo(response, savedProfile.getUserId());
-        publishProfileUpsertEvent(savedProfile);
-        return enrichedResponse;
-    }
-
-    @Override
-    public ProfileResponse createProfileInternal(InternalCreateProfileRequest request) {
-        String userId = request.getUserId();
-        log.info("Creating minimal profile for new user: {}", userId);
-
-        if (profileRepository.existsByUserId(userId)) {
-            log.warn("Profile already exists for user ID: {}", userId);
-            throw new AppException(ErrorCode.ACC_ACCOUNT_NOT_FOUND);
-        }
-
-        Profile profile = Profile.builder()
-                .userId(userId)
-                .fullName(request.getFullName())
-                .role(ProfileRole.FARMER)
-                .isVerified(false)
-                .build();
-        profile.setActive(true);
-
-        Profile savedProfile = profileRepository.save(profile);
-        log.info("Minimal profile created successfully for user: {}", userId);
-
-        publishProfileUpsertEvent(savedProfile);
+        publishProfileEvent(savedProfile, EventType.PROFILE_CREATED);
 
         return profileMapper.toResponse(savedProfile);
     }
@@ -107,10 +78,9 @@ public class ProfileServiceImpl implements ProfileService {
         Profile updatedProfile = profileRepository.save(profile);
 
         log.info("Profile updated successfully with ID: {}", updatedProfile.getId());
+        publishProfileEvent(updatedProfile, EventType.PROFILE_UPDATED);
         ProfileResponse response = profileMapper.toResponse(updatedProfile);
-        ProfileResponse enrichedResponse = enrichWithUserInfo(response, updatedProfile.getUserId());
-        publishProfileUpsertEvent(updatedProfile);
-        return enrichedResponse;
+        return enrichWithUserInfo(response, updatedProfile.getUserId());
     }
 
     @Override
@@ -239,21 +209,6 @@ public class ProfileServiceImpl implements ProfileService {
         return profileRepository.existsByUserId(userId);
     }
 
-    @Override
-    @Transactional(readOnly = true)
-    public List<UserSyncResponse> getUsersBatch(String lastId, int size) {
-        int batchSize = size > 0 ? size : 500;
-        Pageable pageable = PageRequest.of(0, batchSize);
-
-        List<Profile> profiles = (lastId == null || lastId.isBlank())
-                ? profileRepository.findAllByOrderByIdAsc(pageable)
-                : profileRepository.findByIdGreaterThanOrderByIdAsc(lastId, pageable);
-
-        return profiles.stream()
-                .map(this::toUserSyncResponse)
-                .toList();
-    }
-
     private ProfileResponse buildFullProfileResponse(Profile profile) {
         ProfileResponse response = profileMapper.toResponse(profile);
 
@@ -301,36 +256,16 @@ public class ProfileServiceImpl implements ProfileService {
         response.setCertificates(certificateMapper.toDtoList(approvedCertificates));
     }
 
-    private UserSyncResponse toUserSyncResponse(Profile profile) {
-        return UserSyncResponse.builder()
-                .id(profile.getId())
-                .userId(profile.getUserId())
-                .fullName(profile.getFullName())
-                .profilePicture(profile.getProfilePicture())
-                .avatar(profile.getAvatar())
-                .role(profile.getRole())
-                .specialty(profile.getSpecialty())
-                .isVerified(profile.getIsVerified())
-                .bio(profile.getBio())
-                .active(profile.getActive())
-                .createdAt(profile.getCreatedAt())
-                .lastModifiedAt(profile.getLastModifiedAt())
-                .build();
-    }
-
-    private void publishProfileUpsertEvent(Profile profile) {
-        if (profile == null || profile.getId() == null) {
-            return;
-        }
-
-        ProfileUpsertEvent event = ProfileUpsertEvent.builder()
+    private void publishProfileEvent(Profile profile, EventType eventType) {
+        ProfileEvent event = ProfileEvent.builder()
                 .profileId(profile.getId())
+                .fullName(profile.getFullName())
+                .avatar(profile.getAvatar())
+                .role(profile.getRole() != null ? profile.getRole().name() : null)
+                .isVerified(profile.getIsVerified())
+                .timestamp(System.currentTimeMillis())
                 .build();
-
-        outboxEventPublisher.ifPresentOrElse(
-                publisher -> publisher.saveAndPublish(profile.getId(), "Profile", EventType.PROFILE_CREATED, event),
-                () -> log.warn("OutboxEventPublisher is unavailable. Skip profile upsert event for profileId={}", profile.getId())
-        );
+        outboxEventPublisher.saveAndPublish(profile.getId(), "PROFILE", eventType, event);
     }
 
     @Override

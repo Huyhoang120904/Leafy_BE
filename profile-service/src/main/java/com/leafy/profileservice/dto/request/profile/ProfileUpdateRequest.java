@@ -23,5 +23,7 @@ public class ProfileUpdateRequest {
 
     String bio;
 
+    String fullName;
+
     UserPreferenceRequest userPreference;
 }

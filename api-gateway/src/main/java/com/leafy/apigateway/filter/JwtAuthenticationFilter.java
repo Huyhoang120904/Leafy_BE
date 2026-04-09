@@ -22,6 +22,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.server.reactive.ServerHttpRequest;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MultiValueMap;
+import org.springframework.web.cors.reactive.CorsUtils;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
@@ -58,6 +59,10 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
     public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         ServerHttpRequest request = exchange.getRequest();
         String path = request.getPath().toString();
+
+        if (CorsUtils.isPreFlightRequest(request)) {
+            return chain.filter(exchange);
+        }
 
         // Skip authentication for public endpoints
         if (publicEndpointsConfig.isPublicEndpoint(path)) {
@@ -110,6 +115,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                     String email = jwtUtil.extractEmail(token);
                     String role = jwtUtil.extractRole(token);
                     String deviceId = jwtUtil.extractDeviceId(token);
+                    String profileId = jwtUtil.extractProfileId(token);
                     long remainingTtl = jwtUtil.getRemainingTtl(token);
 
                     // Extract User-Agent and X-Device-ID from original request
@@ -122,6 +128,7 @@ public class JwtAuthenticationFilter implements GlobalFilter, Ordered {
                             .header("X-User-Roles", role != null ? role : "")
                             .header("X-JWT-Id", jti)
                             .header("X-Device-Id", deviceId != null ? deviceId : "")
+                            .header("X-Profile-Id", profileId != null ? profileId : "")
                             .header("X-Remaining-TTL", String.valueOf(remainingTtl))
                             .header("User-Agent", userAgent != null ? userAgent : "")
                             .header("X-Device-ID", requestDeviceId != null ? requestDeviceId : "")

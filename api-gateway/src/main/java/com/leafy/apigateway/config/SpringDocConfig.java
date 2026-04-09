@@ -1,18 +1,41 @@
 package com.leafy.apigateway.config;
 
+import io.swagger.v3.oas.models.Components;
+import io.swagger.v3.oas.models.OpenAPI;
+import io.swagger.v3.oas.models.info.Info;
+import io.swagger.v3.oas.models.security.SecurityRequirement;
+import io.swagger.v3.oas.models.security.SecurityScheme;
 import org.springdoc.core.models.GroupedOpenApi;
 import org.springframework.cloud.gateway.route.RouteDefinition;
 import org.springframework.cloud.gateway.route.RouteDefinitionLocator;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springdoc.core.properties.AbstractSwaggerUiConfigProperties;
-import org.springdoc.core.properties.SwaggerUiConfigProperties;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Configuration
 public class SpringDocConfig {
+
+        private static final String BEARER_AUTH_SCHEME = "bearerAuth";
+
+        @Bean
+        public OpenAPI gatewayOpenApi() {
+                return new OpenAPI()
+                                .info(new Info()
+                                                .title("Leafy API Gateway")
+                                                .description("Gateway API documentation")
+                                                .version("v1"))
+                                .components(new Components()
+                                                .addSecuritySchemes(BEARER_AUTH_SCHEME,
+                                                                new SecurityScheme()
+                                                                                .name("Authorization")
+                                                                                .type(SecurityScheme.Type.HTTP)
+                                                                                .scheme("bearer")
+                                                                                .bearerFormat("JWT")
+                                                                                .in(SecurityScheme.In.HEADER)))
+                                .addSecurityItem(new SecurityRequirement().addList(BEARER_AUTH_SCHEME));
+        }
 
         @Bean
         public List<GroupedOpenApi> apis(RouteDefinitionLocator locator) {
@@ -22,13 +45,13 @@ public class SpringDocConfig {
                 if (definitions != null) {
                         definitions.stream()
                                         .filter(routeDefinition -> routeDefinition.getId().matches(
-                                                        "auth-service|user-service|farm-service|file-service|notification-service|plant-management-service|profile-service|rag-service"))
+                                                        "auth-service|user-service|farm-service|file-service|notification-service|plant-management-service|profile-service|rag-service|community-feed-service"))
                                         .forEach(routeDefinition -> {
                                                 String name = routeDefinition.getId();
-                                                GroupedOpenApi.builder()
+                                                groups.add(GroupedOpenApi.builder()
                                                                 .pathsToMatch("/" + name + "/**")
                                                                 .group(name)
-                                                                .build();
+                                                                .build());
                                         });
                 }
 
@@ -71,6 +94,18 @@ public class SpringDocConfig {
                 groups.add(GroupedOpenApi.builder()
                                 .group("rag-service")
                                 .pathsToMatch("/api/rag/**")
+                                .build());
+
+                groups.add(GroupedOpenApi.builder()
+                                .group("community-feed-service")
+                                .pathsToMatch(
+                                                "/api/posts/**",
+                                                "/api/comments/**",
+                                                "/api/votes/**",
+                                                "/api/v1/posts/**",
+                                                "/api/v1/comments/**",
+                                                "/api/v1/votes/**",
+                                                "/api/seeder/**")
                                 .build());
 
                 return groups;

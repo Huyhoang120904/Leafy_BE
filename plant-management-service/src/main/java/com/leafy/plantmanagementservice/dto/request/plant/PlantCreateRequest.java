@@ -1,7 +1,9 @@
 package com.leafy.plantmanagementservice.dto.request.plant;
 
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -15,11 +17,11 @@ import java.time.LocalDateTime;
 @FieldDefaults(level = AccessLevel.PRIVATE)
 public class PlantCreateRequest {
 
-    @NotBlank(message = "{validation.plant.number.required}")
+    @NotBlank(message = "Plant number is required")
     String plantNumber;
 
-    @NotBlank(message = "{validation.plant.status.required}")
-    String plantStatus;
+    @NotNull(message = "Plant status is required")
+    PlantStatus plantStatus;
 
     String nickName;
     String tagCode;
@@ -31,12 +33,12 @@ public class PlantCreateRequest {
     LocalDateTime germinationDate;
     LocalDateTime actualHarvestDate;
 
-    @PositiveOrZero(message = "{validation.plant.totalYield.positiveOrZero}")
+    @PositiveOrZero(message = "Total yield must be positive or zero")
     Double totalYieldKg;
 
-    @NotBlank(message = "{validation.speciesId.required}")
+    @NotBlank(message = "Species ID is required")
     String speciesId;
 
-    @NotBlank(message = "{validation.farmPlotId.required}")
+    @NotBlank(message = "Farm plot ID is required")
     String farmPlotId;
 }

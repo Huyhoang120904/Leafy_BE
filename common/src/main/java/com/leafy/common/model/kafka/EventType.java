@@ -8,11 +8,23 @@ public enum EventType {
     USER_VERIFIED,
     USER_ENABLED,
     USER_DISABLED,
+    
+    // Message Events (matching KafkaTopicProperties.MessageEvents)
+    // Add message events here when defined
+    
+    // Notification Events (matching KafkaTopicProperties.NotificationEvents)
+    // Add notification events here when defined
+    
+    // System Events (matching KafkaTopicProperties.SystemEvents)
+    // Add system events here when defined
+    
+    // Community Events
+    COMMENT_CREATED,
+    COMMENT_DELETED,
+    VOTE_CREATED,
+    VOTE_DELETED,
 
-    // Profile Events (matching KafkaTopicProperties.UserEvents)
+    // Profile Events
     PROFILE_CREATED,
-
-    // Post Events (matching KafkaTopicProperties.PostEvents)
-    POST_UPSERTED,
-    POST_DELETED,
+    PROFILE_UPDATED
 }

@@ -39,6 +39,11 @@ public class RegistrationData {
      * Phone number
      */
     String phoneNumber;
+
+    /**
+     * Full name
+     */
+    String fullName;
     
     /**
      * Hashed password

@@ -25,8 +25,20 @@ spring:
                     name: authServiceCircuitBreaker
                     fallbackUri: forward:/fallback/auth-service
 
-            # Auth Service Routes
-            - id: auth-service-seed
+            # Device Management Routes (Auth Service)
+            - id: device-service
+              uri: lb://auth-service
+              predicates:
+                - Path=/api/devices/**,/api/users/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: authServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/auth-service
+
+            # Seed Routes (Auth Service)
+            - id: seed-service
               uri: lb://auth-service
               predicates:
                 - Path=/api/seed/**
@@ -34,32 +46,20 @@ spring:
                 - StripPrefix=1
                 - name: CircuitBreaker
                   args:
-                    name: authServiceCircuitBreaker
+                    name: seedServiceCircuitBreaker
                     fallbackUri: forward:/fallback/auth-service
 
-            # Device Management Routes (Auth Service)
-            - id: device-service
-              uri: lb://auth-service
+            # Farm Seeder Route (must precede /api/farms/** for first-match routing; uses 120s timelimiter)
+            - id: farm-seeder-service
+              uri: lb://farm-service
               predicates:
-                - Path=/api/devices/**
+                - Path=/api/farms/seeder/**
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
                   args:
-                    name: authServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/auth-service
-
-            # User Service Routes
-            - id: user-service
-              uri: lb://user-service
-              predicates:
-                - Path=/api/users/**
-              filters:
-                - StripPrefix=1
-                - name: CircuitBreaker
-                  args:
-                    name: userServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/user-service
+                    name: seedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/farm-service
 
             # Farm Service Routes
             - id: farm-service
@@ -97,6 +97,18 @@ spring:
                     name: notificationServiceCircuitBreaker
                     fallbackUri: forward:/fallback/notification-service
 
+            # Plant Management Seeder Route (must precede /api/plants/** for first-match routing; uses 120s timelimiter)
+            - id: plant-management-seeder
+              uri: lb://plant-management-service
+              predicates:
+                - Path=/api/plants/seeder/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: seedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/plant-management-service
+
             # Plant Management Service Routes
             - id: plant-management-service
               uri: lb://plant-management-service
@@ -133,6 +145,18 @@ spring:
                     name: plantManagementServiceCircuitBreaker
                     fallbackUri: forward:/fallback/plant-management-service
 
+            # Treatment Plan Routes (Plant Management)
+            - id: treatment-plans-service
+              uri: lb://plant-management-service
+              predicates:
+                - Path=/api/treatment-plans/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: plantManagementServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/plant-management-service
+
             # Profile Service Routes
             - id: profile-service
               uri: lb://profile-service
@@ -156,18 +180,6 @@ spring:
                   args:
                     name: ragServiceCircuitBreaker
                     fallbackUri: forward:/fallback/rag-service
-
-            # Search Service Routes
-            - id: search-service
-              uri: lb://search-service
-              predicates:
-                - Path=/api/search/**
-              filters:
-                - RewritePath=/api/search/(?<segment>.*), /$\{segment}
-                - name: CircuitBreaker
-                  args:
-                    name: searchServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/search-service
 
             # OpenAPI Documentation Routes for Auth Service
             - id: auth-service-openapi
@@ -233,33 +245,92 @@ spring:
               filters:
                 - RewritePath=/rag-service/v3/api-docs, /v3/api-docs
 
-            # OpenAPI Documentation Routes for Search Service
-            - id: search-service-openapi
-              uri: lb://search-service
-              predicates:
-                - Path=/search-service/v3/api-docs/**
-              filters:
-                - RewritePath=/search-service/v3/api-docs, /v3/api-docs
-
-            # Disease Detection Service Routes
-            - id: disease-detection-service
-              uri: lb://disease-detection-service
+            # Disease Classification Service Routes
+            - id: disease-classification-service
+              uri: lb://disease-classification-service
               predicates:
                 - Path=/api/diseases/**
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
                   args:
-                    name: diseaseDetectionServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/disease-detection-service
+                    name: diseaseClassificationServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/disease-classification-service
 
-            # OpenAPI Documentation Routes for Disease Detection Service
-            - id: disease-detection-service-openapi
-              uri: lb://disease-detection-service
+            # OpenAPI Documentation Routes for Disease Classification Service
+            - id: disease-classification-service-openapi
+              uri: lb://disease-classification-service
               predicates:
-                - Path=/disease-detection-service/v3/api-docs/**
+                - Path=/disease-classification-service/v3/api-docs/**
               filters:
-                - RewritePath=/disease-detection-service/v3/api-docs, /v3/api-docs
+                - RewritePath=/disease-classification-service/v3/api-docs, /v3/api-docs
+
+            #IOT Metrics Collector Service
+            - id: iot-metrics-collector-service
+              uri: lb://iot-metrics-collector-service
+              predicates:
+                - Path=/api/iot/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: iotMetricsCollectorServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/iot-metrics-collector-service
+
+              #OpenAPI Documentation for IOT Metrics Collector Service
+            - id: iot-metrics-collector-service-openapi
+              uri: lb://iot-metrics-collector-service
+              predicates:
+                - Path=/iot-metrics-collector-service/v3/api-docs/**
+              filters:
+                - RewritePath=/iot-metrics-collector-service/v3/api-docs, /v3/api-docs
+
+            # Community Feed Service Routes
+            - id: community-feed-service
+              uri: lb://community-feed-service
+              predicates:
+                - Path=/api/posts/**, /api/comments/**, /api/votes/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: communityFeedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/community-feed-service
+
+            # OpenAPI Documentation Routes for Community Feed Service
+            - id: community-feed-service-openapi
+              uri: lb://community-feed-service
+              predicates:
+                - Path=/community-feed-service/v3/api-docs, /community-feed-service/v3/api-docs/**, /community-feed-service/v3/api-doc, /community-feed-service/v3/api-doc/**
+              filters:
+                - RewritePath=/community-feed-service/v3/api-docs, /v3/api-docs
+                - RewritePath=/community-feed-service/v3/api-doc, /v3/api-doc
+
+            # Messages Service Routes
+            - id: messages-service
+              uri: lb://messages-server
+              predicates:
+                - Path=/api/messages/**, /api/conversations/**
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: messagesServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/messages-service
+
+            # Messages Service WebSocket Route
+            - id: messages-service-ws
+              uri: lb:ws://messages-server
+              predicates:
+                - Path=/ws/messages/**
+
+            # OpenAPI Documentation Routes for Messages Service
+            - id: messages-service-openapi
+              uri: lb://messages-server
+              predicates:
+                - Path=/messages-server/v3/api-docs/**
+              filters:
+                - RewritePath=/messages-server/v3/api-docs, /v3/api-docs
 
           globalCors:
             cors-configurations:
@@ -361,9 +432,15 @@ resilience4j:
         baseConfig: default
       ragServiceCircuitBreaker:
         baseConfig: default
-      searchServiceCircuitBreaker:
-        baseConfig: default
       diseaseClassificationServiceCircuitBreaker:
+        baseConfig: default
+      iotMetricsCollectorServiceCircuitBreaker:
+        baseConfig: default
+      communityFeedServiceCircuitBreaker:
+        baseConfig: default
+      seedServiceCircuitBreaker:
+        baseConfig: default
+      messagesServiceCircuitBreaker:
         baseConfig: default
 
   timelimiter:
@@ -387,10 +464,14 @@ resilience4j:
         baseConfig: default
       ragServiceCircuitBreaker:
         timeoutDuration: 120s
-      searchServiceCircuitBreaker:
-        baseConfig: default
       diseaseClassificationServiceCircuitBreaker:
         baseConfig: default
+      iotMetricsCollectorServiceCircuitBreaker:
+        baseConfig: default
+      communityFeedServiceCircuitBreaker:
+        baseConfig: default
+      seedServiceCircuitBreaker:
+        timeoutDuration: 120s
 
 # JWT Configuration
 jwt:
@@ -424,10 +505,12 @@ springdoc:
         url: /profile-service/v3/api-docs
       - name: rag-service
         url: /rag-service/v3/api-docs
-      - name: search-service
-        url: /search-service/v3/api-docs
-      - name: disease-detection-service
-        url: /disease-detection-service/v3/api-docs
+      - name: disease-classification-service
+        url: /disease-classification-service/v3/api-docs
+      - name: iot-metrics-collector-service
+        url: /iot-metrics-collector-service/v3/api-docs
+      - name: community-feed-service
+        url: /community-feed-service/v3/api-docs
     operations-sorter: method
     tags-sorter: alpha
     display-request-duration: true

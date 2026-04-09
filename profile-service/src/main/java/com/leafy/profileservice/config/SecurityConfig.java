@@ -1,11 +1,10 @@
 package com.leafy.profileservice.config;
 
-import com.leafy.common.config.SecurityProperties;
 import com.leafy.common.security.SecurityContextFilter;
 import lombok.RequiredArgsConstructor;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Import;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -13,53 +12,100 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import java.util.Arrays;
+import java.util.List;
+
+/**
+ * Spring Security configuration for Profile Service.
+ * Mirrors Plant Management Service security setup.
+ */
 @Configuration
 @EnableWebSecurity
-@EnableMethodSecurity(prePostEnabled = true, securedEnabled = true)
+@EnableMethodSecurity(prePostEnabled = true)
 @RequiredArgsConstructor
-@Import({ SecurityProperties.class, SecurityContextFilter.class })
 public class SecurityConfig {
 
     private final SecurityContextFilter securityContextFilter;
-    private final SecurityProperties securityProperties;
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
+                // Disable CSRF for stateless API
                 .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> {
-                    // Permit internal service-to-service communication
-                    auth.requestMatchers("/internal/**").permitAll();
 
-                    // Permit base endpoints
-                    auth.requestMatchers("/").permitAll();
-                    auth.requestMatchers("/error", "/actuator/**").permitAll();
+                // Configure CORS
+                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
 
-                    // Swagger/OpenAPI endpoints
-                    auth.requestMatchers("/v3/api-docs/**").permitAll();
-                    auth.requestMatchers("/swagger-ui/**").permitAll();
-                    auth.requestMatchers("/swagger-ui.html").permitAll();
-                    auth.requestMatchers("/swagger-resources/**").permitAll();
-                    auth.requestMatchers("/webjars/**").permitAll();
+                // Configure authorization
+                .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
+                        // Public endpoints
+                        .requestMatchers("/actuator/**").permitAll()
 
-                    // Permit configured public endpoints
-                    if (securityProperties.getPublicEndpoints() != null
-                            && !securityProperties.getPublicEndpoints().isEmpty()) {
-                        auth.requestMatchers(securityProperties.getPublicEndpoints().toArray(String[]::new))
-                                .permitAll();
-                    }
+                        // Swagger/OpenAPI endpoints
+                        .requestMatchers("/v3/api-docs/**").permitAll()
+                        .requestMatchers("/swagger-ui/**").permitAll()
+                        .requestMatchers("/swagger-ui.html").permitAll()
+                        .requestMatchers("/swagger-resources/**").permitAll()
+                        .requestMatchers("/webjars/**").permitAll()
 
-                    // All other requests require authentication
-                    auth.anyRequest().authenticated();
-                })
-                .exceptionHandling(exception -> exception
-                        .authenticationEntryPoint((request, response, authException) -> {
-                            // Let @RestControllerAdvice handle exceptions
-                        }))
+                        // Internal service communication
+                        .requestMatchers("/internal/**").permitAll()
+                        .requestMatchers("/api/internal/**").permitAll()
+
+                        // All other endpoints require authentication
+                        .anyRequest().authenticated())
+
+                // Stateless session management
+                .sessionManagement(session -> session
+                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+
+                // Add the common security filter before UsernamePasswordAuthenticationFilter
                 .addFilterBefore(securityContextFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
+    }
+
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+
+        // Allowed origins
+        configuration.setAllowedOrigins(List.of(
+                "http://localhost:3000",
+                "http://localhost:5173"
+        ));
+
+        // Allowed HTTP methods
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
+
+        // Allowed headers
+        configuration.setAllowedHeaders(Arrays.asList(
+                "Authorization",
+                "Content-Type",
+                "X-Requested-With",
+                "User-Agent",
+                "X-Device-ID",
+                "X-User-Id",
+                "X-Device-Id"
+        ));
+
+        // Expose headers
+        configuration.setExposedHeaders(List.of("Authorization"));
+
+        // Allow credentials
+        configuration.setAllowCredentials(true);
+
+        // Max age for preflight requests
+        configuration.setMaxAge(3600L);
+
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+
+        return source;
     }
 }

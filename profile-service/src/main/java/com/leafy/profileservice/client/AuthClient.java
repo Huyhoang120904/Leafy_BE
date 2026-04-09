@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 /**
  * Feign client for communicating with the auth-service
  */
-@FeignClient(name = "auth-service", path = "/internal/accounts")
+@FeignClient(name = "auth-service", path = "/internal/users")
 public interface AuthClient {
 
     /**

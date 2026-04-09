@@ -27,7 +27,8 @@
         <module>file-service</module>
         <module>notification-service</module>
         <module>plant-management-service</module>
-        <module>search-service</module>
+        <module>iot-metrics-collector-service</module>
+        <module>community-feed-service</module>
     </modules>
 
 
