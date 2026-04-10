@@ -1,7 +1,13 @@
 package com.leafy.iotmetricscollectorservice.mapper;
 
+import com.leafy.iotmetricscollectorservice.dto.dashboard.DeviceConfigSnapshotResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.LatestReadingItemResponse;
+import com.leafy.iotmetricscollectorservice.dto.dashboard.DeviceMediaSummaryResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.SensorChartPointResponse;
+import com.leafy.iotmetricscollectorservice.dto.dashboard.DeviceDetailResponse;
+import com.leafy.iotmetricscollectorservice.model.DeviceConfig;
+import com.leafy.iotmetricscollectorservice.model.DeviceMediaEvent;
+import com.leafy.iotmetricscollectorservice.model.IoTDevice;
 import com.leafy.iotmetricscollectorservice.model.aggregate.BaseSensorReadingAgg;
 import com.leafy.iotmetricscollectorservice.model.aggregate.SensorLatestReading;
 import java.util.Collections;
@@ -70,5 +76,60 @@ public class DashboardQueryMapper {
         return aggregateReadings.stream()
             .map(this::toSensorChartPointResponse)
             .toList();
+    }
+
+    public DeviceDetailResponse toDeviceDetailResponse(IoTDevice device) {
+        if (device == null) {
+            return null;
+        }
+
+        DeviceDetailResponse response = new DeviceDetailResponse();
+        response.setDeviceId(device.getId());
+        response.setDeviceUid(device.getDeviceUid());
+        response.setDeviceCode(device.getDeviceCode());
+        response.setDeviceName(device.getDeviceName());
+        response.setDeviceType(device.getDeviceType());
+        response.setFirmwareVersion(device.getFirmwareVersion());
+        response.setStatus(device.getStatus() != null ? device.getStatus().name() : null);
+        response.setProvisioningStatus(
+            device.getProvisioningStatus() != null ? device.getProvisioningStatus().name() : null
+        );
+        response.setIsActive(device.getIsActive());
+        response.setOwnerUserId(device.getOwnerUser() != null ? device.getOwnerUser().getId() : null);
+        response.setFarmPlotId(device.getFarmPlot() != null ? device.getFarmPlot().getId() : null);
+        response.setZoneId(device.getZone() != null ? device.getZone().getId() : null);
+        response.setLastSeenAt(device.getLastSeenAt());
+        return response;
+    }
+
+    public DeviceMediaSummaryResponse toDeviceMediaSummaryResponse(DeviceMediaEvent mediaEvent) {
+        if (mediaEvent == null) {
+            return null;
+        }
+
+        DeviceMediaSummaryResponse response = new DeviceMediaSummaryResponse();
+        response.setMediaEventId(mediaEvent.getId());
+        response.setFileId(mediaEvent.getFile() != null ? mediaEvent.getFile().getId() : null);
+        response.setMediaType(mediaEvent.getMediaType());
+        response.setTriggerType(mediaEvent.getTriggerType());
+        response.setCapturedAt(mediaEvent.getCapturedAt());
+        response.setDeviceId(mediaEvent.getDevice() != null ? mediaEvent.getDevice().getId() : null);
+        response.setZoneId(mediaEvent.getZone() != null ? mediaEvent.getZone().getId() : null);
+        return response;
+    }
+
+    public DeviceConfigSnapshotResponse toDeviceConfigSnapshotResponse(DeviceConfig deviceConfig) {
+        if (deviceConfig == null) {
+            return null;
+        }
+
+        DeviceConfigSnapshotResponse response = new DeviceConfigSnapshotResponse();
+        response.setConfigVersion(deviceConfig.getConfigVersion());
+        response.setSamplingIntervalSec(deviceConfig.getSamplingIntervalSec());
+        response.setPublishIntervalSec(deviceConfig.getPublishIntervalSec());
+        response.setOfflineTimeoutSec(deviceConfig.getOfflineTimeoutSec());
+        response.setAlertEnabled(deviceConfig.getAlertEnabled());
+        response.setAppliedAt(deviceConfig.getAppliedAt());
+        return response;
     }
 }

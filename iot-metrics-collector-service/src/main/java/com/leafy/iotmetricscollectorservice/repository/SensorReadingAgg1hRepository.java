@@ -21,10 +21,11 @@ public interface SensorReadingAgg1hRepository extends JpaRepository<SensorReadin
         from SensorReadingAgg1h aggregateReading
         where aggregateReading.device.id = :deviceId
           and aggregateReading.sensorType.id = :sensorTypeId
-          and aggregateReading.bucketStart between :from and :to
+          and aggregateReading.bucketStart >= :from
+          and aggregateReading.bucketStart < :to
         order by aggregateReading.bucketStart asc
         """)
-    List<SensorReadingAgg1h> findAllByDeviceIdAndSensorTypeIdAndBucketStartBetweenOrderByBucketStartAsc(
+    List<SensorReadingAgg1h> findAllByDeviceIdAndSensorTypeIdAndBucketStartGreaterThanEqualAndBucketStartLessThanOrderByBucketStartAsc(
         @Param("deviceId") UUID deviceId,
         @Param("sensorTypeId") UUID sensorTypeId,
         @Param("from") Instant from,
@@ -36,10 +37,11 @@ public interface SensorReadingAgg1hRepository extends JpaRepository<SensorReadin
         from SensorReadingAgg1h aggregateReading
         where aggregateReading.zone.id = :zoneId
           and aggregateReading.sensorType.id = :sensorTypeId
-          and aggregateReading.bucketStart between :from and :to
+          and aggregateReading.bucketStart >= :from
+          and aggregateReading.bucketStart < :to
         order by aggregateReading.bucketStart asc
         """)
-    List<SensorReadingAgg1h> findAllByZoneIdAndSensorTypeIdAndBucketStartBetweenOrderByBucketStartAsc(
+    List<SensorReadingAgg1h> findAllByZoneIdAndSensorTypeIdAndBucketStartGreaterThanEqualAndBucketStartLessThanOrderByBucketStartAsc(
         @Param("zoneId") UUID zoneId,
         @Param("sensorTypeId") UUID sensorTypeId,
         @Param("from") Instant from,

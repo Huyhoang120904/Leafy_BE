@@ -13,5 +13,7 @@ public class ZoneOverviewResponse {
     private UUID zoneId;
     private Integer openAlerts;
     private Instant lastUpdatedAt;
+    private AlertSummaryResponse alertSummary;
+    private DeviceMediaSummaryResponse latestMedia;
     private List<LatestReadingItemResponse> latestReadings = new ArrayList<>();
 }

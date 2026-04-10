@@ -23,5 +23,8 @@ public class DeviceDetailResponse {
     private UUID farmPlotId;
     private UUID zoneId;
     private Instant lastSeenAt;
+    private AlertSummaryResponse alertSummary;
+    private DeviceConfigSnapshotResponse config;
+    private DeviceMediaSummaryResponse latestMedia;
     private List<LatestReadingItemResponse> latestReadings = new ArrayList<>();
 }
