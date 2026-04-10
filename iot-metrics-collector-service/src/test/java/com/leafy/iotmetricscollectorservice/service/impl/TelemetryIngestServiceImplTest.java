@@ -51,7 +51,7 @@ class TelemetryIngestServiceImplTest {
     private TelemetryIngestServiceImpl telemetryIngestService;
 
     @Test
-    void ingest_savesRawReadingsBeforeUpdatingLatestSnapshot() {
+    void ingest_savesRawReadingsBeforeUpdatingLatestSnapshotAndEvaluatesPersistedReadings() {
         IoTDevice device = new IoTDevice();
         device.setId(UUID.randomUUID());
         device.setDeviceUid("device-001");
@@ -76,11 +76,16 @@ class TelemetryIngestServiceImplTest {
 
         telemetryIngestService.ingest("device-001", payload);
 
-        InOrder inOrder = inOrder(sensorReadingSeriesRepository, aggregateLatestReadingService, ioTDeviceRepository, alertEvaluationService);
+        InOrder inOrder = inOrder(
+            sensorReadingSeriesRepository,
+            aggregateLatestReadingService,
+            ioTDeviceRepository,
+            alertEvaluationService
+        );
         inOrder.verify(sensorReadingSeriesRepository).saveAll(anyList());
         inOrder.verify(aggregateLatestReadingService).updateLatestReadings(anyList());
         verify(ioTDeviceRepository).save(device);
-        verify(alertEvaluationService).evaluate(org.mockito.ArgumentMatchers.any(SensorReadingSeries.class));
+        inOrder.verify(alertEvaluationService).evaluateReadings(anyList());
         assertEquals(readingTime, device.getLastSeenAt());
     }
 }

@@ -39,4 +39,36 @@ public class TelemetryQueryException extends RuntimeException {
             "Unsupported chart range: " + range
         );
     }
+
+    public static TelemetryQueryException alertEventNotFound(UUID alertEventId) {
+        return new TelemetryQueryException(
+            HttpStatus.NOT_FOUND,
+            4604,
+            "Alert event not found: " + alertEventId
+        );
+    }
+
+    public static TelemetryQueryException invalidAlertSearchWindow() {
+        return new TelemetryQueryException(
+            HttpStatus.BAD_REQUEST,
+            4605,
+            "Invalid alert search window"
+        );
+    }
+
+    public static TelemetryQueryException cannotAcknowledgeAlert(UUID alertEventId, String status) {
+        return new TelemetryQueryException(
+            HttpStatus.BAD_REQUEST,
+            4606,
+            "Cannot acknowledge alert " + alertEventId + " in status " + status
+        );
+    }
+
+    public static TelemetryQueryException cannotResolveAlert(UUID alertEventId, String status) {
+        return new TelemetryQueryException(
+            HttpStatus.BAD_REQUEST,
+            4607,
+            "Cannot resolve alert " + alertEventId + " in status " + status
+        );
+    }
 }

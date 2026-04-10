@@ -78,9 +78,7 @@ public class TelemetryIngestServiceImpl implements TelemetryIngestService {
         }
         ioTDeviceRepository.save(device);
 
-        for (SensorReadingSeries reading : savedReadings) {
-            alertEvaluationService.evaluate(reading);
-        }
+        alertEvaluationService.evaluateReadings(savedReadings);
     }
 
     private void validateDevice(IoTDevice device) {

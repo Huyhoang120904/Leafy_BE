@@ -1,10 +1,13 @@
 package com.leafy.iotmetricscollectorservice.mapper;
 
+import com.leafy.iotmetricscollectorservice.dto.dashboard.AlertEventDetailResponse;
+import com.leafy.iotmetricscollectorservice.dto.dashboard.AlertEventItemResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.DeviceConfigSnapshotResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.LatestReadingItemResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.DeviceMediaSummaryResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.SensorChartPointResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.DeviceDetailResponse;
+import com.leafy.iotmetricscollectorservice.model.AlertEvent;
 import com.leafy.iotmetricscollectorservice.model.DeviceConfig;
 import com.leafy.iotmetricscollectorservice.model.DeviceMediaEvent;
 import com.leafy.iotmetricscollectorservice.model.IoTDevice;
@@ -130,6 +133,57 @@ public class DashboardQueryMapper {
         response.setOfflineTimeoutSec(deviceConfig.getOfflineTimeoutSec());
         response.setAlertEnabled(deviceConfig.getAlertEnabled());
         response.setAppliedAt(deviceConfig.getAppliedAt());
+        return response;
+    }
+
+    public AlertEventItemResponse toAlertEventItemResponse(AlertEvent alertEvent) {
+        if (alertEvent == null) {
+            return null;
+        }
+
+        AlertEventItemResponse response = new AlertEventItemResponse();
+        response.setId(alertEvent.getId());
+        response.setDeviceId(alertEvent.getDevice() != null ? alertEvent.getDevice().getId() : null);
+        response.setZoneId(alertEvent.getZone() != null ? alertEvent.getZone().getId() : null);
+        response.setSensorTypeId(alertEvent.getSensorType() != null ? alertEvent.getSensorType().getId() : null);
+        response.setAlertRuleId(alertEvent.getAlertRule() != null ? alertEvent.getAlertRule().getId() : null);
+        response.setAlertType(alertEvent.getAlertType());
+        response.setMessage(alertEvent.getMessage());
+        response.setSeverity(alertEvent.getSeverity() != null ? alertEvent.getSeverity().name() : null);
+        response.setStatus(alertEvent.getStatus() != null ? alertEvent.getStatus().name() : null);
+        response.setTriggerValue(alertEvent.getTriggerValue());
+        response.setThresholdMin(alertEvent.getThresholdMin());
+        response.setThresholdMax(alertEvent.getThresholdMax());
+        response.setOpenedAt(alertEvent.getOpenedAt());
+        response.setAcknowledgedAt(alertEvent.getAcknowledgedAt());
+        response.setResolvedAt(alertEvent.getResolvedAt());
+        response.setPushSent(alertEvent.getPushSent());
+        return response;
+    }
+
+    public AlertEventDetailResponse toAlertEventDetailResponse(AlertEvent alertEvent) {
+        if (alertEvent == null) {
+            return null;
+        }
+
+        AlertEventItemResponse itemResponse = toAlertEventItemResponse(alertEvent);
+        AlertEventDetailResponse response = new AlertEventDetailResponse();
+        response.setId(itemResponse.getId());
+        response.setDeviceId(itemResponse.getDeviceId());
+        response.setZoneId(itemResponse.getZoneId());
+        response.setSensorTypeId(itemResponse.getSensorTypeId());
+        response.setAlertRuleId(itemResponse.getAlertRuleId());
+        response.setAlertType(itemResponse.getAlertType());
+        response.setMessage(itemResponse.getMessage());
+        response.setSeverity(itemResponse.getSeverity());
+        response.setStatus(itemResponse.getStatus());
+        response.setTriggerValue(itemResponse.getTriggerValue());
+        response.setThresholdMin(itemResponse.getThresholdMin());
+        response.setThresholdMax(itemResponse.getThresholdMax());
+        response.setOpenedAt(itemResponse.getOpenedAt());
+        response.setAcknowledgedAt(itemResponse.getAcknowledgedAt());
+        response.setResolvedAt(itemResponse.getResolvedAt());
+        response.setPushSent(itemResponse.getPushSent());
         return response;
     }
 }
