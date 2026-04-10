@@ -3,6 +3,7 @@ package com.leafy.authservice.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -38,11 +39,13 @@ public class RedisConfig {
     }
     
     /**
-     * Configure ObjectMapper for JSON serialization in Redis
-     * Used for serializing complex objects like TokenFamily
+     * Redis-specific ObjectMapper for JSON serialization.
+     * Qualified so it does NOT override Spring Boot's auto-configured ObjectMapper
+     * which is needed by Feign/MVC for proper record and generic type deserialization.
      */
     @Bean
-    public ObjectMapper objectMapper() {
+    @Qualifier("redisObjectMapper")
+    public ObjectMapper redisObjectMapper() {
         ObjectMapper mapper = new ObjectMapper();
         mapper.registerModule(new JavaTimeModule());
         mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
