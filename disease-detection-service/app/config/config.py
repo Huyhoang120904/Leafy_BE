@@ -4,17 +4,25 @@ Supports multiple environments: test, dev, prod
 """
 from functools import cache
 
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+_BACKEND_ENV = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
+    ".env",
+)
 
 
 class BaseConfig(BaseSettings):
     """Base configuration with environment state"""
-    model_config = SettingsConfigDict(env_file=["../.env", ".env"], extra="ignore")
+    model_config = SettingsConfigDict(env_file=[_BACKEND_ENV, ".env"], extra="ignore")
     ENV_STATE: str = "dev"
 
 
 class Config(BaseConfig):
     """Common configuration for all environments"""
+    model_config = SettingsConfigDict(env_file=[_BACKEND_ENV, ".env"], extra="ignore")
+
     # Service settings
     SERVICE_NAME: str = "Image Classification Service"
     SERVICE_VERSION: str = "1.0.0"
@@ -37,8 +45,8 @@ class Config(BaseConfig):
     TF_CPP_MIN_LOG_LEVEL: str = "2"  # Suppress TF warnings
 
     # MongoDB settings (read from backend/.env)
-    MONGODB_HOST: str = "127.0.0.1"
-    MONGODB_PORT: int = 27017
+    MONGODB_HOST: str = "localhost"
+    MONGODB_PORT: int = 27018
     MONGODB_USERNAME: str = "root"
     MONGODB_PASSWORD: str = "rootpassword123"
     MONGODB_DATABASE_DISEASE: str = "leafy_disease"
@@ -60,7 +68,7 @@ class TestConfig(Config):
 class DevConfig(Config):
     """Development environment configuration"""
     model_config = SettingsConfigDict(
-        env_file=["../.env", ".env"], env_prefix="DEV_", extra="ignore"
+        env_file=[_BACKEND_ENV, ".env"], env_prefix="DEV_", extra="ignore"
     )
     LOG_LEVEL: str = "DEBUG"
     PORT: int = 8000
@@ -69,7 +77,7 @@ class DevConfig(Config):
 class ProdConfig(Config):
     """Production environment configuration"""
     model_config = SettingsConfigDict(
-        env_file=["../.env", ".env"], env_prefix="PROD_", extra="ignore"
+        env_file=[_BACKEND_ENV, ".env"], env_prefix="PROD_", extra="ignore"
     )
     LOG_LEVEL: str = "INFO"
     # In production, you might want to load model from a specific path

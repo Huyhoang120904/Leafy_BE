@@ -1,6 +1,7 @@
 package com.leafy.plantmanagementservice.dto.request.plant;
 
 import jakarta.validation.constraints.PositiveOrZero;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -15,7 +16,7 @@ import java.time.LocalDateTime;
 public class PlantUpdateRequest {
 
     String plantNumber;
-    String plantStatus;
+    PlantStatus plantStatus;
     String nickName;
     String tagCode;
     String batchNumber;
@@ -26,7 +27,7 @@ public class PlantUpdateRequest {
     LocalDateTime germinationDate;
     LocalDateTime actualHarvestDate;
 
-    @PositiveOrZero(message = "Total yield must be positive or zero")
+    @PositiveOrZero(message = "{validation.plant.totalYield.positiveOrZero}")
     Double totalYieldKg;
 
     String speciesId;

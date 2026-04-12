@@ -3,13 +3,18 @@ from fastapi import FastAPI
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from app.config.security import SecurityContextMiddleware
 
+_BACKEND_ENV = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    ".env",
+)
+
 class Settings(BaseSettings):
     app_name: str = "disease-classification-service"
     server_port: int = 8088
     eureka_server: str = "http://localhost:8761/eureka/"
 
     model_config = SettingsConfigDict(
-        env_file=os.path.join(os.path.dirname(__file__), "..", ".env"),
+        env_file=_BACKEND_ENV,
         extra='ignore'
     )
 

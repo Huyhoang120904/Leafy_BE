@@ -9,11 +9,14 @@ import jakarta.validation.Valid;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
-@RequestMapping("/api/v1/posts")
+@RequestMapping("/posts")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostController {
@@ -30,6 +33,26 @@ public class PostController {
     @GetMapping("/{id}")
     public ApiResponse<PostResponse> getPostById(@PathVariable String id) {
         PostResponse response = postService.getPostById(id);
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/feed")
+    public ApiResponse<Page<PostResponse>> getAllFeedAndSharedPosts(
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        Page<PostResponse> response = postService.getAllFeedAndSharedPosts(
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
+        return ApiResponse.success(response);
+    }
+
+    @GetMapping("/user/{userId}")
+    public ApiResponse<Page<PostResponse>> getPostsByUserId(
+            @PathVariable String userId,
+            @RequestParam(value = "page", defaultValue = "0") int page,
+            @RequestParam(value = "size", defaultValue = "20") int size) {
+        Page<PostResponse> response = postService.getPostsByUserId(
+                userId,
+                PageRequest.of(page, size, Sort.by(Sort.Direction.DESC, "createdAt")));
         return ApiResponse.success(response);
     }
 

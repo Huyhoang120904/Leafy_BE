@@ -5,9 +5,9 @@ import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.profileservice.client.AuthClient;
 import com.leafy.profileservice.client.dto.UserResponse;
-import com.leafy.profileservice.dto.ApprovalRequestDto;
 import com.leafy.profileservice.dto.request.profile.CreateApprovalRequest;
 import com.leafy.profileservice.dto.request.profile.UpdateCertificateStatusRequest;
+import com.leafy.profileservice.dto.response.profile.ApprovalRequestDto;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import com.leafy.profileservice.model.enums.CertificateStatus;
 import com.leafy.profileservice.mapper.CertificateMapper;
@@ -41,7 +41,7 @@ public class CertificateServiceImpl implements CertificateService {
         log.info("Submitting new approval request for profile ID: {}", profileId);
         getProfileEntityById(profileId); // Ensure profile exists
 
-        List<Certificate> certificates = request.getCertificates().stream()
+        List<Certificate> certificates = request.certificates().stream()
                 .map(certificateMapper::toEntity)
                 .toList();
 

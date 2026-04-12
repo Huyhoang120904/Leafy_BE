@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 from typing import Optional, Annotated, List
 
-from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, status, Depends
+from fastapi import APIRouter, UploadFile, File, Form, BackgroundTasks, status, Depends, Request
 
 from app.core.security import get_current_user, UserPrincipal
 from app.dto.ingestion.ingestion_dto import IngestResponse, TaskSchema
@@ -14,6 +14,7 @@ from app.services.vector_db import get_vector_service
 from app.services.task_manager import get_task_manager
 from app.utils.file_utils import validate_file_size, validate_mime_type, calculate_file_hash, sanitize_filename
 from app.workers.document import process_document
+from app.i18n import get_message, resolve_locale
 
 router = APIRouter()
 
@@ -41,6 +42,7 @@ UPLOAD_DIR.mkdir(exist_ok=True)
     },
 )
 async def ingest_document(
+    request: Request,
     background_tasks: BackgroundTasks,
     file: Annotated[
         UploadFile,
@@ -81,8 +83,10 @@ async def ingest_document(
     try:
         with open(temp_file_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        raise AppException(ErrorCode.FILE_SAVE_FAILED, str(e))
+    except Exception:
+        raise AppException(ErrorCode.FILE_SAVE_FAILED)
+
+    locale = resolve_locale(request)
 
     # 3. Hash & Deduplication
     file_hash = await calculate_file_hash(temp_file_path)
@@ -93,10 +97,10 @@ async def ingest_document(
         result = IngestResponse(
             task_id=task_id,
             status="skipped",
-            message="Document already exists.",
+            message=get_message("response.document.exists", locale),
             file_id=file_hash,
         )
-        return ApiResponse.success(result=result, message="Document already exists.")
+        return ApiResponse.success(result=result, message=get_message("response.document.exists", locale), locale=locale)
 
     # 4. Prepare Metadata (user_id from auth context)
     metadata = {
@@ -117,10 +121,22 @@ async def ingest_document(
     result = IngestResponse(
         task_id=task_id,
         status="accepted",
-        message="Document accepted for processing.",
+        message=get_message("response.document.accepted", locale),
         file_id=file_hash,
     )
-    return ApiResponse.success(result=result, message="Document accepted for processing.")
+    return ApiResponse.success(result=result, message=get_message("response.document.accepted", locale), locale=locale)
+
+
+def _to_task_schema(task, locale: str) -> TaskSchema:
+    return TaskSchema(
+        task_id=task.task_id,
+        status=task.status,
+        created_at=task.created_at,
+        updated_at=task.updated_at,
+        message=get_message(task.message_key, locale) if task.message_key else None,
+        file_info=task.file_info,
+        error=task.error,
+    )
 
 
 @router.get(
@@ -128,10 +144,15 @@ async def ingest_document(
     response_model=ApiResponse[List[TaskSchema]],
     summary="List all ingestion tasks",
 )
-async def list_tasks(current_user: UserPrincipal = Depends(get_current_user)):
+async def list_tasks(
+    request: Request,
+    current_user: UserPrincipal = Depends(get_current_user),
+):
     """Returns the full list of document ingestion tasks tracked in-memory."""
+    locale = resolve_locale(request)
     task_manager = get_task_manager()
-    return ApiResponse.success(result=task_manager.list_tasks())
+    tasks = [_to_task_schema(task, locale) for task in task_manager.list_tasks()]
+    return ApiResponse.success(result=tasks, locale=locale)
 
 
 @router.get(
@@ -144,6 +165,7 @@ async def list_tasks(current_user: UserPrincipal = Depends(get_current_user)):
     },
 )
 async def get_task_status(
+    request: Request,
     task_id: str,
     current_user: UserPrincipal = Depends(get_current_user),
 ):
@@ -151,5 +173,6 @@ async def get_task_status(
     task_manager = get_task_manager()
     task = task_manager.get_task(task_id)
     if not task:
-        raise AppException(ErrorCode.TASK_NOT_FOUND, f"Task '{task_id}' not found.")
-    return ApiResponse.success(result=task)
+        raise AppException(ErrorCode.TASK_NOT_FOUND)
+    locale = resolve_locale(request)
+    return ApiResponse.success(result=_to_task_schema(task, locale), locale=locale)

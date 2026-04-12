@@ -1,8 +1,8 @@
 package com.leafy.profileservice.mapper;
 
-import com.leafy.profileservice.dto.ApprovalRequestDto;
-import com.leafy.profileservice.dto.CertificateDto;
 import com.leafy.profileservice.dto.request.profile.AddCertificateRequest;
+import com.leafy.profileservice.dto.response.profile.ApprovalRequestDto;
+import com.leafy.profileservice.dto.response.profile.CertificateDto;
 import com.leafy.profileservice.model.ApprovalRequest;
 import com.leafy.profileservice.model.Certificate;
 import org.mapstruct.Mapper;

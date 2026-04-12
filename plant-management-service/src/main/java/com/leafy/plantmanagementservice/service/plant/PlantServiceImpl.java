@@ -15,6 +15,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.UUID;
+
 @Service
 @RequiredArgsConstructor
 @Slf4j
@@ -26,10 +30,17 @@ public class PlantServiceImpl implements PlantService {
     @Override
     @Transactional
     public PlantResponse createPlant(PlantCreateRequest request) {
-        log.info("Creating new plant: {}", request.getPlantNumber());
         Plant plant = plantMapper.toEntity(request);
+        plant.setPlantNumber(generatePlantNumber());
+        log.info("Creating new plant with auto-generated number: {}", plant.getPlantNumber());
         Plant savedPlant = plantRepository.save(plant);
         return plantMapper.toResponse(savedPlant);
+    }
+
+    private String generatePlantNumber() {
+        String date = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyyMMdd"));
+        String suffix = UUID.randomUUID().toString().replace("-", "").substring(0, 4).toUpperCase();
+        return "PLT-" + date + "-" + suffix;
     }
 
     @Override

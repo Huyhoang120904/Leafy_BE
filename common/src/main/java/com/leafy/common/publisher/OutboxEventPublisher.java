@@ -4,6 +4,9 @@ import com.leafy.common.config.kafka.KafkaTopicProperties;
 import com.leafy.common.event.account.AccountRegisteredEvent;
 import com.leafy.common.event.community.CommentEvent;
 import com.leafy.common.event.community.VoteEvent;
+import com.leafy.common.event.post.PostDeletedEvent;
+import com.leafy.common.event.post.PostUpsertEvent;
+import com.leafy.common.event.profile.ProfileEvent;
 import com.leafy.common.model.kafka.EventType;
 import com.leafy.common.model.kafka.OutboxEvent;
 import com.leafy.common.repository.OutboxEventRepository;
@@ -125,10 +128,14 @@ public class OutboxEventPublisher {
             case USER_VERIFIED -> kafkaTopicProperties.getUserEvents().getVerified();
             case USER_ENABLED -> kafkaTopicProperties.getUserEvents().getEnabled();
             case USER_DISABLED -> kafkaTopicProperties.getUserEvents().getDisabled();
+            case POST_UPSERTED -> kafkaTopicProperties.getCommunityEvents().getPostUpserted();
+            case POST_DELETED -> kafkaTopicProperties.getCommunityEvents().getPostDeleted();
             case COMMENT_CREATED -> kafkaTopicProperties.getCommunityEvents().getCommentCreated();
             case COMMENT_DELETED -> kafkaTopicProperties.getCommunityEvents().getCommentDeleted();
             case VOTE_CREATED -> kafkaTopicProperties.getCommunityEvents().getVoteCreated();
             case VOTE_DELETED -> kafkaTopicProperties.getCommunityEvents().getVoteDeleted();
+            case PROFILE_CREATED -> kafkaTopicProperties.getProfileEvents().getCreated();
+            case PROFILE_UPDATED -> kafkaTopicProperties.getProfileEvents().getUpdated();
         };
     }
 
@@ -136,8 +143,11 @@ public class OutboxEventPublisher {
         return switch (eventType) {
             case USER_REGISTERED, USER_UPDATED, USER_DELETED, 
                  USER_VERIFIED, USER_ENABLED, USER_DISABLED -> AccountRegisteredEvent.class;
+            case POST_UPSERTED -> PostUpsertEvent.class;
+            case POST_DELETED -> PostDeletedEvent.class;
             case COMMENT_CREATED, COMMENT_DELETED -> CommentEvent.class;
             case VOTE_CREATED, VOTE_DELETED -> VoteEvent.class;
+            case PROFILE_CREATED, PROFILE_UPDATED -> ProfileEvent.class;
         };
     }
 }

@@ -54,11 +54,11 @@ async def process_document(file_path: Path, metadata: Dict[str, Any], file_hash:
     4. Cleanup
     """
     task_manager = get_task_manager()
-    task_manager.update_task(task_id, TaskStatus.PROCESSING, message="Starting processing")
+    task_manager.update_task(task_id, TaskStatus.PROCESSING, message_key="task.processing.start")
     
     try:
         # 1. Parse
-        task_manager.update_task(task_id, TaskStatus.PROCESSING, message="Parsing document")
+        task_manager.update_task(task_id, TaskStatus.PROCESSING, message_key="task.processing.parse")
         content = ""
         ext = file_path.suffix.lower()
         
@@ -74,15 +74,15 @@ async def process_document(file_path: Path, metadata: Dict[str, Any], file_hash:
 
         if not content:
             print(f"Empty content for file: {file_path}")
-            task_manager.update_task(task_id, TaskStatus.FAILED, message="Extracted content was empty")
+            task_manager.update_task(task_id, TaskStatus.FAILED, message_key="task.processing.empty")
             return
 
         # 1.1 Clean
-        task_manager.update_task(task_id, TaskStatus.PROCESSING, message="Cleaning text")
+        task_manager.update_task(task_id, TaskStatus.PROCESSING, message_key="task.processing.clean")
         content = clean_content(content)
 
         # 2. Split
-        task_manager.update_task(task_id, TaskStatus.PROCESSING, message="Splitting text")
+        task_manager.update_task(task_id, TaskStatus.PROCESSING, message_key="task.processing.split")
         text_splitter = RecursiveCharacterTextSplitter(
             chunk_size=1000,
             chunk_overlap=200,
@@ -103,16 +103,16 @@ async def process_document(file_path: Path, metadata: Dict[str, Any], file_hash:
             docs.append(Document(page_content=chunk, metadata=doc_metadata))
 
         # 3. Index
-        task_manager.update_task(task_id, TaskStatus.PROCESSING, message="Indexing vectors")
+        task_manager.update_task(task_id, TaskStatus.PROCESSING, message_key="task.processing.index")
         vector_service = get_vector_service()
         vector_service.add_documents(docs)
         print(f"Successfully indexed {len(docs)} chunks for {file_path.name}")
         
-        task_manager.update_task(task_id, TaskStatus.COMPLETED, message=f"Indexed {len(docs)} chunks")
+        task_manager.update_task(task_id, TaskStatus.COMPLETED, message_key="task.completed")
 
     except Exception as e:
         print(f"Error processing document {file_path}: {e}")
-        task_manager.update_task(task_id, TaskStatus.FAILED, error=str(e), message="Processing failed")
+        task_manager.update_task(task_id, TaskStatus.FAILED, error=str(e), message_key="task.processing.failed")
     finally:
         # 4. Cleanup
         if file_path.exists():

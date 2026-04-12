@@ -1,10 +1,14 @@
 import logging
 from typing import List, Optional
 
-from fastapi import Request, HTTPException, status, Depends
+from fastapi import Request, status, Depends
 from pydantic import BaseModel
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
+
+from app.exceptions.app_exception import AppException
+from app.exceptions.error_code import ErrorCode
+from app.i18n import get_message, resolve_locale
 
 logger = logging.getLogger(__name__)
 
@@ -78,12 +82,13 @@ class SecurityContextMiddleware(BaseHTTPMiddleware):
 
         if not self._is_public_path(path):
             if not getattr(request.state, "user", None):
+                locale = resolve_locale(request)
                 logger.warning("Unauthorized access to %s", path)
                 return JSONResponse(
                     status_code=status.HTTP_401_UNAUTHORIZED,
                     content={
-                        "code": 4001,
-                        "message": "Authentication required. Missing user context headers.",
+                        "code": ErrorCode.UNAUTHENTICATED.code,
+                        "message": get_message(ErrorCode.UNAUTHENTICATED.message_key, locale),
                         "result": None,
                     },
                 )
@@ -95,10 +100,7 @@ def get_current_user(request: Request) -> UserPrincipal:
     """FastAPI dependency — returns the UserPrincipal from request state."""
     user = getattr(request.state, "user", None)
     if not user:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated",
-        )
+        raise AppException(ErrorCode.UNAUTHENTICATED)
     return user
 
 
@@ -109,9 +111,6 @@ def require_roles(required_roles: List[str]):
         if not any(
             role in user_roles or f"ROLE_{role}" in user_roles for role in required_roles
         ):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Insufficient permissions",
-            )
+            raise AppException(ErrorCode.UNAUTHORIZED)
         return user
     return role_checker

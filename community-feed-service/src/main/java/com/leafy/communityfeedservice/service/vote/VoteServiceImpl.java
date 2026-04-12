@@ -6,6 +6,8 @@ import com.leafy.common.exception.ErrorCode;
 import com.leafy.common.model.kafka.EventType;
 import com.leafy.common.publisher.OutboxEventPublisher;
 import com.leafy.common.utils.ServiceSecurityUtils;
+import com.leafy.communityfeedservice.dto.response.VoteResponse;
+import com.leafy.communityfeedservice.mapper.VoteMapper;
 import com.leafy.communityfeedservice.model.Vote;
 import com.leafy.communityfeedservice.model.enums.VoteTargetType;
 import com.leafy.communityfeedservice.model.enums.VoteType;
@@ -14,6 +16,8 @@ import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -27,6 +31,7 @@ public class VoteServiceImpl implements VoteService {
 
     VoteRepository voteRepository;
     OutboxEventPublisher outboxEventPublisher;
+    VoteMapper voteMapper;
 
     @Override
     @Transactional
@@ -60,6 +65,13 @@ public class VoteServiceImpl implements VoteService {
             newVote = voteRepository.save(newVote);
             publishVoteEvent(newVote, EventType.VOTE_CREATED);
         }
+    }
+
+    @Override
+    public Page<VoteResponse> getVotesByPostAndType(String postId, VoteType voteType, Pageable pageable) {
+        return voteRepository
+                .findByTargetIdAndTargetTypeAndTypeAndActiveTrue(postId, VoteTargetType.POST, voteType, pageable)
+                .map(voteMapper::toResponse);
     }
 
     private void publishVoteEvent(Vote vote, EventType eventType) {

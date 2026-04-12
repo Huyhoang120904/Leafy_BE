@@ -24,8 +24,9 @@ public class InternalUserController {
 
     @GetMapping("/{userId}")
     public ResponseEntity<ApiResponse<UserResponse>> getUserById(@PathVariable String userId) {
-        log.info("GET /internal/users/{} - Internal get user by ID", userId);
+        log.info("GET /internal/users/{} - Getting user by ID", userId);
         UserResponse response = userService.getUserById(userId);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
+
 }
