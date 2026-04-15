@@ -10,13 +10,15 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.leafy.iotmetricscollectorservice.dto.device.DeviceConfigResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.DeviceResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.GenerateClaimCodeResponse;
+import com.leafy.iotmetricscollectorservice.dto.common.PagedResponse;
 import com.leafy.iotmetricscollectorservice.exception.TelemetryQueryException;
 import com.leafy.iotmetricscollectorservice.exception.TelemetryQueryExceptionHandler;
+import com.leafy.iotmetricscollectorservice.model.enums.DeviceStatus;
+import com.leafy.iotmetricscollectorservice.model.enums.ProvisioningStatus;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigService;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigPushService;
 import com.leafy.iotmetricscollectorservice.service.DeviceService;
 import java.time.Instant;
-import java.util.List;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -129,12 +131,107 @@ class DeviceControllerTest {
         DeviceResponse response = new DeviceResponse();
         response.setId(UUID.randomUUID());
         response.setDeviceUid("device-001");
+        PagedResponse<DeviceResponse> pagedResponse = new PagedResponse<>(
+            java.util.List.of(response),
+            0,
+            20,
+            1,
+            1,
+            false,
+            false
+        );
 
-        when(deviceService.getDevicesByOwner(userId)).thenReturn(List.of(response));
+        when(deviceService.getDevicesByOwner(
+            userId,
+            0,
+            20,
+            "createdAt",
+            "desc",
+            null,
+            null,
+            null,
+            null,
+            null
+        )).thenReturn(pagedResponse);
 
         mockMvc.perform(get("/iot/devices/me").header(DeviceController.USER_ID_HEADER, userId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$[0].deviceUid").value("device-001"));
+            .andExpect(jsonPath("$.items[0].deviceUid").value("device-001"))
+            .andExpect(jsonPath("$.page").value(0))
+            .andExpect(jsonPath("$.size").value(20))
+            .andExpect(jsonPath("$.totalItems").value(1));
+    }
+
+    @Test
+    void getMyDevices_passesFiltersAndPagination() throws Exception {
+        UUID userId = UUID.randomUUID();
+        UUID zoneId = UUID.randomUUID();
+        UUID farmPlotId = UUID.randomUUID();
+        PagedResponse<DeviceResponse> pagedResponse = new PagedResponse<>(
+            java.util.List.of(),
+            1,
+            10,
+            0,
+            0,
+            false,
+            true
+        );
+
+        when(deviceService.getDevicesByOwner(
+            userId,
+            1,
+            10,
+            "lastSeenAt",
+            "asc",
+            DeviceStatus.ONLINE,
+            ProvisioningStatus.CLAIMED,
+            zoneId,
+            farmPlotId,
+            "node"
+        )).thenReturn(pagedResponse);
+
+        mockMvc.perform(
+                get("/iot/devices/me")
+                    .header(DeviceController.USER_ID_HEADER, userId)
+                    .param("page", "1")
+                    .param("size", "10")
+                    .param("sortBy", "lastSeenAt")
+                    .param("sortDir", "asc")
+                    .param("status", "ONLINE")
+                    .param("provisioningStatus", "CLAIMED")
+                    .param("zoneId", zoneId.toString())
+                    .param("farmPlotId", farmPlotId.toString())
+                    .param("keyword", "node")
+            )
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.page").value(1))
+            .andExpect(jsonPath("$.size").value(10))
+            .andExpect(jsonPath("$.hasPrevious").value(true));
+    }
+
+    @Test
+    void getMyDevices_returnsBusinessErrorWhenSortFieldInvalid() throws Exception {
+        UUID userId = UUID.randomUUID();
+        when(deviceService.getDevicesByOwner(
+            userId,
+            0,
+            20,
+            "serialNumber",
+            "desc",
+            null,
+            null,
+            null,
+            null,
+            null
+        )).thenThrow(TelemetryQueryException.invalidDeviceSortField("serialNumber"));
+
+        mockMvc.perform(
+                get("/iot/devices/me")
+                    .header(DeviceController.USER_ID_HEADER, userId)
+                    .param("sortBy", "serialNumber")
+            )
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value(4628));
     }
 
     @Test

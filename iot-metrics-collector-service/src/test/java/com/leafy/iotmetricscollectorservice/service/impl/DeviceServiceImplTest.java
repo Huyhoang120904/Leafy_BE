@@ -11,6 +11,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.leafy.iotmetricscollectorservice.dto.device.ClaimDeviceRequest;
+import com.leafy.iotmetricscollectorservice.dto.common.PagedResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.DeviceResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.GenerateClaimCodeResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.ProvisionDeviceRequest;
@@ -28,12 +29,18 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 
 @ExtendWith(MockitoExtension.class)
 class DeviceServiceImplTest {
@@ -184,7 +191,7 @@ class DeviceServiceImplTest {
     }
 
     @Test
-    void getDevicesByOwner_returnsOwnerBoundDevices() {
+    void getDevicesByOwner_returnsPagedOwnerDevices() {
         UUID ownerUserId = UUID.randomUUID();
         IoTDevice second = createDevice();
         second.setDeviceName("Zulu");
@@ -196,14 +203,95 @@ class DeviceServiceImplTest {
         first.setDeviceCode("IOT-001");
         first.setOwnerUser(toUserRef(ownerUserId));
 
-        when(ioTDeviceRepository.findAllByOwnerUserId(ownerUserId)).thenReturn(List.of(second, first));
+        when(ioTDeviceRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(second, first)));
 
-        List<DeviceResponse> responses = deviceService.getDevicesByOwner(ownerUserId);
+        PagedResponse<DeviceResponse> responses = deviceService.getDevicesByOwner(
+            ownerUserId,
+            0,
+            20,
+            "createdAt",
+            "desc",
+            null,
+            null,
+            null,
+            null,
+            null
+        );
 
-        assertEquals(2, responses.size());
-        assertEquals("Alpha", responses.get(0).getDeviceName());
-        assertEquals("Zulu", responses.get(1).getDeviceName());
-        assertEquals(ownerUserId, responses.get(0).getOwnerUserId());
+        assertEquals(2, responses.items().size());
+        assertEquals("Zulu", responses.items().get(0).getDeviceName());
+        assertEquals("Alpha", responses.items().get(1).getDeviceName());
+        assertEquals(ownerUserId, responses.items().get(0).getOwnerUserId());
+    }
+
+    @Test
+    void getDevicesByOwner_usesRequestedPaginationSortingAndFilters() {
+        UUID ownerUserId = UUID.randomUUID();
+        when(ioTDeviceRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+
+        deviceService.getDevicesByOwner(
+            ownerUserId,
+            1,
+            10,
+            "lastSeenAt",
+            "asc",
+            DeviceStatus.ONLINE,
+            ProvisioningStatus.CLAIMED,
+            UUID.randomUUID(),
+            UUID.randomUUID(),
+            "node"
+        );
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(ioTDeviceRepository).findAll(any(Specification.class), pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+        List<Sort.Order> orders = pageable.getSort().toList();
+        assertEquals(1, pageable.getPageNumber());
+        assertEquals(10, pageable.getPageSize());
+        assertEquals("lastSeenAt", orders.get(0).getProperty());
+        assertEquals(Sort.Direction.ASC, orders.get(0).getDirection());
+    }
+
+    @Test
+    void getDevicesByOwner_rejectsInvalidSortField() {
+        assertThrows(
+            TelemetryQueryException.class,
+            () -> deviceService.getDevicesByOwner(
+                UUID.randomUUID(),
+                0,
+                20,
+                "serialNumber",
+                "desc",
+                null,
+                null,
+                null,
+                null,
+                null
+            )
+        );
+    }
+
+    @Test
+    void getDevicesByOwner_clampsMaxPageSize() {
+        when(ioTDeviceRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+
+        deviceService.getDevicesByOwner(
+            UUID.randomUUID(),
+            0,
+            500,
+            "createdAt",
+            "desc",
+            null,
+            null,
+            null,
+            null,
+            "sensor"
+        );
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(ioTDeviceRepository).findAll(any(Specification.class), pageableCaptor.capture());
+        assertEquals(100, pageableCaptor.getValue().getPageSize());
     }
 
     private IoTDevice createDevice() {

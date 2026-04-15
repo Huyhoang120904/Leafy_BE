@@ -4,7 +4,9 @@ import com.leafy.iotmetricscollectorservice.dto.device.ClaimDeviceRequest;
 import com.leafy.iotmetricscollectorservice.dto.device.DeviceResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.GenerateClaimCodeResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.ProvisionDeviceRequest;
-import java.util.List;
+import com.leafy.iotmetricscollectorservice.dto.common.PagedResponse;
+import com.leafy.iotmetricscollectorservice.model.enums.DeviceStatus;
+import com.leafy.iotmetricscollectorservice.model.enums.ProvisioningStatus;
 import java.util.UUID;
 
 public interface DeviceService {
@@ -15,5 +17,16 @@ public interface DeviceService {
 
     DeviceResponse claimDevice(UUID currentUserId, ClaimDeviceRequest request);
 
-    List<DeviceResponse> getDevicesByOwner(UUID ownerUserId);
+    PagedResponse<DeviceResponse> getDevicesByOwner(
+        UUID ownerUserId,
+        Integer page,
+        Integer size,
+        String sortBy,
+        String sortDir,
+        DeviceStatus status,
+        ProvisioningStatus provisioningStatus,
+        UUID zoneId,
+        UUID farmPlotId,
+        String keyword
+    );
 }

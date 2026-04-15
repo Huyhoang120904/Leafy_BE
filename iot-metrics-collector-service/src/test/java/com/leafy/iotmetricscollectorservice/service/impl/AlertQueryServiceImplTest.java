@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.leafy.iotmetricscollectorservice.dto.dashboard.AlertEventDetailResponse;
 import com.leafy.iotmetricscollectorservice.dto.dashboard.AlertEventItemResponse;
+import com.leafy.iotmetricscollectorservice.dto.common.PagedResponse;
 import com.leafy.iotmetricscollectorservice.exception.TelemetryQueryException;
 import com.leafy.iotmetricscollectorservice.mapper.DashboardQueryMapper;
 import com.leafy.iotmetricscollectorservice.model.AlertEvent;
@@ -32,6 +33,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 
@@ -52,21 +56,26 @@ class AlertQueryServiceImplTest {
         UUID deviceId = UUID.randomUUID();
         AlertEvent alertEvent = createAlertEvent(deviceId, UUID.randomUUID(), AlertStatus.OPEN, AlertSeverity.HIGH);
 
-        when(alertEventRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(List.of(alertEvent));
+        when(alertEventRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(alertEvent)));
 
-        List<AlertEventItemResponse> response = alertQueryService.searchAlerts(
+        PagedResponse<AlertEventItemResponse> response = alertQueryService.searchAlerts(
             null,
             deviceId,
             AlertStatus.OPEN,
             null,
             null,
-            null
+            null,
+            0,
+            20,
+            "openedAt",
+            "desc"
         );
 
-        assertEquals(1, response.size());
-        assertEquals(deviceId, response.getFirst().getDeviceId());
-        assertEquals("OPEN", response.getFirst().getStatus());
-        assertEquals("HIGH", response.getFirst().getSeverity());
+        assertEquals(1, response.items().size());
+        assertEquals(deviceId, response.items().getFirst().getDeviceId());
+        assertEquals("OPEN", response.items().getFirst().getStatus());
+        assertEquals("HIGH", response.items().getFirst().getSeverity());
     }
 
     @Test
@@ -77,37 +86,47 @@ class AlertQueryServiceImplTest {
         AlertEvent alertEvent = createAlertEvent(UUID.randomUUID(), zoneId, AlertStatus.ACKNOWLEDGED, AlertSeverity.CRITICAL);
         alertEvent.setOpenedAt(Instant.parse("2026-04-10T06:00:00Z"));
 
-        when(alertEventRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(List.of(alertEvent));
+        when(alertEventRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenReturn(new PageImpl<>(List.of(alertEvent)));
 
-        List<AlertEventItemResponse> response = alertQueryService.searchAlerts(
+        PagedResponse<AlertEventItemResponse> response = alertQueryService.searchAlerts(
             zoneId,
             null,
             AlertStatus.ACKNOWLEDGED,
             AlertSeverity.CRITICAL,
             from,
-            to
+            to,
+            0,
+            20,
+            "openedAt",
+            "desc"
         );
 
-        assertEquals(1, response.size());
-        assertEquals(zoneId, response.getFirst().getZoneId());
-        assertEquals("ACKNOWLEDGED", response.getFirst().getStatus());
-        assertEquals(Instant.parse("2026-04-10T06:00:00Z"), response.getFirst().getOpenedAt());
+        assertEquals(1, response.items().size());
+        assertEquals(zoneId, response.items().getFirst().getZoneId());
+        assertEquals("ACKNOWLEDGED", response.items().getFirst().getStatus());
+        assertEquals(Instant.parse("2026-04-10T06:00:00Z"), response.items().getFirst().getOpenedAt());
     }
 
     @Test
     void searchAlerts_returnsEmptyListWhenRepositoryHasNoMatches() {
-        when(alertEventRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(List.of());
+        when(alertEventRepository.findAll(any(Specification.class), any(Pageable.class)))
+            .thenReturn(Page.empty());
 
-        List<AlertEventItemResponse> response = alertQueryService.searchAlerts(
+        PagedResponse<AlertEventItemResponse> response = alertQueryService.searchAlerts(
             null,
             null,
             null,
             null,
             null,
-            null
+            null,
+            0,
+            20,
+            "openedAt",
+            "desc"
         );
 
-        assertEquals(List.of(), response);
+        assertEquals(List.of(), response.items());
     }
 
     @Test
@@ -117,7 +136,7 @@ class AlertQueryServiceImplTest {
 
         assertThrows(
             TelemetryQueryException.class,
-            () -> alertQueryService.searchAlerts(null, null, null, null, from, to)
+            () -> alertQueryService.searchAlerts(null, null, null, null, from, to, 0, 20, "openedAt", "desc")
         );
     }
 
@@ -146,16 +165,38 @@ class AlertQueryServiceImplTest {
     }
 
     @Test
-    void searchAlerts_usesDescendingOpenedAtSort() {
-        when(alertEventRepository.findAll(any(Specification.class), any(Sort.class))).thenReturn(List.of());
+    void searchAlerts_paginatesAndUsesDescendingOpenedAtSort() {
+        when(alertEventRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
-        alertQueryService.searchAlerts(null, null, null, null, null, null);
+        alertQueryService.searchAlerts(null, null, null, null, null, null, 2, 10, "openedAt", "desc");
 
-        ArgumentCaptor<Sort> sortCaptor = ArgumentCaptor.forClass(Sort.class);
-        verify(alertEventRepository).findAll(any(Specification.class), sortCaptor.capture());
-        List<Sort.Order> orders = sortCaptor.getValue().toList();
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(alertEventRepository).findAll(any(Specification.class), pageableCaptor.capture());
+        Pageable pageable = pageableCaptor.getValue();
+        List<Sort.Order> orders = pageable.getSort().toList();
+        assertEquals(2, pageable.getPageNumber());
+        assertEquals(10, pageable.getPageSize());
         assertEquals("openedAt", orders.get(0).getProperty());
         assertEquals(Sort.Direction.DESC, orders.get(0).getDirection());
+    }
+
+    @Test
+    void searchAlerts_rejectsInvalidSortBy() {
+        assertThrows(
+            TelemetryQueryException.class,
+            () -> alertQueryService.searchAlerts(null, null, null, null, null, null, 0, 20, "deviceId", "desc")
+        );
+    }
+
+    @Test
+    void searchAlerts_clampsMaxPageSize() {
+        when(alertEventRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
+
+        alertQueryService.searchAlerts(null, null, null, null, null, null, 0, 999, "openedAt", "desc");
+
+        ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+        verify(alertEventRepository).findAll(any(Specification.class), pageableCaptor.capture());
+        assertEquals(100, pageableCaptor.getValue().getPageSize());
     }
 
     private AlertEvent createAlertEvent(UUID deviceId, UUID zoneId, AlertStatus status, AlertSeverity severity) {
