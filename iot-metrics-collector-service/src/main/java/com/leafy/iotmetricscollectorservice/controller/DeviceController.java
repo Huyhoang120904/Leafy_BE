@@ -6,10 +6,12 @@ import com.leafy.iotmetricscollectorservice.dto.device.DeviceResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.GenerateClaimCodeResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.ProvisionDeviceRequest;
 import com.leafy.iotmetricscollectorservice.dto.device.UpdateDeviceConfigRequest;
+import com.leafy.iotmetricscollectorservice.dto.common.PagedResponse;
+import com.leafy.iotmetricscollectorservice.model.enums.DeviceStatus;
+import com.leafy.iotmetricscollectorservice.model.enums.ProvisioningStatus;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigService;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigPushService;
 import com.leafy.iotmetricscollectorservice.service.DeviceService;
-import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @RestController
 @RequestMapping("/iot/devices")
@@ -52,8 +55,32 @@ public class DeviceController {
     }
 
     @GetMapping("/me")
-    public ResponseEntity<List<DeviceResponse>> getMyDevices(@RequestHeader(USER_ID_HEADER) UUID currentUserId) {
-        return ResponseEntity.ok(deviceService.getDevicesByOwner(currentUserId));
+    public ResponseEntity<PagedResponse<DeviceResponse>> getMyDevices(
+        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestParam(defaultValue = "0") Integer page,
+        @RequestParam(defaultValue = "20") Integer size,
+        @RequestParam(defaultValue = "createdAt") String sortBy,
+        @RequestParam(defaultValue = "desc") String sortDir,
+        @RequestParam(required = false) DeviceStatus status,
+        @RequestParam(required = false) ProvisioningStatus provisioningStatus,
+        @RequestParam(required = false) UUID zoneId,
+        @RequestParam(required = false) UUID farmPlotId,
+        @RequestParam(required = false) String keyword
+    ) {
+        return ResponseEntity.ok(
+            deviceService.getDevicesByOwner(
+                currentUserId,
+                page,
+                size,
+                sortBy,
+                sortDir,
+                status,
+                provisioningStatus,
+                zoneId,
+                farmPlotId,
+                keyword
+            )
+        );
     }
 
     @GetMapping("/{deviceId}/config")

@@ -8,6 +8,7 @@ import java.util.Collection;
 import java.util.UUID;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -52,4 +53,12 @@ public interface AlertEventRepository extends JpaRepository<AlertEvent, UUID>, J
           and alertEvent.device.farmPlot.id = :farmPlotId
         """)
     long countByFarmPlotIdAndStatus(@Param("farmPlotId") UUID farmPlotId, @Param("status") AlertStatus status);
+
+    @Modifying(clearAutomatically = true, flushAutomatically = true)
+    @Query("""
+        update AlertEvent alertEvent
+        set alertEvent.alertRule = null
+        where alertEvent.alertRule.id = :ruleId
+        """)
+    int clearAlertRuleByAlertRuleId(@Param("ruleId") UUID ruleId);
 }
