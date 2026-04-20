@@ -44,7 +44,7 @@ public class AlertQueryServiceImpl implements AlertQueryService {
 
     @Override
     public PagedResponse<AlertEventItemResponse> searchAlerts(
-        UUID zoneId,
+        String zoneId,
         UUID deviceId,
         AlertStatus status,
         AlertSeverity severity,
@@ -79,7 +79,7 @@ public class AlertQueryServiceImpl implements AlertQueryService {
     }
 
     private Specification<AlertEvent> buildSpecification(
-        UUID zoneId,
+        String zoneId,
         UUID deviceId,
         AlertStatus status,
         AlertSeverity severity,

@@ -42,7 +42,7 @@ class AlertRuleControllerTest {
 
     @Test
     void postAlertRule_returnsCreatedPayload() throws Exception {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         UUID sensorTypeId = UUID.randomUUID();
         AlertRuleResponse response = createResponse();
         response.setOwnerUserId(currentUserId);
@@ -65,13 +65,13 @@ class AlertRuleControllerTest {
                         """.formatted(sensorTypeId, UUID.randomUUID()))
             )
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.ownerUserId").value(currentUserId.toString()))
+            .andExpect(jsonPath("$.ownerUserId").value(currentUserId))
             .andExpect(jsonPath("$.sensorTypeId").value(sensorTypeId.toString()));
     }
 
     @Test
     void getAlertRules_returnsOwnedRows() throws Exception {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRuleResponse response = createResponse();
         PagedResponse<AlertRuleResponse> pagedResponse = new PagedResponse<>(java.util.List.of(response), 0, 20, 1, 1, false, false);
 
@@ -98,7 +98,7 @@ class AlertRuleControllerTest {
 
     @Test
     void getAlertRuleById_returnsRuleDetail() throws Exception {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRuleResponse response = createResponse();
 
         when(alertRuleService.getRule(currentUserId, response.getId())).thenReturn(response);
@@ -113,7 +113,7 @@ class AlertRuleControllerTest {
 
     @Test
     void putAlertRule_returnsUpdatedRule() throws Exception {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRuleResponse response = createResponse();
         response.setSeverity("CRITICAL");
 
@@ -145,7 +145,7 @@ class AlertRuleControllerTest {
 
     @Test
     void patchAlertRuleEnabled_returnsToggledRule() throws Exception {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRuleResponse response = createResponse();
         response.setEnabled(false);
 
@@ -167,7 +167,7 @@ class AlertRuleControllerTest {
 
     @Test
     void deleteAlertRule_returnsNoContent() throws Exception {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         UUID ruleId = UUID.randomUUID();
         doNothing().when(alertRuleService).deleteRule(currentUserId, ruleId);
 
@@ -181,7 +181,7 @@ class AlertRuleControllerTest {
     private AlertRuleResponse createResponse() {
         AlertRuleResponse response = new AlertRuleResponse();
         response.setId(UUID.randomUUID());
-        response.setOwnerUserId(UUID.randomUUID());
+        response.setOwnerUserId(UUID.randomUUID().toString());
         response.setSensorTypeId(UUID.randomUUID());
         response.setDeviceId(UUID.randomUUID());
         response.setMinThreshold(10d);

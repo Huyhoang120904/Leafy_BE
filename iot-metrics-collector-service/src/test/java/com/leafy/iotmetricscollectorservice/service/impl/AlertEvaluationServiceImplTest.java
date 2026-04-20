@@ -146,7 +146,7 @@ class AlertEvaluationServiceImplTest {
         AlertRule rule = createRule(reading.getSensorType());
         rule.setMaxThreshold(35.0d);
         FarmZoneRef otherZone = new FarmZoneRef();
-        otherZone.setId(UUID.randomUUID());
+        otherZone.setId(UUID.randomUUID().toString());
         rule.setZone(otherZone);
 
         when(alertRuleRepository.findAllByEnabledTrueAndSensorTypeId(reading.getSensorType().getId()))
@@ -228,13 +228,13 @@ class AlertEvaluationServiceImplTest {
         reading.setReadingTime(Instant.parse("2026-04-10T02:00:00Z"));
 
         UserRef ownerUser = new UserRef();
-        ownerUser.setId(UUID.randomUUID());
+        ownerUser.setId(UUID.randomUUID().toString());
 
         FarmPlotRef farmPlot = new FarmPlotRef();
-        farmPlot.setId(UUID.randomUUID());
+        farmPlot.setId(UUID.randomUUID().toString());
 
         FarmZoneRef zone = new FarmZoneRef();
-        zone.setId(UUID.randomUUID());
+        zone.setId(UUID.randomUUID().toString());
 
         IoTDevice device = new IoTDevice();
         device.setId(UUID.randomUUID());
@@ -265,7 +265,7 @@ class AlertEvaluationServiceImplTest {
         rule.setCooldownMinutes(0);
 
         UserRef ownerUser = new UserRef();
-        ownerUser.setId(UUID.randomUUID());
+        ownerUser.setId(UUID.randomUUID().toString());
         rule.setOwnerUser(ownerUser);
         return rule;
     }

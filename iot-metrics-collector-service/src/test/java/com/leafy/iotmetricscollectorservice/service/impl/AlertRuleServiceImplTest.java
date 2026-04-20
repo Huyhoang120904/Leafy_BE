@@ -64,9 +64,9 @@ class AlertRuleServiceImplTest {
 
     @Test
     void createRule_succeedsWithValidMinThreshold() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         UUID sensorTypeId = UUID.randomUUID();
-        UUID zoneId = UUID.randomUUID();
+        String zoneId = UUID.randomUUID().toString();
         CreateAlertRuleRequest request = createRequest(sensorTypeId, null, zoneId, null, 12d, null);
 
         when(sensorTypeRepository.findById(sensorTypeId)).thenReturn(Optional.of(createSensorType(sensorTypeId)));
@@ -91,7 +91,7 @@ class AlertRuleServiceImplTest {
 
     @Test
     void createRule_succeedsWithValidMaxThreshold() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         UUID sensorTypeId = UUID.randomUUID();
         UUID deviceId = UUID.randomUUID();
         CreateAlertRuleRequest request = createRequest(sensorTypeId, deviceId, null, null, null, 40d);
@@ -109,13 +109,13 @@ class AlertRuleServiceImplTest {
     @Test
     void createRule_succeedsWithBothThresholdsWhenMinLessThanMax() {
         UUID sensorTypeId = UUID.randomUUID();
-        UUID farmPlotId = UUID.randomUUID();
+        String farmPlotId = UUID.randomUUID().toString();
         CreateAlertRuleRequest request = createRequest(sensorTypeId, null, null, farmPlotId, 10d, 20d);
 
         when(sensorTypeRepository.findById(sensorTypeId)).thenReturn(Optional.of(createSensorType(sensorTypeId)));
         when(alertRuleRepository.save(any(AlertRule.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        AlertRuleResponse response = alertRuleService.createRule(UUID.randomUUID(), request);
+        AlertRuleResponse response = alertRuleService.createRule(UUID.randomUUID().toString(), request);
 
         assertEquals(10d, response.getMinThreshold());
         assertEquals(20d, response.getMaxThreshold());
@@ -125,22 +125,22 @@ class AlertRuleServiceImplTest {
     @Test
     void createRule_failsWhenBothThresholdsAreNull() {
         UUID sensorTypeId = UUID.randomUUID();
-        CreateAlertRuleRequest request = createRequest(sensorTypeId, null, UUID.randomUUID(), null, null, null);
+        CreateAlertRuleRequest request = createRequest(sensorTypeId, null, UUID.randomUUID().toString(), null, null, null);
 
         when(sensorTypeRepository.findById(sensorTypeId)).thenReturn(Optional.of(createSensorType(sensorTypeId)));
 
-        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID().toString(), request));
         verify(alertRuleRepository, never()).save(any(AlertRule.class));
     }
 
     @Test
     void createRule_failsWhenMinIsGreaterThanOrEqualToMax() {
         UUID sensorTypeId = UUID.randomUUID();
-        CreateAlertRuleRequest request = createRequest(sensorTypeId, null, UUID.randomUUID(), null, 25d, 25d);
+        CreateAlertRuleRequest request = createRequest(sensorTypeId, null, UUID.randomUUID().toString(), null, 25d, 25d);
 
         when(sensorTypeRepository.findById(sensorTypeId)).thenReturn(Optional.of(createSensorType(sensorTypeId)));
 
-        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID().toString(), request));
         verify(alertRuleRepository, never()).save(any(AlertRule.class));
     }
 
@@ -151,25 +151,25 @@ class AlertRuleServiceImplTest {
 
         when(sensorTypeRepository.findById(sensorTypeId)).thenReturn(Optional.of(createSensorType(sensorTypeId)));
 
-        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID().toString(), request));
         verify(alertRuleRepository, never()).save(any(AlertRule.class));
     }
 
     @Test
     void createRule_failsOnInvalidCooldown() {
         UUID sensorTypeId = UUID.randomUUID();
-        CreateAlertRuleRequest request = createRequest(sensorTypeId, null, UUID.randomUUID(), null, 10d, null);
+        CreateAlertRuleRequest request = createRequest(sensorTypeId, null, UUID.randomUUID().toString(), null, 10d, null);
         request.setCooldownMinutes(-1);
 
         when(sensorTypeRepository.findById(sensorTypeId)).thenReturn(Optional.of(createSensorType(sensorTypeId)));
 
-        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> alertRuleService.createRule(UUID.randomUUID().toString(), request));
         verify(alertRuleRepository, never()).save(any(AlertRule.class));
     }
 
     @Test
     void listRules_filtersByOwnerAndOptionalFilters() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRule alertRule = createRuleEntity(currentUserId);
 
         when(alertRuleRepository.findAll(any(Specification.class), any(Pageable.class)))
@@ -195,7 +195,7 @@ class AlertRuleServiceImplTest {
 
     @Test
     void listRules_usesRequestedPaginationAndSorting() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
 
         when(alertRuleRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
@@ -215,7 +215,7 @@ class AlertRuleServiceImplTest {
     void listRules_rejectsInvalidSortDir() {
         assertThrows(
             TelemetryQueryException.class,
-            () -> alertRuleService.listRules(UUID.randomUUID(), null, null, null, null, null, 0, 20, "updatedAt", "down")
+            () -> alertRuleService.listRules(UUID.randomUUID().toString(), null, null, null, null, null, 0, 20, "updatedAt", "down")
         );
     }
 
@@ -223,7 +223,7 @@ class AlertRuleServiceImplTest {
     void listRules_clampsMaxPageSize() {
         when(alertRuleRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
-        alertRuleService.listRules(UUID.randomUUID(), null, null, null, null, null, 0, 500, "updatedAt", "desc");
+        alertRuleService.listRules(UUID.randomUUID().toString(), null, null, null, null, null, 0, 500, "updatedAt", "desc");
 
         ArgumentCaptor<Pageable> pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
         verify(alertRuleRepository).findAll(any(Specification.class), pageableCaptor.capture());
@@ -232,7 +232,7 @@ class AlertRuleServiceImplTest {
 
     @Test
     void getRule_returnsOwnedRule() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRule alertRule = createRuleEntity(currentUserId);
 
         when(alertRuleRepository.findByIdAndOwnerUserId(alertRule.getId(), currentUserId)).thenReturn(Optional.of(alertRule));
@@ -245,7 +245,7 @@ class AlertRuleServiceImplTest {
 
     @Test
     void getRule_failsForMissingRule() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         UUID ruleId = UUID.randomUUID();
         when(alertRuleRepository.findByIdAndOwnerUserId(ruleId, currentUserId)).thenReturn(Optional.empty());
 
@@ -254,10 +254,10 @@ class AlertRuleServiceImplTest {
 
     @Test
     void updateRule_succeeds() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         UUID ruleId = UUID.randomUUID();
         UUID sensorTypeId = UUID.randomUUID();
-        UUID zoneId = UUID.randomUUID();
+        String zoneId = UUID.randomUUID().toString();
         AlertRule alertRule = createRuleEntity(currentUserId);
         alertRule.setId(ruleId);
 
@@ -286,7 +286,7 @@ class AlertRuleServiceImplTest {
 
     @Test
     void updateRuleEnabled_succeeds() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRule alertRule = createRuleEntity(currentUserId);
 
         when(alertRuleRepository.findByIdAndOwnerUserId(alertRule.getId(), currentUserId)).thenReturn(Optional.of(alertRule));
@@ -299,7 +299,7 @@ class AlertRuleServiceImplTest {
 
     @Test
     void deleteRule_succeeds() {
-        UUID currentUserId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
         AlertRule alertRule = createRuleEntity(currentUserId);
 
         when(alertRuleRepository.findByIdAndOwnerUserId(alertRule.getId(), currentUserId)).thenReturn(Optional.of(alertRule));
@@ -313,8 +313,8 @@ class AlertRuleServiceImplTest {
     private CreateAlertRuleRequest createRequest(
         UUID sensorTypeId,
         UUID deviceId,
-        UUID zoneId,
-        UUID farmPlotId,
+        String zoneId,
+        String farmPlotId,
         Double minThreshold,
         Double maxThreshold
     ) {
@@ -338,14 +338,14 @@ class AlertRuleServiceImplTest {
         return sensorType;
     }
 
-    private AlertRule createRuleEntity(UUID ownerUserId) {
+    private AlertRule createRuleEntity(String ownerUserId) {
         AlertRule alertRule = new AlertRule();
         alertRule.setId(UUID.randomUUID());
         alertRule.setOwnerUser(toUserRef(ownerUserId));
         alertRule.setSensorType(createSensorType(UUID.randomUUID()));
         alertRule.setDevice(createDevice(UUID.randomUUID()));
-        alertRule.setZone(toZone(UUID.randomUUID()));
-        alertRule.setFarmPlot(toFarmPlot(UUID.randomUUID()));
+        alertRule.setZone(toZone(UUID.randomUUID().toString()));
+        alertRule.setFarmPlot(toFarmPlot(UUID.randomUUID().toString()));
         alertRule.setMinThreshold(10d);
         alertRule.setMaxThreshold(30d);
         alertRule.setSeverity(AlertSeverity.HIGH);
@@ -358,7 +358,7 @@ class AlertRuleServiceImplTest {
         return alertRule;
     }
 
-    private UserRef toUserRef(UUID userId) {
+    private UserRef toUserRef(String userId) {
         UserRef userRef = new UserRef();
         userRef.setId(userId);
         return userRef;
@@ -370,13 +370,13 @@ class AlertRuleServiceImplTest {
         return device;
     }
 
-    private FarmZoneRef toZone(UUID zoneId) {
+    private FarmZoneRef toZone(String zoneId) {
         FarmZoneRef zone = new FarmZoneRef();
         zone.setId(zoneId);
         return zone;
     }
 
-    private FarmPlotRef toFarmPlot(UUID farmPlotId) {
+    private FarmPlotRef toFarmPlot(String farmPlotId) {
         FarmPlotRef farmPlot = new FarmPlotRef();
         farmPlot.setId(farmPlotId);
         return farmPlot;

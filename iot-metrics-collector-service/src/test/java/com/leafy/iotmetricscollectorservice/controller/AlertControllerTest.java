@@ -46,7 +46,7 @@ class AlertControllerTest {
 
     @Test
     void searchAlerts_returnsFilteredPayload() throws Exception {
-        UUID zoneId = UUID.randomUUID();
+        String zoneId = UUID.randomUUID().toString();
         UUID deviceId = UUID.randomUUID();
         AlertEventItemResponse item = new AlertEventItemResponse();
         item.setId(UUID.randomUUID());
@@ -69,7 +69,7 @@ class AlertControllerTest {
 
         mockMvc.perform(
             get("/iot/alert-events")
-                .param("zoneId", zoneId.toString())
+                .param("zoneId", zoneId)
                 .param("deviceId", deviceId.toString())
                 .param("status", "OPEN")
                 .param("severity", "HIGH")

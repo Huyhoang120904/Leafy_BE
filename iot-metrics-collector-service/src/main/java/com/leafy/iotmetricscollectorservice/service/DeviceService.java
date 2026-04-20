@@ -15,18 +15,18 @@ public interface DeviceService {
 
     GenerateClaimCodeResponse generateClaimCode(UUID deviceId);
 
-    DeviceResponse claimDevice(UUID currentUserId, ClaimDeviceRequest request);
+    DeviceResponse claimDevice(String currentUserId, ClaimDeviceRequest request);
 
     PagedResponse<DeviceResponse> getDevicesByOwner(
-        UUID ownerUserId,
+        String ownerUserId,
         Integer page,
         Integer size,
         String sortBy,
         String sortDir,
         DeviceStatus status,
         ProvisioningStatus provisioningStatus,
-        UUID zoneId,
-        UUID farmPlotId,
+        String zoneId,
+        String farmPlotId,
         String keyword
     );
 }

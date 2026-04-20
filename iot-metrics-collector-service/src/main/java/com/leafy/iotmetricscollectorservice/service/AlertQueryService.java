@@ -11,7 +11,7 @@ import java.util.UUID;
 public interface AlertQueryService {
 
     PagedResponse<AlertEventItemResponse> searchAlerts(
-        UUID zoneId,
+        String zoneId,
         UUID deviceId,
         AlertStatus status,
         AlertSeverity severity,

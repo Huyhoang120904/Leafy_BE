@@ -48,7 +48,7 @@ public class DeviceController {
 
     @PostMapping("/claim")
     public ResponseEntity<DeviceResponse> claimDevice(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @RequestBody ClaimDeviceRequest request
     ) {
         return ResponseEntity.ok(deviceService.claimDevice(currentUserId, request));
@@ -56,15 +56,15 @@ public class DeviceController {
 
     @GetMapping("/me")
     public ResponseEntity<PagedResponse<DeviceResponse>> getMyDevices(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @RequestParam(defaultValue = "0") Integer page,
         @RequestParam(defaultValue = "20") Integer size,
         @RequestParam(defaultValue = "createdAt") String sortBy,
         @RequestParam(defaultValue = "desc") String sortDir,
         @RequestParam(required = false) DeviceStatus status,
         @RequestParam(required = false) ProvisioningStatus provisioningStatus,
-        @RequestParam(required = false) UUID zoneId,
-        @RequestParam(required = false) UUID farmPlotId,
+        @RequestParam(required = false) String zoneId,
+        @RequestParam(required = false) String farmPlotId,
         @RequestParam(required = false) String keyword
     ) {
         return ResponseEntity.ok(

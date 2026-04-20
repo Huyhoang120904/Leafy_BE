@@ -99,7 +99,7 @@ public class DeviceServiceImpl implements DeviceService {
 
     @Override
     @Transactional
-    public DeviceResponse claimDevice(UUID currentUserId, ClaimDeviceRequest request) {
+    public DeviceResponse claimDevice(String currentUserId, ClaimDeviceRequest request) {
         IoTDevice device = ioTDeviceRepository.findByDeviceUid(request.getDeviceUid())
             .orElseThrow(() -> TelemetryQueryException.deviceNotFoundByUid(request.getDeviceUid()));
 
@@ -136,15 +136,15 @@ public class DeviceServiceImpl implements DeviceService {
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<DeviceResponse> getDevicesByOwner(
-        UUID ownerUserId,
+        String ownerUserId,
         Integer page,
         Integer size,
         String sortBy,
         String sortDir,
         DeviceStatus status,
         ProvisioningStatus provisioningStatus,
-        UUID zoneId,
-        UUID farmPlotId,
+        String zoneId,
+        String farmPlotId,
         String keyword
     ) {
         Specification<IoTDevice> specification = hasOwner(ownerUserId)
@@ -180,7 +180,7 @@ public class DeviceServiceImpl implements DeviceService {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 8).toUpperCase(Locale.ROOT);
     }
 
-    private UserRef toUserRef(UUID userId) {
+    private UserRef toUserRef(String userId) {
         if (userId == null) {
             return null;
         }
@@ -189,7 +189,7 @@ public class DeviceServiceImpl implements DeviceService {
         return userRef;
     }
 
-    private FarmPlotRef toFarmPlotRef(UUID farmPlotId) {
+    private FarmPlotRef toFarmPlotRef(String farmPlotId) {
         if (farmPlotId == null) {
             return null;
         }
@@ -198,7 +198,7 @@ public class DeviceServiceImpl implements DeviceService {
         return farmPlotRef;
     }
 
-    private FarmZoneRef toFarmZoneRef(UUID zoneId) {
+    private FarmZoneRef toFarmZoneRef(String zoneId) {
         if (zoneId == null) {
             return null;
         }
@@ -240,7 +240,7 @@ public class DeviceServiceImpl implements DeviceService {
         return normalized;
     }
 
-    private Specification<IoTDevice> hasOwner(UUID ownerUserId) {
+    private Specification<IoTDevice> hasOwner(String ownerUserId) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("ownerUser").get("id"), ownerUserId);
     }
 
@@ -258,14 +258,14 @@ public class DeviceServiceImpl implements DeviceService {
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("provisioningStatus"), provisioningStatus);
     }
 
-    private Specification<IoTDevice> hasZone(UUID zoneId) {
+    private Specification<IoTDevice> hasZone(String zoneId) {
         if (zoneId == null) {
             return null;
         }
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("zone").get("id"), zoneId);
     }
 
-    private Specification<IoTDevice> hasFarmPlot(UUID farmPlotId) {
+    private Specification<IoTDevice> hasFarmPlot(String farmPlotId) {
         if (farmPlotId == null) {
             return null;
         }

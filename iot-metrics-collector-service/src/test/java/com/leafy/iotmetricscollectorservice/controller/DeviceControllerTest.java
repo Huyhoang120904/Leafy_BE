@@ -96,7 +96,7 @@ class DeviceControllerTest {
 
     @Test
     void claimDevice_returnsClaimedPayload() throws Exception {
-        UUID userId = UUID.randomUUID();
+        String userId = UUID.randomUUID().toString();
         DeviceResponse response = new DeviceResponse();
         response.setId(UUID.randomUUID());
         response.setDeviceUid("device-001");
@@ -121,13 +121,13 @@ class DeviceControllerTest {
             )
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.deviceUid").value("device-001"))
-            .andExpect(jsonPath("$.ownerUserId").value(userId.toString()))
+            .andExpect(jsonPath("$.ownerUserId").value(userId))
             .andExpect(jsonPath("$.provisioningStatus").value("CLAIMED"));
     }
 
     @Test
     void getMyDevices_returnsOwnerDevices() throws Exception {
-        UUID userId = UUID.randomUUID();
+        String userId = UUID.randomUUID().toString();
         DeviceResponse response = new DeviceResponse();
         response.setId(UUID.randomUUID());
         response.setDeviceUid("device-001");
@@ -164,9 +164,9 @@ class DeviceControllerTest {
 
     @Test
     void getMyDevices_passesFiltersAndPagination() throws Exception {
-        UUID userId = UUID.randomUUID();
-        UUID zoneId = UUID.randomUUID();
-        UUID farmPlotId = UUID.randomUUID();
+        String userId = UUID.randomUUID().toString();
+        String zoneId = UUID.randomUUID().toString();
+        String farmPlotId = UUID.randomUUID().toString();
         PagedResponse<DeviceResponse> pagedResponse = new PagedResponse<>(
             java.util.List.of(),
             1,
@@ -199,8 +199,8 @@ class DeviceControllerTest {
                     .param("sortDir", "asc")
                     .param("status", "ONLINE")
                     .param("provisioningStatus", "CLAIMED")
-                    .param("zoneId", zoneId.toString())
-                    .param("farmPlotId", farmPlotId.toString())
+                    .param("zoneId", zoneId)
+                    .param("farmPlotId", farmPlotId)
                     .param("keyword", "node")
             )
             .andExpect(status().isOk())
@@ -211,7 +211,7 @@ class DeviceControllerTest {
 
     @Test
     void getMyDevices_returnsBusinessErrorWhenSortFieldInvalid() throws Exception {
-        UUID userId = UUID.randomUUID();
+        String userId = UUID.randomUUID().toString();
         when(deviceService.getDevicesByOwner(
             userId,
             0,
@@ -236,7 +236,7 @@ class DeviceControllerTest {
 
     @Test
     void claimDevice_returnsBusinessErrorWhenCodeInvalid() throws Exception {
-        UUID userId = UUID.randomUUID();
+        String userId = UUID.randomUUID().toString();
         when(deviceService.claimDevice(org.mockito.ArgumentMatchers.eq(userId), org.mockito.ArgumentMatchers.any()))
             .thenThrow(TelemetryQueryException.invalidClaimCode("device-001"));
 

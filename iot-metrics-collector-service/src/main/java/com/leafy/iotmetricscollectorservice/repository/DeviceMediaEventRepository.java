@@ -7,7 +7,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface DeviceMediaEventRepository extends JpaRepository<DeviceMediaEvent, UUID> {
 
-    Optional<DeviceMediaEvent> findTopByZoneIdOrderByCapturedAtDesc(UUID zoneId);
+    Optional<DeviceMediaEvent> findTopByZoneIdOrderByCapturedAtDesc(String zoneId);
 
     Optional<DeviceMediaEvent> findTopByDeviceIdOrderByCapturedAtDesc(UUID deviceId);
 }

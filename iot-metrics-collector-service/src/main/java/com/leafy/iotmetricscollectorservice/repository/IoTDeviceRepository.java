@@ -20,11 +20,11 @@ public interface IoTDeviceRepository extends JpaRepository<IoTDevice, UUID>, Jpa
 
     boolean existsByDeviceCode(String deviceCode);
 
-    List<IoTDevice> findAllByOwnerUserId(UUID ownerUserId);
+    List<IoTDevice> findAllByOwnerUserId(String ownerUserId);
 
-    long countByFarmPlotId(UUID farmPlotId);
+    long countByFarmPlotId(String farmPlotId);
 
-    long countByFarmPlotIdAndStatus(UUID farmPlotId, DeviceStatus status);
+    long countByFarmPlotIdAndStatus(String farmPlotId, DeviceStatus status);
 
     @Query("""
         select count(distinct device.zone.id)
@@ -32,12 +32,12 @@ public interface IoTDeviceRepository extends JpaRepository<IoTDevice, UUID>, Jpa
         where device.farmPlot.id = :farmPlotId
           and device.zone is not null
         """)
-    long countDistinctZoneIdsByFarmPlotId(@Param("farmPlotId") UUID farmPlotId);
+    long countDistinctZoneIdsByFarmPlotId(@Param("farmPlotId") String farmPlotId);
 
     @Query("""
         select max(device.lastSeenAt)
         from IoTDevice device
         where device.farmPlot.id = :farmPlotId
         """)
-    Instant findMaxLastSeenAtByFarmPlotId(@Param("farmPlotId") UUID farmPlotId);
+    Instant findMaxLastSeenAtByFarmPlotId(@Param("farmPlotId") String farmPlotId);
 }

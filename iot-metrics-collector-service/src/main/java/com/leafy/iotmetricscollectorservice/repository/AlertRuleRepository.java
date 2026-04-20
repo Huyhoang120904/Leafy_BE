@@ -11,5 +11,5 @@ public interface AlertRuleRepository extends JpaRepository<AlertRule, UUID>, Jpa
 
     List<AlertRule> findAllByEnabledTrueAndSensorTypeId(UUID sensorTypeId);
 
-    Optional<AlertRule> findByIdAndOwnerUserId(UUID id, UUID ownerUserId);
+    Optional<AlertRule> findByIdAndOwnerUserId(UUID id, String ownerUserId);
 }

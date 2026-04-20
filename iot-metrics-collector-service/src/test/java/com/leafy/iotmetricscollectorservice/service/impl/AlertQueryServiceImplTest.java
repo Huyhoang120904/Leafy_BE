@@ -54,7 +54,12 @@ class AlertQueryServiceImplTest {
     @Test
     void searchAlerts_returnsMappedRowsForDeviceFilter() {
         UUID deviceId = UUID.randomUUID();
-        AlertEvent alertEvent = createAlertEvent(deviceId, UUID.randomUUID(), AlertStatus.OPEN, AlertSeverity.HIGH);
+        AlertEvent alertEvent = createAlertEvent(
+            deviceId,
+            UUID.randomUUID().toString(),
+            AlertStatus.OPEN,
+            AlertSeverity.HIGH
+        );
 
         when(alertEventRepository.findAll(any(Specification.class), any(Pageable.class)))
             .thenReturn(new PageImpl<>(List.of(alertEvent)));
@@ -80,7 +85,7 @@ class AlertQueryServiceImplTest {
 
     @Test
     void searchAlerts_returnsMappedRowsForZoneSeverityAndTimeRangeFilters() {
-        UUID zoneId = UUID.randomUUID();
+        String zoneId = UUID.randomUUID().toString();
         Instant from = Instant.parse("2026-04-10T00:00:00Z");
         Instant to = Instant.parse("2026-04-11T00:00:00Z");
         AlertEvent alertEvent = createAlertEvent(UUID.randomUUID(), zoneId, AlertStatus.ACKNOWLEDGED, AlertSeverity.CRITICAL);
@@ -143,7 +148,12 @@ class AlertQueryServiceImplTest {
     @Test
     void getAlertEvent_returnsMappedDetail() {
         UUID alertEventId = UUID.randomUUID();
-        AlertEvent alertEvent = createAlertEvent(UUID.randomUUID(), UUID.randomUUID(), AlertStatus.OPEN, AlertSeverity.HIGH);
+        AlertEvent alertEvent = createAlertEvent(
+            UUID.randomUUID(),
+            UUID.randomUUID().toString(),
+            AlertStatus.OPEN,
+            AlertSeverity.HIGH
+        );
         alertEvent.setId(alertEventId);
 
         when(alertEventRepository.findById(alertEventId)).thenReturn(Optional.of(alertEvent));
@@ -199,7 +209,7 @@ class AlertQueryServiceImplTest {
         assertEquals(100, pageableCaptor.getValue().getPageSize());
     }
 
-    private AlertEvent createAlertEvent(UUID deviceId, UUID zoneId, AlertStatus status, AlertSeverity severity) {
+    private AlertEvent createAlertEvent(UUID deviceId, String zoneId, AlertStatus status, AlertSeverity severity) {
         AlertEvent alertEvent = new AlertEvent();
         alertEvent.setId(UUID.randomUUID());
         alertEvent.setAlertType("threshold");
