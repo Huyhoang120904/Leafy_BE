@@ -1,5 +1,6 @@
 package com.leafy.fileservice.dto.response;
 
+import com.leafy.fileservice.model.enums.FileType;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -23,6 +24,8 @@ public class FileDetailsResponse {
     String originalFileName;
 
     String contentType;
+
+    FileType fileType;
 
     long fileSize;
 

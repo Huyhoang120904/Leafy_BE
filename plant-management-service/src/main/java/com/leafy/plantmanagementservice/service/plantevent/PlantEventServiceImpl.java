@@ -154,6 +154,14 @@ public class PlantEventServiceImpl implements PlantEventService {
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
+    @Override
+    public Page<PlantEventResponse> getAllEvents(EventType eventType, Boolean planned, String farmPlotId, String farmZoneId, Pageable pageable) {
+        log.info("Fetching all PlantEvents, eventType={}, planned={}, farmPlotId={}, farmZoneId={}",
+                eventType, planned, farmPlotId, farmZoneId);
+        return plantEventRepository.findAllByFilters(eventType, planned, farmPlotId, farmZoneId, pageable)
+                .map(plantEventMapper::toResponse);
+    }
+
     private PlantEvent getEventEntityById(String eventId) {
         return plantEventRepository.findById(eventId)
                 .orElseThrow(() -> new AppException(ErrorCode.PLANT_EVENT_NOT_FOUND));

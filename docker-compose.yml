@@ -95,14 +95,6 @@ services:
     networks:
       - leafy-network
 
-#  notification-service:
-#    build:
-#      context: .
-#      dockerfile: notification-service/Dockerfile
-#    container_name: notification-service
-#    ports:
-#      - "${SERVER_PORT_NOTIFICATION}:${SERVER_PORT_NOTIFICATION}"
-
 networks:
   leafy-network:
     driver: bridge

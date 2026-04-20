@@ -1,6 +1,7 @@
 package com.leafy.profileservice.controller;
 
 import com.leafy.common.dto.ApiResponse;
+import com.leafy.common.enums.ProfileRole;
 import com.leafy.profileservice.dto.request.profile.ProfileCreateRequest;
 import com.leafy.profileservice.dto.request.profile.ProfileUpdateRequest;
 import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
@@ -137,12 +138,16 @@ public class ProfileController {
     }
 
     /**
-     * Get all profiles with pagination and sorting
+     * Get all profiles with pagination, sorting, and optional filters.
      *
-     * @param page    page number (default: 0)
-     * @param size    page size (default: 20)
-     * @param sortBy  field to sort by (default: createdAt)
-     * @param sortDir sort direction (default: DESC)
+     * @param page       page number (default: 0)
+     * @param size       page size (default: 20)
+     * @param sortBy     field to sort by (default: createdAt)
+     * @param sortDir    sort direction (default: DESC)
+     * @param searchTerm optional partial match against fullName and specialty
+     * @param role       optional role filter (FARMER or EXPERT)
+     * @param active     optional active flag filter
+     * @param isVerified optional verified flag filter
      * @return page of profile responses
      */
     @GetMapping
@@ -151,15 +156,21 @@ public class ProfileController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
-        log.info("GET /profiles - Getting all profiles with pagination");
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) String role,
+            @RequestParam(required = false) Boolean active,
+            @RequestParam(required = false) Boolean isVerified) {
+        log.info("GET /profiles - searchTerm={}, role={}, active={}, isVerified={}", searchTerm, role, active, isVerified);
 
         Sort sort = sortDir.equalsIgnoreCase("ASC")
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<ProfileResponse> response = profileService.getAllProfiles(pageable);
+        ProfileRole roleEnum = (role != null && !role.isBlank()) ? ProfileRole.valueOf(role.toUpperCase()) : null;
+
+        Page<ProfileResponse> response = profileService.getFilteredProfiles(searchTerm, roleEnum, active, isVerified, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 

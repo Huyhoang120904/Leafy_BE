@@ -122,6 +122,17 @@ public class TreatmentPlanServiceImpl implements TreatmentPlanService {
 
     // ── Helper ────────────────────────────────────────────────────────────────
 
+    @Override
+    public Page<TreatmentPlanResponse> getAllPlans(TreatmentStatus status, Pageable pageable) {
+        log.info("Fetching all TreatmentPlans, status={}", status);
+        if (status != null) {
+            return treatmentPlanRepository.findByStatus(status, pageable)
+                    .map(treatmentPlanMapper::toResponse);
+        }
+        return treatmentPlanRepository.findAll(pageable)
+                .map(treatmentPlanMapper::toResponse);
+    }
+
     private TreatmentPlan getPlanEntity(String planId) {
         return treatmentPlanRepository.findById(planId)
                 .orElseThrow(() -> new AppException(ErrorCode.TREATMENT_PLAN_NOT_FOUND));

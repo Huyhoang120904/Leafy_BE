@@ -15,7 +15,7 @@ import java.util.Optional;
  * Repository interface for Profile entity
  */
 @Repository
-public interface ProfileRepository extends MongoRepository<Profile, String> {
+public interface ProfileRepository extends MongoRepository<Profile, String>, ProfileRepositoryCustom {
 
     /**
      * Find profile by user ID

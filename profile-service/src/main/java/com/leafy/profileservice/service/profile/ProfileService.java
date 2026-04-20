@@ -7,6 +7,7 @@ import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import com.leafy.profileservice.dto.response.profile.UserSyncResponse;
 import com.leafy.profileservice.model.Profile;
+import com.leafy.common.enums.ProfileRole;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -107,6 +108,23 @@ public interface ProfileService {
      * @return page of matching profile responses
      */
     Page<ProfileResponse> searchProfiles(String searchTerm, Pageable pageable);
+
+    /**
+     * Get profiles with combined optional filters and optional search term.
+     *
+     * @param searchTerm partial match against fullName and specialty (nullable = no filter)
+     * @param role       exact role filter (nullable = no filter)
+     * @param active     active flag filter (nullable = no filter)
+     * @param isVerified verified flag filter (nullable = no filter)
+     * @param pageable   pagination information
+     * @return page of matching profile responses
+     */
+    Page<ProfileResponse> getFilteredProfiles(
+            String searchTerm,
+            ProfileRole role,
+            Boolean active,
+            Boolean isVerified,
+            Pageable pageable);
 
     /**
      * Delete profile by ID

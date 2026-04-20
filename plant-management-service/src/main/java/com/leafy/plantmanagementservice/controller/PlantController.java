@@ -14,7 +14,9 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 
 @RestController
 @RequestMapping("/plants")
@@ -49,19 +51,21 @@ public class PlantController {
     }
 
     @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Page<PlantResponse>>> getAllPlants(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
-            @RequestParam(defaultValue = "DESC") String sortDir) {
-        log.info("GET /plants - Getting all plants with pagination");
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) PlantStatus status) {
+        log.info("GET /plants - Getting all plants with pagination, status={}", status);
 
         Sort sort = sortDir.equalsIgnoreCase("ASC")
                 ? Sort.by(sortBy).ascending()
                 : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
 
-        Page<PlantResponse> response = plantService.getAllPlants(pageable);
+        Page<PlantResponse> response = plantService.getAllPlants(status, pageable);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
@@ -102,6 +106,7 @@ public class PlantController {
     }
 
     @DeleteMapping("/{plantId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deletePlant(@PathVariable String plantId) {
         log.info("DELETE /plants/{} - Deleting plant", plantId);
         plantService.deletePlant(plantId);

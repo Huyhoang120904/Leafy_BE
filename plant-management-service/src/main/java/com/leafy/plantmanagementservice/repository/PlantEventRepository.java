@@ -11,7 +11,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 @Repository
-public interface PlantEventRepository extends MongoRepository<PlantEvent, String> {
+public interface PlantEventRepository extends MongoRepository<PlantEvent, String>, PlantEventRepositoryCustom {
 
     Page<PlantEvent> findByPlantId(String plantId, Pageable pageable);
 
@@ -24,6 +24,8 @@ public interface PlantEventRepository extends MongoRepository<PlantEvent, String
     Page<PlantEvent> findByFarmPlotId(String farmPlotId, Pageable pageable);
 
     Page<PlantEvent> findByFarmZoneId(String farmZoneId, Pageable pageable);
+
+    Page<PlantEvent> findByEventType(EventType eventType, Pageable pageable);
 
     List<PlantEvent> findByFarmPlotIdAndCalculatedStartDateLessThanEqualAndCalculatedEndDateGreaterThanEqual(
             String farmPlotId, LocalDate rangeEnd, LocalDate rangeStart);

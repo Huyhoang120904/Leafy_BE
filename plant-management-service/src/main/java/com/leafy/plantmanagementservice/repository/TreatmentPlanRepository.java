@@ -22,5 +22,7 @@ public interface TreatmentPlanRepository extends MongoRepository<TreatmentPlan, 
 
     Page<TreatmentPlan> findByUserIdAndStatus(String userId, TreatmentStatus status, Pageable pageable);
 
+    Page<TreatmentPlan> findByStatus(TreatmentStatus status, Pageable pageable);
+
     Optional<TreatmentPlan> findByRagPlanId(String ragPlanId);
 }

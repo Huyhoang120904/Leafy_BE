@@ -19,7 +19,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/seed/accounts")
+@RequestMapping("/admin/seed/accounts")
 @RequiredArgsConstructor
 @Slf4j
 @Validated
@@ -35,7 +35,7 @@ public class AccountSeederController {
             @Min(value = 1, message = "count must be at least 1")
             @Max(value = 5000, message = "count must be at most 5000")
             int count) {
-        log.info("POST /seed/accounts - seeding {} accounts", count);
+        log.info("POST /admin/seed/accounts - seeding {} accounts", count);
         return ResponseEntity.ok(ApiResponse.success(accountSeederService.seedAccounts(count)));
     }
 }

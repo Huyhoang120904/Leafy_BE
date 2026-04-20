@@ -3,6 +3,7 @@ package com.leafy.profileservice.service.certificate;
 import com.leafy.profileservice.dto.request.profile.CreateApprovalRequest;
 import com.leafy.profileservice.dto.request.profile.UpdateCertificateStatusRequest;
 import com.leafy.profileservice.dto.response.profile.ApprovalRequestDto;
+import com.leafy.profileservice.dto.response.profile.ApprovalRequestResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 
 import java.util.List;
@@ -33,9 +34,26 @@ public interface CertificateService {
             UpdateCertificateStatusRequest request);
 
     /**
-     * Retrieve all pending approval requests across the platform
+     * Retrieve all pending approval requests across the platform, enriched with profile/user info.
      *
-     * @return list of pending approval request DTOs
+     * @return list of pending approval request responses
      */
-    List<ApprovalRequestDto> getPendingApprovalRequests();
+    List<ApprovalRequestResponse> getPendingApprovalRequests();
+
+    /**
+     * Retrieve all processed (APPROVED or REJECTED) approval requests, enriched with profile/user info.
+     *
+     * @return list of processed approval request responses
+     */
+    List<ApprovalRequestResponse> getProcessedApprovalRequests();
+
+    /**
+     * Revoke a previously approved approval request, removing the certificates from the profile.
+     *
+     * @param profileId the profile ID
+     * @param requestId the approval request ID to revoke
+     * @param reason    optional reason for revocation
+     * @return the updated profile response
+     */
+    ProfileResponse revokeApprovalRequest(String profileId, String requestId, String reason);
 }

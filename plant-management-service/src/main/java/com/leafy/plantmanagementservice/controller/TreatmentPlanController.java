@@ -14,6 +14,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -23,6 +24,22 @@ import org.springframework.web.bind.annotation.*;
 public class TreatmentPlanController {
 
     private final TreatmentPlanService treatmentPlanService;
+
+    // ── List All (Admin) ────────────────────────────────────────────────
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Page<TreatmentPlanResponse>>> getAllPlans(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) TreatmentStatus status) {
+        log.info("GET /treatment-plans - Getting all plans, status={}", status);
+        Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return ResponseEntity.ok(ApiResponse.success(treatmentPlanService.getAllPlans(status, pageable)));
+    }
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -100,6 +117,7 @@ public class TreatmentPlanController {
     // ── Update ────────────────────────────────────────────────────────────────
 
     @PatchMapping("/{planId}/status")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<TreatmentPlanResponse>> updateStatus(
             @PathVariable String planId,
             @RequestParam TreatmentStatus status) {
@@ -110,6 +128,7 @@ public class TreatmentPlanController {
     // ── Delete ────────────────────────────────────────────────────────────────
 
     @DeleteMapping("/{planId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deletePlan(@PathVariable String planId) {
         log.info("DELETE /treatment-plans/{}", planId);
         treatmentPlanService.deletePlan(planId);

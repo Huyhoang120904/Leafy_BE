@@ -38,4 +38,6 @@ public class ApprovalRequest extends BaseModel {
     private CertificateStatus status = CertificateStatus.PENDING;
 
     private String rejectionReason;
+
+    private String proposedSpecialty;
 }

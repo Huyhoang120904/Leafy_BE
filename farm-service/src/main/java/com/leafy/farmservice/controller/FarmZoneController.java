@@ -4,11 +4,16 @@ import com.leafy.common.dto.ApiResponse;
 import com.leafy.farmservice.dto.request.farmzone.CreateFarmZoneRequest;
 import com.leafy.farmservice.dto.request.farmzone.UpdateFarmZoneRequest;
 import com.leafy.farmservice.dto.response.farmzone.FarmZoneResponse;
+import com.leafy.farmservice.model.enums.FarmZoneStatus;
 import com.leafy.farmservice.service.farmzone.FarmZoneService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.AccessLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -49,8 +54,26 @@ public class FarmZoneController {
 
     @GetMapping("/admin/zones")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<FarmZoneResponse>>> getAllActive() {
-        return ResponseEntity.ok(ApiResponse.success(farmZoneService.getAllActive()));
+    public ResponseEntity<ApiResponse<Page<FarmZoneResponse>>> getAllFiltered(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String cropType,
+            @RequestParam(required = false) String soilType,
+            @RequestParam(required = false) Double minAreaM2,
+            @RequestParam(required = false) Double maxAreaM2) {
+        Sort sort = sortDir.equalsIgnoreCase("ASC")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        FarmZoneStatus statusEnum = (status != null && !status.isBlank())
+                ? FarmZoneStatus.valueOf(status.toUpperCase())
+                : null;
+        return ResponseEntity.ok(ApiResponse.success(
+                farmZoneService.getFilteredZones(searchTerm, statusEnum, cropType, soilType, minAreaM2, maxAreaM2, pageable)));
     }
 
     @DeleteMapping("/zones/{id}")

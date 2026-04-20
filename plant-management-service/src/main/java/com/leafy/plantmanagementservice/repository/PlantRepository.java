@@ -1,6 +1,7 @@
 package com.leafy.plantmanagementservice.repository;
 
 import com.leafy.plantmanagementservice.model.Plant;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
@@ -15,4 +16,6 @@ public interface PlantRepository extends MongoRepository<Plant, String> {
     Page<Plant> findBySpeciesId(String speciesId, Pageable pageable);
 
     Page<Plant> findByFarmPlotId(String farmPlotId, Pageable pageable);
+
+    Page<Plant> findByPlantStatus(PlantStatus plantStatus, Pageable pageable);
 }

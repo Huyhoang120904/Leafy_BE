@@ -7,6 +7,8 @@ public record CertificateDto(
         String title,
         String issuedBy,
         String proofUrl,
+        String proofFileId,
+        String fileType,
         LocalDate issueDate,
         boolean expired
 ) {

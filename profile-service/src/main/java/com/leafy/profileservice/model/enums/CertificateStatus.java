@@ -6,5 +6,6 @@ package com.leafy.profileservice.model.enums;
 public enum CertificateStatus {
     PENDING,
     APPROVED,
-    REJECTED
+    REJECTED,
+    REVOKED
 }

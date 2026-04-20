@@ -29,7 +29,7 @@ import java.nio.ByteBuffer;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class ProfileIndexUpsertListenner {
+public class ProfileIndexEventListener {
 
     private final FailedEventService failedEventService;
     private final ElasticsearchOperations elasOps;
