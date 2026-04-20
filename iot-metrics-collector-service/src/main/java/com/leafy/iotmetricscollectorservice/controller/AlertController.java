@@ -29,7 +29,7 @@ public class AlertController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<AlertEventItemResponse>> searchAlerts(
-        @RequestParam(required = false) UUID zoneId,
+        @RequestParam(required = false) String zoneId,
         @RequestParam(required = false) UUID deviceId,
         @RequestParam(required = false) AlertStatus status,
         @RequestParam(required = false) AlertSeverity severity,

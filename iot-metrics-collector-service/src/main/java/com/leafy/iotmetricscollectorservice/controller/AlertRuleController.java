@@ -32,7 +32,7 @@ public class AlertRuleController {
 
     @PostMapping
     public ResponseEntity<AlertRuleResponse> createRule(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @RequestBody CreateAlertRuleRequest request
     ) {
         return ResponseEntity.ok(alertRuleService.createRule(currentUserId, request));
@@ -40,11 +40,11 @@ public class AlertRuleController {
 
     @GetMapping
     public ResponseEntity<PagedResponse<AlertRuleResponse>> listRules(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @RequestParam(required = false) UUID sensorTypeId,
         @RequestParam(required = false) UUID deviceId,
-        @RequestParam(required = false) UUID zoneId,
-        @RequestParam(required = false) UUID farmPlotId,
+        @RequestParam(required = false) String zoneId,
+        @RequestParam(required = false) String farmPlotId,
         @RequestParam(required = false) Boolean enabled,
         @RequestParam(defaultValue = "0") Integer page,
         @RequestParam(defaultValue = "20") Integer size,
@@ -58,7 +58,7 @@ public class AlertRuleController {
 
     @GetMapping("/{ruleId}")
     public ResponseEntity<AlertRuleResponse> getRule(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @PathVariable UUID ruleId
     ) {
         return ResponseEntity.ok(alertRuleService.getRule(currentUserId, ruleId));
@@ -66,7 +66,7 @@ public class AlertRuleController {
 
     @PutMapping("/{ruleId}")
     public ResponseEntity<AlertRuleResponse> updateRule(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @PathVariable UUID ruleId,
         @RequestBody UpdateAlertRuleRequest request
     ) {
@@ -75,7 +75,7 @@ public class AlertRuleController {
 
     @PatchMapping("/{ruleId}/enabled")
     public ResponseEntity<AlertRuleResponse> updateRuleEnabled(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @PathVariable UUID ruleId,
         @RequestBody UpdateAlertRuleEnabledRequest request
     ) {
@@ -84,7 +84,7 @@ public class AlertRuleController {
 
     @DeleteMapping("/{ruleId}")
     public ResponseEntity<Void> deleteRule(
-        @RequestHeader(USER_ID_HEADER) UUID currentUserId,
+        @RequestHeader(USER_ID_HEADER) String currentUserId,
         @PathVariable UUID ruleId
     ) {
         alertRuleService.deleteRule(currentUserId, ruleId);

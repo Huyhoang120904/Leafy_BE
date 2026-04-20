@@ -8,14 +8,14 @@ import java.util.UUID;
 
 public interface AlertRuleService {
 
-    AlertRuleResponse createRule(UUID currentUserId, CreateAlertRuleRequest request);
+    AlertRuleResponse createRule(String currentUserId, CreateAlertRuleRequest request);
 
     PagedResponse<AlertRuleResponse> listRules(
-        UUID currentUserId,
+        String currentUserId,
         UUID sensorTypeId,
         UUID deviceId,
-        UUID zoneId,
-        UUID farmPlotId,
+        String zoneId,
+        String farmPlotId,
         Boolean enabled,
         Integer page,
         Integer size,
@@ -23,11 +23,11 @@ public interface AlertRuleService {
         String sortDir
     );
 
-    AlertRuleResponse getRule(UUID currentUserId, UUID ruleId);
+    AlertRuleResponse getRule(String currentUserId, UUID ruleId);
 
-    AlertRuleResponse updateRule(UUID currentUserId, UUID ruleId, UpdateAlertRuleRequest request);
+    AlertRuleResponse updateRule(String currentUserId, UUID ruleId, UpdateAlertRuleRequest request);
 
-    AlertRuleResponse updateRuleEnabled(UUID currentUserId, UUID ruleId, Boolean enabled);
+    AlertRuleResponse updateRuleEnabled(String currentUserId, UUID ruleId, Boolean enabled);
 
-    void deleteRule(UUID currentUserId, UUID ruleId);
+    void deleteRule(String currentUserId, UUID ruleId);
 }

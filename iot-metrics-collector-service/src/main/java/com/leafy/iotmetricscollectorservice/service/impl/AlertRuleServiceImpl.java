@@ -49,7 +49,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     @Transactional
-    public AlertRuleResponse createRule(UUID currentUserId, CreateAlertRuleRequest request) {
+    public AlertRuleResponse createRule(String currentUserId, CreateAlertRuleRequest request) {
         CreateAlertRuleRequest ruleRequest = requireCreateRequest(request);
         SensorType sensorType = requireSensorType(ruleRequest.getSensorTypeId());
         validateThresholds(ruleRequest.getMinThreshold(), ruleRequest.getMaxThreshold());
@@ -79,11 +79,11 @@ public class AlertRuleServiceImpl implements AlertRuleService {
     @Override
     @Transactional(readOnly = true)
     public PagedResponse<AlertRuleResponse> listRules(
-        UUID currentUserId,
+        String currentUserId,
         UUID sensorTypeId,
         UUID deviceId,
-        UUID zoneId,
-        UUID farmPlotId,
+        String zoneId,
+        String farmPlotId,
         Boolean enabled,
         Integer page,
         Integer size,
@@ -106,13 +106,13 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     @Transactional(readOnly = true)
-    public AlertRuleResponse getRule(UUID currentUserId, UUID ruleId) {
+    public AlertRuleResponse getRule(String currentUserId, UUID ruleId) {
         return alertRuleMapper.toAlertRuleResponse(loadOwnedRule(currentUserId, ruleId));
     }
 
     @Override
     @Transactional
-    public AlertRuleResponse updateRule(UUID currentUserId, UUID ruleId, UpdateAlertRuleRequest request) {
+    public AlertRuleResponse updateRule(String currentUserId, UUID ruleId, UpdateAlertRuleRequest request) {
         UpdateAlertRuleRequest ruleRequest = requireUpdateRequest(request);
         AlertRule alertRule = loadOwnedRule(currentUserId, ruleId);
         SensorType sensorType = requireSensorType(ruleRequest.getSensorTypeId());
@@ -141,7 +141,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     @Transactional
-    public AlertRuleResponse updateRuleEnabled(UUID currentUserId, UUID ruleId, Boolean enabled) {
+    public AlertRuleResponse updateRuleEnabled(String currentUserId, UUID ruleId, Boolean enabled) {
         if (enabled == null) {
             throw TelemetryQueryException.invalidAlertRuleEnabledValue();
         }
@@ -153,7 +153,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     @Override
     @Transactional
-    public void deleteRule(UUID currentUserId, UUID ruleId) {
+    public void deleteRule(String currentUserId, UUID ruleId) {
         AlertRule alertRule = loadOwnedRule(currentUserId, ruleId);
         alertEventRepository.clearAlertRuleByAlertRuleId(alertRule.getId());
         alertRuleRepository.delete(alertRule);
@@ -173,7 +173,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         return request;
     }
 
-    private AlertRule loadOwnedRule(UUID currentUserId, UUID ruleId) {
+    private AlertRule loadOwnedRule(String currentUserId, UUID ruleId) {
         return alertRuleRepository.findByIdAndOwnerUserId(ruleId, currentUserId)
             .orElseThrow(() -> TelemetryQueryException.alertRuleNotFound(ruleId));
     }
@@ -189,11 +189,11 @@ public class AlertRuleServiceImpl implements AlertRuleService {
 
     private void applyRuleFields(
         AlertRule alertRule,
-        UUID currentUserId,
+        String currentUserId,
         SensorType sensorType,
         UUID deviceId,
-        UUID zoneId,
-        UUID farmPlotId,
+        String zoneId,
+        String farmPlotId,
         Double minThreshold,
         Double maxThreshold,
         AlertSeverity severity,
@@ -225,7 +225,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         }
     }
 
-    private void validateScope(UUID deviceId, UUID zoneId, UUID farmPlotId) {
+    private void validateScope(UUID deviceId, String zoneId, String farmPlotId) {
         if (deviceId == null && zoneId == null && farmPlotId == null) {
             throw TelemetryQueryException.invalidAlertRuleScope();
         }
@@ -260,7 +260,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         return value != null ? value : Boolean.TRUE;
     }
 
-    private UserRef toUserRef(UUID userId) {
+    private UserRef toUserRef(String userId) {
         UserRef userRef = new UserRef();
         userRef.setId(userId);
         return userRef;
@@ -275,7 +275,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         return device;
     }
 
-    private FarmZoneRef toFarmZoneRef(UUID zoneId) {
+    private FarmZoneRef toFarmZoneRef(String zoneId) {
         if (zoneId == null) {
             return null;
         }
@@ -284,7 +284,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         return zone;
     }
 
-    private FarmPlotRef toFarmPlotRef(UUID farmPlotId) {
+    private FarmPlotRef toFarmPlotRef(String farmPlotId) {
         if (farmPlotId == null) {
             return null;
         }
@@ -293,7 +293,7 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         return farmPlot;
     }
 
-    private Specification<AlertRule> hasOwner(UUID ownerUserId) {
+    private Specification<AlertRule> hasOwner(String ownerUserId) {
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("ownerUser").get("id"), ownerUserId);
     }
 
@@ -311,14 +311,14 @@ public class AlertRuleServiceImpl implements AlertRuleService {
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("device").get("id"), deviceId);
     }
 
-    private Specification<AlertRule> hasZone(UUID zoneId) {
+    private Specification<AlertRule> hasZone(String zoneId) {
         if (zoneId == null) {
             return null;
         }
         return (root, query, criteriaBuilder) -> criteriaBuilder.equal(root.get("zone").get("id"), zoneId);
     }
 
-    private Specification<AlertRule> hasFarmPlot(UUID farmPlotId) {
+    private Specification<AlertRule> hasFarmPlot(String farmPlotId) {
         if (farmPlotId == null) {
             return null;
         }

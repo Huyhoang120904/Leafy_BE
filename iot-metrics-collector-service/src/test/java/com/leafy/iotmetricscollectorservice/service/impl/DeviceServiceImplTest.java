@@ -114,9 +114,9 @@ class DeviceServiceImplTest {
 
     @Test
     void claimDevice_succeedsWithValidCode() {
-        UUID currentUserId = UUID.randomUUID();
-        UUID farmPlotId = UUID.randomUUID();
-        UUID zoneId = UUID.randomUUID();
+        String currentUserId = UUID.randomUUID().toString();
+        String farmPlotId = UUID.randomUUID().toString();
+        String zoneId = UUID.randomUUID().toString();
         IoTDevice device = createDevice();
         DeviceClaim deviceClaim = createClaim(device, "CLAIM123", Instant.now().plusSeconds(300), ClaimStatus.PENDING);
 
@@ -154,7 +154,7 @@ class DeviceServiceImplTest {
         when(deviceClaimRepository.findTopByDeviceIdAndClaimCodeOrderByCreatedAtDesc(device.getId(), "WRONG123"))
             .thenReturn(Optional.empty());
 
-        assertThrows(TelemetryQueryException.class, () -> deviceService.claimDevice(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> deviceService.claimDevice(UUID.randomUUID().toString(), request));
         verify(ioTDeviceRepository, never()).save(any(IoTDevice.class));
     }
 
@@ -170,7 +170,7 @@ class DeviceServiceImplTest {
         when(deviceClaimRepository.findTopByDeviceIdAndClaimCodeOrderByCreatedAtDesc(device.getId(), "CLAIM123"))
             .thenReturn(Optional.of(deviceClaim));
 
-        assertThrows(TelemetryQueryException.class, () -> deviceService.claimDevice(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> deviceService.claimDevice(UUID.randomUUID().toString(), request));
         verify(ioTDeviceRepository, never()).save(any(IoTDevice.class));
     }
 
@@ -178,7 +178,7 @@ class DeviceServiceImplTest {
     void claimDevice_failsWhenDeviceAlreadyClaimed() {
         IoTDevice device = createDevice();
         UserRef ownerUser = new UserRef();
-        ownerUser.setId(UUID.randomUUID());
+        ownerUser.setId(UUID.randomUUID().toString());
         device.setOwnerUser(ownerUser);
         ClaimDeviceRequest request = new ClaimDeviceRequest();
         request.setDeviceUid(device.getDeviceUid());
@@ -186,13 +186,13 @@ class DeviceServiceImplTest {
 
         when(ioTDeviceRepository.findByDeviceUid(device.getDeviceUid())).thenReturn(Optional.of(device));
 
-        assertThrows(TelemetryQueryException.class, () -> deviceService.claimDevice(UUID.randomUUID(), request));
+        assertThrows(TelemetryQueryException.class, () -> deviceService.claimDevice(UUID.randomUUID().toString(), request));
         verify(deviceClaimRepository, never()).findTopByDeviceIdAndClaimCodeOrderByCreatedAtDesc(any(UUID.class), anyString());
     }
 
     @Test
     void getDevicesByOwner_returnsPagedOwnerDevices() {
-        UUID ownerUserId = UUID.randomUUID();
+        String ownerUserId = UUID.randomUUID().toString();
         IoTDevice second = createDevice();
         second.setDeviceName("Zulu");
         second.setDeviceCode("IOT-002");
@@ -227,7 +227,7 @@ class DeviceServiceImplTest {
 
     @Test
     void getDevicesByOwner_usesRequestedPaginationSortingAndFilters() {
-        UUID ownerUserId = UUID.randomUUID();
+        String ownerUserId = UUID.randomUUID().toString();
         when(ioTDeviceRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
         deviceService.getDevicesByOwner(
@@ -238,8 +238,8 @@ class DeviceServiceImplTest {
             "asc",
             DeviceStatus.ONLINE,
             ProvisioningStatus.CLAIMED,
-            UUID.randomUUID(),
-            UUID.randomUUID(),
+            UUID.randomUUID().toString(),
+            UUID.randomUUID().toString(),
             "node"
         );
 
@@ -258,7 +258,7 @@ class DeviceServiceImplTest {
         assertThrows(
             TelemetryQueryException.class,
             () -> deviceService.getDevicesByOwner(
-                UUID.randomUUID(),
+                UUID.randomUUID().toString(),
                 0,
                 20,
                 "serialNumber",
@@ -277,7 +277,7 @@ class DeviceServiceImplTest {
         when(ioTDeviceRepository.findAll(any(Specification.class), any(Pageable.class))).thenReturn(Page.empty());
 
         deviceService.getDevicesByOwner(
-            UUID.randomUUID(),
+            UUID.randomUUID().toString(),
             0,
             500,
             "createdAt",
@@ -317,7 +317,7 @@ class DeviceServiceImplTest {
         return deviceClaim;
     }
 
-    private UserRef toUserRef(UUID userId) {
+    private UserRef toUserRef(String userId) {
         UserRef userRef = new UserRef();
         userRef.setId(userId);
         return userRef;

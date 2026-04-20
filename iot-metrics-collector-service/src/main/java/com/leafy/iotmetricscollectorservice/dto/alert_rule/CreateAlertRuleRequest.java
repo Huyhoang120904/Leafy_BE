@@ -10,8 +10,8 @@ public class CreateAlertRuleRequest {
 
     private UUID sensorTypeId;
     private UUID deviceId;
-    private UUID zoneId;
-    private UUID farmPlotId;
+    private String zoneId;
+    private String farmPlotId;
     private Double minThreshold;
     private Double maxThreshold;
     private String severity;
