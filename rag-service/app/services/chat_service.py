@@ -35,7 +35,7 @@ class ChatService:
             cls._instance = instance
         return cls._instance
 
-    def _build_initial_state(self, request: ChatRequest, user_id: str) -> Dict[str, Any]:
+    def _build_initial_state(self, request: ChatRequest, user_id: str, auth_header: Optional[str]) -> Dict[str, Any]:
         """Create a clean per-turn graph state payload."""
         return {
             "messages": [HumanMessage(content=request.question)],
@@ -43,6 +43,7 @@ class ChatService:
             "retry_count": 0,
             "language": request.language,
             "user_id": user_id,
+            "authorization": auth_header,
             # Reset turn-scoped fields so previous checkpoint state does not leak
             # into the new user question on the same thread.
             "generation": "",
@@ -148,11 +149,16 @@ class ChatService:
             )
         return graph
 
-    async def run_chat(self, request: ChatRequest, current_user: UserPrincipal) -> ChatResponse:
+    async def run_chat(
+        self,
+        request: ChatRequest,
+        current_user: UserPrincipal,
+        auth_header: Optional[str] = None,
+    ) -> ChatResponse:
         """Execute non-streaming chat flow and return final response DTO."""
         thread_id = request.thread_id or str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}
-        initial_state = self._build_initial_state(request, current_user.id)
+        initial_state = self._build_initial_state(request, current_user.id, auth_header)
 
         try:
             graph = self._get_graph()
@@ -179,11 +185,12 @@ class ChatService:
         request: ChatRequest,
         raw_request: Request,
         current_user: UserPrincipal,
+        auth_header: Optional[str] = None,
     ) -> AsyncGenerator[str, None]:
         """Stream chat execution via SSE events."""
         thread_id = request.thread_id or str(uuid.uuid4())
         config = {"configurable": {"thread_id": thread_id}}
-        initial_state = self._build_initial_state(request, current_user.id)
+        initial_state = self._build_initial_state(request, current_user.id, auth_header)
 
         graph = self._get_graph()
 

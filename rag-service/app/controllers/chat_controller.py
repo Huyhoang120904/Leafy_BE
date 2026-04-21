@@ -21,6 +21,7 @@ router = APIRouter()
 )
 async def chat(
     request: ChatRequest,
+    raw_request: Request,
     current_user: UserPrincipal = Depends(get_current_user),
 ):
     """
@@ -39,7 +40,11 @@ async def chat(
     persisted to MongoDB (`leafy_rag.treatment_plans`).
     """
     service = get_chat_service()
-    result = await service.run_chat(request, current_user)
+    result = await service.run_chat(
+        request,
+        current_user,
+        auth_header=raw_request.headers.get("Authorization"),
+    )
     return ApiResponse.success(result=result)
 
 
@@ -74,7 +79,12 @@ async def chat_stream(
     service = get_chat_service()
 
     return StreamingResponse(
-        service.stream_chat(request, raw_request, current_user),
+        service.stream_chat(
+            request,
+            raw_request,
+            current_user,
+            auth_header=raw_request.headers.get("Authorization"),
+        ),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",

@@ -22,3 +22,4 @@ langchain-community>=0.4.1
 langchain-text-splitters>=1.1.1
 pymongo>=4.10.1
 py-eureka-client>=0.11.14
+httpx>=0.27.0,<1.0.0

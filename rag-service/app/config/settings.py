@@ -7,6 +7,8 @@ class Settings(BaseSettings):
     app_name: str = "rag-service"
     server_port: int = 8199
     eureka_server: str = "http://localhost:8761/eureka/"
+    api_gateway_url: str = "http://localhost:8080"
+    env_lookup_timeout_seconds: float = 5.0
 
     # MongoDB
     MONGODB_HOST: str = "127.0.0.1"
