@@ -95,6 +95,18 @@ services:
     networks:
       - leafy-network
 
+  mosquitto:
+    image: eclipse-mosquitto:2
+    container_name: leafy-mosquitto
+    ports:
+      - "1883:1883"
+      - "9001:9001"
+    volumes:
+      - ./mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - mosquitto_data:/mosquitto/data
+      - mosquitto_log:/mosquitto/log
+    restart: unless-stopped
+
 #  notification-service:
 #    build:
 #      context: .
@@ -114,3 +126,5 @@ volumes:
   redis_data:
   postgresql_data:
   postgresql_farm_data:
+  mosquitto_data:
+  mosquitto_log:
