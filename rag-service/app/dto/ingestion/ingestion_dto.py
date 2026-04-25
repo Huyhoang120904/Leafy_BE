@@ -1,5 +1,5 @@
 from pydantic import BaseModel, Field
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 from enum import Enum
 
@@ -26,3 +26,51 @@ class IngestResponse(BaseModel):
     status: str = Field(..., description="`accepted` or `skipped`.")
     message: str = Field(..., description="Human-readable summary of the ingestion outcome.")
     file_id: Optional[str] = Field(None, description="SHA-256 content hash of the uploaded file.")
+
+
+# ── Chunk Preview DTOs ───────────────────────────────────────────────────────
+
+
+class ChunkPreview(BaseModel):
+    """A single chunk from a document preview (dry-run parsing)."""
+
+    index: int = Field(..., description="0-based position of this chunk in the document.")
+    text: str = Field(..., description="Chunk text content.")
+    section: Optional[str] = Field(None, description="Semantic section — not set for flat chunking.")
+    element_type: Optional[str] = Field(None, description="Source element type — not set for flat chunking.")
+
+
+class PreviewResponse(BaseModel):
+    """Result of a document preview (parse + chunk without persisting)."""
+
+    filename: str = Field(..., description="Original filename of the uploaded document.")
+    total_chunks: int = Field(..., description="Total number of chunks produced.")
+    sections: List[str] = Field(default=[], description="Distinct sections detected in the document.")
+    chunks: List[ChunkPreview] = Field(default=[], description="All chunk previews.")
+
+
+# ── Document Catalog DTOs ────────────────────────────────────────────────────
+
+
+class DocumentSummary(BaseModel):
+    """Summary of an ingested document stored in the catalog."""
+
+    document_id: str = Field(..., description="SHA-256 hash of the file (deduplication key).")
+    original_filename: str = Field(..., description="Original filename at upload time.")
+    content_type: Optional[str] = Field(None, description="MIME type of the source file.")
+    file_size: Optional[int] = Field(None, description="File size in bytes.")
+    category: Optional[str] = Field(None, description="Document category (agronomy, disease, regulation, etc.).")
+    variety: Optional[str] = Field(None, description="Crop variety tag.")
+    user_id: Optional[str] = Field(None, description="ID of the user who uploaded the document.")
+    file_service_id: Optional[str] = Field(None, description="File ID in the file-service (S3 reference).")
+    file_service_s3_key: Optional[str] = Field(None, description="S3 object key for file download.")
+    chunk_count: int = Field(0, description="Number of chunks produced from this document.")
+    sections: List[str] = Field(default=[], description="Semantic sections detected.")
+    status: str = Field("ingested", description="Document status (ingested, failed).")
+    ingested_at: Optional[datetime] = Field(None, description="Timestamp when the document was ingested.")
+
+
+class DocumentDetail(DocumentSummary):
+    """Full document detail including its chunks."""
+
+    chunks: List[ChunkPreview] = Field(default=[], description="All chunks from this document.")

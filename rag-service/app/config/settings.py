@@ -10,6 +10,16 @@ class Settings(BaseSettings):
     api_gateway_url: str = "http://localhost:8080"
     env_lookup_timeout_seconds: float = 5.0
 
+    # Document ingestion
+    # "fast" = pdfminer (no system deps), "hi_res" = Poppler + Tesseract (Docker)
+    UNSTRUCTURED_STRATEGY: str = "fast"
+    # Fixed-size chunking parameters (characters, not BPE tokens)
+    CHUNK_SIZE: int = 1000
+    CHUNK_OVERLAP: int = 200
+
+    # File-service (internal endpoint — no JWT required)
+    FILE_SERVICE_URL: str = "http://localhost:8070"
+
     # MongoDB
     MONGODB_HOST: str = "127.0.0.1"
     MONGODB_PORT: int = 27017

@@ -92,69 +92,6 @@ class AIModelInference:
             raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, f"Inference failed: {e}")
 
     @staticmethod
-    def load_tflite_model():
-        try:
-            logger.info(f"Loading TFLite model from {config.TFLITE_MODEL_PATH}...")
-            interpreter = tf.lite.Interpreter(model_path=config.TFLITE_MODEL_PATH)
-            interpreter.allocate_tensors()
-            logger.info(f"TFLite model loaded successfully")
-            return interpreter
-        except FileNotFoundError:
-            logger.error(f"TFLite model file not found at {config.TFLITE_MODEL_PATH}")
-            raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, f"TFLite model file not found: {config.TFLITE_MODEL_PATH}")
-        except Exception as e:
-             logger.error(f"Failed to load TFLite model: {e}")
-             raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, f"Failed to load TFLite model: {e}")
-
-    @staticmethod
-    def warmup_tflite_model(interpreter):
-        try:
-             logger.info("Warming up TFLite model with dummy inference...")
-             input_details = interpreter.get_input_details()
-             output_details = interpreter.get_output_details()
-             input_shape = input_details[0]['shape']
-             dummy_input = np.random.rand(*input_shape).astype(np.float32)
-             
-             interpreter.set_tensor(input_details[0]['index'], dummy_input)
-             interpreter.invoke()
-             _ = interpreter.get_tensor(output_details[0]['index'])
-             logger.info("TFLite model warmup completed")
-        except Exception as e:
-             logger.error(f"TFLite model warmup failed: {e}")
-             raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, f"TFLite model warmup failed: {e}")
-
-    @staticmethod
-    def perform_tflite_inference(interpreter, image_array: np.ndarray, num_classes: int = 5) -> list[dict]:
-         try:
-             input_details = interpreter.get_input_details()
-             output_details = interpreter.get_output_details()
-             interpreter.set_tensor(input_details[0]['index'], image_array)
-             interpreter.invoke()
-             predictions = interpreter.get_tensor(output_details[0]['index'])
-             top_indices = np.argsort(predictions[0])[-config.MODEL_TOP_K:][::-1]
-             
-             global class_names
-             if class_names is None:
-                 coffee_classes = ["healthy", "miner", "phoma", "red_spider_mite", "rust"]
-                 class_names = coffee_classes[:num_classes]
-                 
-             results = []
-             for idx in top_indices:
-                 if idx < len(class_names):
-                     class_name = class_names[idx]
-                 else:
-                     class_name = f"unknown_class_{idx}"
-                 confidence = float(predictions[0][idx])
-                 results.append({
-                     "className": class_name,
-                     "confidenceScore": confidence
-                 })
-             return results
-         except Exception as e:
-              logger.error(f"TFLite inference failed: {e}")
-              raise AppException(ErrorCode.INTERNAL_SERVER_ERROR, f"TFLite inference failed: {e}")
-
-    @staticmethod
     def load_yolo_model(model_path: str) -> YOLO:
         try:
              logger.info(f"Loading YOLO model from {model_path}...")

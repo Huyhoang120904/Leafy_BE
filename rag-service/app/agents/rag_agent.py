@@ -34,14 +34,14 @@ from app.nodes.safety_auditor_node import safety_auditor
 from app.nodes.refinement_node import refinement
 
 # Phase 5: Planning
-from app.nodes.treatment_planner_node import planner
+from app.nodes.planner import planner
 
 # Phase 6: History summarization
 from app.nodes.summarization_node import maybe_summarize
 
 # Phase 1.5: Intent classification
 from app.nodes.intent_classifier_node import classify_query_intent
-from app.nodes.chit_chat_node import direct_response
+from app.nodes.direct_node import direct_response
 
 
 # === Conditional Edge Functions ===

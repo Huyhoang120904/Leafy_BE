@@ -174,11 +174,25 @@ class ChatService:
             user_id=current_user.id,
             question=request.question,
         )
-        return self._build_chat_result(
+
+        result = self._build_chat_result(
             final_state,
             thread_id=thread_id,
             saved_plan_id=saved_plan_id,
         )
+
+        self._chat_repository.persist_conversation_turn(
+            user_id=current_user.id,
+            thread_id=thread_id,
+            question=request.question,
+            answer=result.answer,
+            final_state=final_state,
+            saved_plan_id=saved_plan_id,
+            rag_state="completed",
+            current_node="END",
+            step=None,
+        )
+        return result
 
     async def stream_chat(
         self,
@@ -199,6 +213,7 @@ class ChatService:
         last_generation = ""
         disconnected = False
         node_step: Dict[str, int] = {}
+        last_node = "START"
 
         yield self._to_sse(
             "state",
@@ -230,6 +245,7 @@ class ChatService:
                 if event_name == "on_chain_start":
                     step += 1
                     node_step[node_name] = step
+                    last_node = node_name
                     yield self._to_sse(
                         "state",
                         {
@@ -242,10 +258,28 @@ class ChatService:
                     )
                     continue
 
+                if event_name == "on_chat_model_stream":
+                    current_step = node_step.get(node_name, step)
+                    chunk_data = event.get("data", {}).get("chunk")
+                    if chunk_data and hasattr(chunk_data, "content") and isinstance(chunk_data.content, str) and chunk_data.content:
+                        text_chunk = chunk_data.content
+                        last_generation += text_chunk
+                        yield self._to_sse(
+                            "response_chunk",
+                            {
+                                "rag_state": "streaming_response",
+                                "step": current_step,
+                                "current_node": node_name,
+                                "chunk": text_chunk,
+                            },
+                        )
+                    continue
+
                 if event_name != "on_chain_end":
                     continue
 
                 current_step = node_step.get(node_name, step)
+                last_node = node_name
                 data = event.get("data") if isinstance(event.get("data"), dict) else {}
                 output = data.get("output") if isinstance(data.get("output"), dict) else {}
 
@@ -303,12 +337,25 @@ class ChatService:
                 saved_plan_id=saved_plan_id,
             )
 
+            conversation_id = self._chat_repository.persist_conversation_turn(
+                user_id=current_user.id,
+                thread_id=thread_id,
+                question=request.question,
+                answer=result.answer,
+                final_state=latest_state,
+                saved_plan_id=saved_plan_id,
+                rag_state="completed",
+                current_node=last_node or "END",
+                step=step,
+            )
+
             yield self._to_sse(
                 "completed",
                 {
                     "rag_state": "completed",
                     "step": step,
                     "current_node": "END",
+                    "conversation_id": conversation_id,
                     "result": {
                         "answer": result.answer,
                         "thread_id": result.thread_id,
@@ -327,6 +374,19 @@ class ChatService:
                 e,
                 exc_info=True,
             )
+
+            self._chat_repository.persist_conversation_turn(
+                user_id=current_user.id,
+                thread_id=thread_id,
+                question=request.question,
+                answer=str(e),
+                final_state=latest_state,
+                saved_plan_id=None,
+                rag_state="error",
+                current_node="ERROR",
+                step=step,
+            )
+
             yield self._to_sse(
                 "error",
                 {

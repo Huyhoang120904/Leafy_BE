@@ -28,6 +28,10 @@ class ErrorCode(Enum):
     TREATMENT_PLAN_NOT_FOUND = (4401, "error.treatment.plan.not.found", 404)
     TREATMENT_PLAN_ACCESS_DENIED = (4403, "error.treatment.plan.access.denied", 403)
 
+    # ── Conversation ─────────────────────────────────────────────────────────
+    CONVERSATION_NOT_FOUND = (4501, "error.conversation.not.found", 404)
+    CONVERSATION_ACCESS_DENIED = (4503, "error.conversation.access.denied", 403)
+
     def __init__(self, code: int, message_key: str, http_status: int):
         self.code = code
         self.message_key = message_key

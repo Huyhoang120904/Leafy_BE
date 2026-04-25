@@ -21,17 +21,6 @@ def predict(
     prediction_response = PredictionService.predict(file, model, current_user)
     return ApiResponse.success(prediction_response)
 
-@router.post("/tflite", response_model=ApiResponse)
-def predict_tflite(
-    request: Request,
-    file: UploadFile = File(...),
-    current_user: UserPrincipal = Depends(get_current_user),
-):
-    """Classification endpoint using TFLite model"""
-    tflite_interpreter = request.app.state.tflite_interpreter
-    prediction_response = PredictionService.predict_tflite(file, tflite_interpreter, current_user)
-    return ApiResponse.success(prediction_response)
-
 @router.get("/health", response_model=HealthResponse)
 def health_check(request: Request):
     """Health check endpoint for prediction service"""

@@ -116,33 +116,3 @@ class PredictionService:
         finally:
              file.file.close()
 
-    @classmethod
-    def predict_tflite(cls, file: UploadFile, tflite_interpreter, current_user: UserPrincipal) -> dict:
-         start_time = time.time()
-
-         try:
-             image_bytes = cls.validate_file(file)
-             image_array = cls.preprocess_image(image_bytes)
-
-             if not tflite_interpreter:
-                  raise AppException(ErrorCode.MODEL_NOT_LOADED)
-
-             # Persist request before inference
-             diagnose_request_id = cls._save_request(file, current_user.id)
-
-             predictions = AIModelInference.perform_tflite_inference(tflite_interpreter, image_array)
-             processing_time = (time.time() - start_time) * 1000
-
-             # Persist result after inference
-             cls._save_result(diagnose_request_id, current_user.id, predictions)
-
-             prediction_results = [PredictionResult(**p) for p in predictions]
-
-             response = PredictionResponse(
-                  predictions=prediction_results,
-                  modelName=f"{config.MODEL_NAME}-TFLite",
-                  processingTimeMs=round(processing_time, 2)
-             )
-             return response.model_dump()
-         finally:
-             file.file.close()

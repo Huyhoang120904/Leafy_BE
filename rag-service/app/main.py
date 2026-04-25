@@ -46,6 +46,7 @@ from app.core.security import SecurityContextMiddleware
 from app.exceptions.global_exception_handler import register_exception_handlers
 from app.controllers.chat_controller import router as chat_router
 from app.controllers.ingestion_controller import router as ingestion_router
+from app.controllers.conversation_controller import router as conversation_router
 from app.controllers.treatment_plan_controller import router as treatment_plan_router
 import app.agents.rag_agent as rag_agent_module
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
@@ -104,6 +105,10 @@ tags_metadata = [
         "description": "CRUD endpoints for persisted TreatmentPlan documents.",
     },
     {
+        "name": "Conversations",
+        "description": "List/load/manage persisted chat conversations.",
+    },
+    {
         "name": "Health",
         "description": "Service liveness and observability checks.",
     },
@@ -157,6 +162,7 @@ register_exception_handlers(app)
 app.include_router(ingestion_router, prefix="/rag/v1", tags=["Ingestion"])
 app.include_router(chat_router, prefix="/rag/v1", tags=["Chat"])
 app.include_router(treatment_plan_router, prefix="/rag/v1/treatment-plans", tags=["Treatment Plans"])
+app.include_router(conversation_router, prefix="/rag/v1/conversations", tags=["Conversations"])
 
 
 # ── Health Check ─────────────────────────────────────────────────────────────
@@ -174,6 +180,11 @@ async def health_check():
         langsmith_tracing=_tracing_enabled,
         langsmith_project=_project,
     )
+
+@app.get("/actuator/health", tags=["Health"], summary="Eureka health check")
+async def eureka_health_check():
+    """Returns status UP for Eureka."""
+    return {"status": "UP"}
 
 
 if __name__ == "__main__":

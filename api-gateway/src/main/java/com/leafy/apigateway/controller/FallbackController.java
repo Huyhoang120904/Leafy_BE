@@ -52,7 +52,7 @@ public class FallbackController {
         return Mono.just(createFallbackResponse("RAG service is temporarily unavailable"));
     }
       
-    @GetMapping("/disease-classification-service")
+    @RequestMapping("/disease-classification-service")
     public Mono<ResponseEntity<Map<String, Object>>> diseaseClassificationService() {
         log.warn("Disease classification service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("Disease classification service is temporarily unavailable"));
@@ -62,6 +62,24 @@ public class FallbackController {
     public Mono<ResponseEntity<Map<String, Object>>> communityFeedServiceFallback() {
         log.warn("Community feed service is unavailable - Circuit breaker activated");
         return Mono.just(createFallbackResponse("Community feed service is temporarily unavailable"));
+    }
+
+    @RequestMapping("/profile-service")
+    public Mono<ResponseEntity<Map<String, Object>>> profileServiceFallback() {
+        log.warn("Profile service is unavailable - Circuit breaker activated");
+        return Mono.just(createFallbackResponse("Profile service is temporarily unavailable"));
+    }
+
+    @RequestMapping("/plant-management-service")
+    public Mono<ResponseEntity<Map<String, Object>>> plantManagementServiceFallback() {
+        log.warn("Plant management service is unavailable - Circuit breaker activated");
+        return Mono.just(createFallbackResponse("Plant management service is temporarily unavailable"));
+    }
+
+    @RequestMapping("/disease-detection-service")
+    public Mono<ResponseEntity<Map<String, Object>>> diseaseDetectionServiceFallback() {
+        log.warn("Disease detection service is unavailable - Circuit breaker activated");
+        return Mono.just(createFallbackResponse("Disease detection service is temporarily unavailable"));
     }
 
     private ResponseEntity<Map<String, Object>> createFallbackResponse(String message) {
