@@ -13,6 +13,7 @@ namespace leafy {
 class MqttManager {
  public:
   using ConfigMessageCallback = std::function<void(const String&)>;
+  using CameraCaptureCallback = std::function<void(const String&)>;
 
   MqttManager();
 
@@ -27,11 +28,13 @@ class MqttManager {
   bool publishImageMeta(const String& payload);
 
   void onConfigMessage(ConfigMessageCallback callback);
+  void onCameraCaptureMessage(CameraCaptureCallback callback);
   void handleRawMessage(char* topic, uint8_t* payload, unsigned int length);
   String statusTopic() const;
   String telemetryTopic() const;
   String ackTopic() const;
   String configSetTopic() const;
+  String cameraCaptureTopic() const;
 
  private:
   static constexpr uint16_t MQTT_BUFFER_SIZE = 1024;
@@ -42,6 +45,7 @@ class MqttManager {
   LocalDeviceConfig _config;
   BackoffTimer _backoff{1000, 30000};
   ConfigMessageCallback _configCallback;
+  CameraCaptureCallback _cameraCaptureCallback;
   bool _configured = false;
   bool _configSubscribed = false;
   int _lastClientState = 0;
@@ -49,6 +53,7 @@ class MqttManager {
 
   void connectIfReady();
   bool subscribeConfigTopic();
+  void subscribeCameraCaptureTopic();
   String topicFor(const String& messageType) const;
   void markDisconnectedIfNeeded();
 };

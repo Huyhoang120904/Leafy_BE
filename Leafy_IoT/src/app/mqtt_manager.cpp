@@ -93,6 +93,10 @@ void MqttManager::onConfigMessage(ConfigMessageCallback callback) {
   _configCallback = callback;
 }
 
+void MqttManager::onCameraCaptureMessage(CameraCaptureCallback callback) {
+  _cameraCaptureCallback = callback;
+}
+
 void MqttManager::handleRawMessage(char* topic, uint8_t* payload, unsigned int length) {
   String topicText(topic);
   String body;
@@ -104,6 +108,9 @@ void MqttManager::handleRawMessage(char* topic, uint8_t* payload, unsigned int l
   if (topicText == configSetTopic() && _configCallback) {
     Logger::info("Received config payload on " + topicText + ", bytes=" + String(length));
     _configCallback(body);
+  } else if (topicText == cameraCaptureTopic() && _cameraCaptureCallback) {
+    Logger::info("Received camera capture command on " + topicText + ", bytes=" + String(length));
+    _cameraCaptureCallback(body);
   } else {
     Logger::debug("Ignoring MQTT message on topic " + topicText);
   }
@@ -151,11 +158,21 @@ bool MqttManager::subscribeConfigTopic() {
   _lastSubscribeAttemptMs = millis();
   if (_client.subscribe(topic.c_str())) {
     Logger::info("Subscribed config topic " + topic);
+    subscribeCameraCaptureTopic();
     return true;
   }
 
   Logger::warn("Failed to subscribe config topic " + topic);
   return false;
+}
+
+void MqttManager::subscribeCameraCaptureTopic() {
+  String topic = cameraCaptureTopic();
+  if (_client.subscribe(topic.c_str())) {
+    Logger::info("Subscribed camera capture topic " + topic);
+  } else {
+    Logger::warn("Failed to subscribe camera capture topic " + topic);
+  }
 }
 
 String MqttManager::topicFor(const String& messageType) const {
@@ -176,6 +193,10 @@ String MqttManager::ackTopic() const {
 
 String MqttManager::configSetTopic() const {
   return topicFor("config/set");
+}
+
+String MqttManager::cameraCaptureTopic() const {
+  return topicFor("camera/capture");
 }
 
 void MqttManager::markDisconnectedIfNeeded() {

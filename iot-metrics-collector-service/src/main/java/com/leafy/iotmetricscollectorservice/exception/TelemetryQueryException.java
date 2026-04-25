@@ -239,4 +239,36 @@ public class TelemetryQueryException extends RuntimeException {
             "Unsupported device sort field: " + sortBy
         );
     }
+
+    public static TelemetryQueryException inactiveDevice(UUID deviceId) {
+        return new TelemetryQueryException(
+            HttpStatus.BAD_REQUEST,
+            4629,
+            "IoT device is inactive: " + deviceId
+        );
+    }
+
+    public static TelemetryQueryException unclaimedDevice(UUID deviceId) {
+        return new TelemetryQueryException(
+            HttpStatus.BAD_REQUEST,
+            4630,
+            "IoT device must be claimed before camera capture: " + deviceId
+        );
+    }
+
+    public static TelemetryQueryException cameraCaptureCommandFailed(UUID deviceId) {
+        return new TelemetryQueryException(
+            HttpStatus.BAD_GATEWAY,
+            4631,
+            "Failed to send camera capture command for device: " + deviceId
+        );
+    }
+
+    public static TelemetryQueryException mediaEventNotFound(UUID mediaEventId) {
+        return new TelemetryQueryException(
+            HttpStatus.NOT_FOUND,
+            4632,
+            "Device media event not found: " + mediaEventId
+        );
+    }
 }

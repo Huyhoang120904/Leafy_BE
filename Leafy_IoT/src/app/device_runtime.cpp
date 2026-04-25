@@ -1,6 +1,9 @@
 #include "app/device_runtime.h"
 
+#include <ArduinoJson.h>
+
 #include "utils/logger.h"
+#include "utils/time_utils.h"
 
 namespace leafy {
 
@@ -123,6 +126,9 @@ void DeviceRuntime::initializeRuntimeModules() {
     _configService.handleConfigMessage(payload);
     transitionTo(RuntimeState::RUNNING);
   });
+  _mqttManager.onCameraCaptureMessage([this](const String& payload) {
+    handleCameraCaptureCommand(payload);
+  });
 
   initializeSensorModules();
   _telemetryService.begin(_config, &_sensorManager, &_mqttManager);
@@ -197,6 +203,81 @@ bool DeviceRuntime::applyRuntimeConfig(const RuntimeConfig& runtime, String& err
                ", alertEnabled=" + String(runtime.alertEnabled ? "true" : "false") +
                ", statusHeartbeatSec=" + String(DEFAULT_STATUS_HEARTBEAT_SEC));
   return true;
+}
+
+void DeviceRuntime::handleCameraCaptureCommand(const String& payload) {
+  JsonDocument doc;
+  DeserializationError err = deserializeJson(doc, payload);
+  if (err) {
+    Logger::warn("Invalid camera capture command JSON");
+    publishCaptureFailure("", "INVALID_COMMAND_JSON");
+    return;
+  }
+
+  String requestId = doc["requestId"] | "";
+  if (requestId.length() == 0) {
+    publishCaptureFailure("", "MISSING_REQUEST_ID");
+    return;
+  }
+
+  String resolution = doc["resolution"] | "VGA";
+  String quality = doc["quality"] | "MEDIUM";
+  String uploadMode = doc["upload"]["mode"] | "";
+  String uploadEndpoint = doc["upload"]["endpoint"] | "";
+  if (uploadMode != "FILE_SERVICE_MULTIPART" || uploadEndpoint.length() == 0) {
+    publishCaptureFailure(requestId, "INVALID_UPLOAD_TARGET");
+    return;
+  }
+
+  CameraService::Frame frame;
+  String error;
+  if (!_cameraService.capture(resolution, quality, frame, error)) {
+    publishCaptureFailure(requestId, error);
+    return;
+  }
+
+  String fileId;
+  bool uploaded = _fileUploadService.uploadMultipart(uploadEndpoint, frame, fileId, error);
+  size_t sizeBytes = frame.size;
+  int width = frame.width;
+  int height = frame.height;
+  _cameraService.release(frame);
+
+  if (!uploaded) {
+    publishCaptureFailure(requestId, error);
+    return;
+  }
+
+  JsonDocument result;
+  result["requestId"] = requestId;
+  result["success"] = true;
+  result["ts"] = TimeUtils::nowIso8601();
+  result["fileId"] = fileId;
+  result["contentType"] = "image/jpeg";
+  result["sizeBytes"] = sizeBytes;
+  result["width"] = width;
+  result["height"] = height;
+  result["error"] = nullptr;
+
+  String resultPayload;
+  serializeJson(result, resultPayload);
+  if (!_mqttManager.publishImageMeta(resultPayload)) {
+    Logger::warn("Failed to publish image/meta success for requestId=" + requestId);
+  }
+}
+
+void DeviceRuntime::publishCaptureFailure(const String& requestId, const String& error) {
+  JsonDocument result;
+  result["requestId"] = requestId;
+  result["success"] = false;
+  result["ts"] = TimeUtils::nowIso8601();
+  result["error"] = error.length() > 0 ? error : "CAMERA_CAPTURE_FAILED";
+
+  String resultPayload;
+  serializeJson(result, resultPayload);
+  if (!_mqttManager.publishImageMeta(resultPayload)) {
+    Logger::warn("Failed to publish image/meta failure for requestId=" + requestId);
+  }
 }
 
 const char* DeviceRuntime::stateName(RuntimeState state) const {

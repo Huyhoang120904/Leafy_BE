@@ -49,3 +49,5 @@ app:
     clean-session: true
     connection-timeout: 10
     keep-alive-interval: 20
+  file-service:
+    upload-url: ${FILE_SERVICE_UPLOAD_URL:http://localhost:8080/files/upload}

@@ -5,6 +5,7 @@
 #include "app/camera_service.h"
 #include "app/config_service.h"
 #include "app/config_store.h"
+#include "app/file_upload_service.h"
 #include "app/mqtt_manager.h"
 #include "app/sensor_manager.h"
 #include "app/setup_portal.h"
@@ -44,6 +45,7 @@ class DeviceRuntime {
   StatusService _statusService;
   ConfigService _configService;
   CameraService _cameraService;
+  FileUploadService _fileUploadService;
   SetupPortal _setupPortal;
   bool _modulesInitialized = false;
   bool _sensorModulesInitialized = false;
@@ -59,6 +61,8 @@ class DeviceRuntime {
   void initializeRuntimeModules();
   void initializeSensorModules();
   bool applyRuntimeConfig(const RuntimeConfig& runtime, String& errorMessage);
+  void handleCameraCaptureCommand(const String& payload);
+  void publishCaptureFailure(const String& requestId, const String& error);
   const char* stateName(RuntimeState state) const;
 };
 
