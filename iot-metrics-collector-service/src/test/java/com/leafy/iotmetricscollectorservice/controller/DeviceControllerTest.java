@@ -17,6 +17,7 @@ import com.leafy.iotmetricscollectorservice.model.enums.DeviceStatus;
 import com.leafy.iotmetricscollectorservice.model.enums.ProvisioningStatus;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigService;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigPushService;
+import com.leafy.iotmetricscollectorservice.service.DeviceMediaService;
 import com.leafy.iotmetricscollectorservice.service.DeviceService;
 import java.time.Instant;
 import java.util.UUID;
@@ -41,11 +42,14 @@ class DeviceControllerTest {
     @Mock
     private DeviceConfigPushService deviceConfigPushService;
 
+    @Mock
+    private DeviceMediaService deviceMediaService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new DeviceController(deviceService, deviceConfigService, deviceConfigPushService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new DeviceController(deviceService, deviceConfigService, deviceConfigPushService, deviceMediaService))
             .setControllerAdvice(new TelemetryQueryExceptionHandler())
             .build();
     }

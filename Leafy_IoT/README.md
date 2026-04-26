@@ -2,7 +2,7 @@
 
 PlatformIO firmware for an ESP32 or ESP32-CAM Leafy IoT module. The firmware follows the current `iot-metrics-collector-service` v1 contract and keeps the device code modular under `src/app`, `src/models`, and `src/utils`.
 
-Camera/image flow is intentionally deferred. This project is currently ready for bench validation of boot, local Wi-Fi setup portal, Wi-Fi, MQTT, status, telemetry, config apply/ACK, and sensor calibration.
+Camera capture is user-triggered only. The firmware does not capture on a timer; it waits for a collector MQTT command, captures a JPEG on ESP32-CAM builds, uploads the bytes through file-service HTTP multipart upload, then publishes result metadata back over MQTT.
 
 ## Backend Contract
 
@@ -12,6 +12,9 @@ Camera/image flow is intentionally deferred. This project is currently ready for
 - Config is received from `coffee/prod/devices/{deviceUid}/config/set`.
 - Config ACK publishes to `coffee/prod/devices/{deviceUid}/ack`.
 - Config ACK payload uses `type=config`.
+- Camera capture commands are received from `coffee/prod/devices/{deviceUid}/camera/capture`.
+- Camera result metadata publishes to `coffee/prod/devices/{deviceUid}/image/meta`.
+- MQTT never carries image bytes. It carries capture commands, file metadata, and failure status only.
 
 Telemetry payload fields remain:
 
@@ -39,6 +42,8 @@ Do not add or rename metric codes unless the backend `sensor_types.code` data is
 - `mqtt_manager`: MQTT connect/reconnect, config subscription, status, telemetry, ACK, and topic builders.
 - `status_service`: backend-compatible online heartbeat.
 - `config_service`: config parse, validation, version handling, runtime apply, persistence verification, rollback attempt, and ACK.
+- `camera_service`: ESP32-CAM-only camera init, JPEG capture, metadata, and frame release.
+- `file_upload_service`: HTTP multipart upload to file-service `POST /files/upload`.
 - `sensor_manager`: DHT11, YL-69, and LDR reads with per-sensor validity, normalization, and optional calibration logs.
 - `telemetry_service`: sampling and publishing based on runtime config, omits invalid metrics, skips empty payloads.
 - `setup_portal`: SoftAP HTTP portal for local Wi-Fi setup, device info, diagnostics, and Wi-Fi reset.
@@ -87,6 +92,51 @@ For ESP32-CAM:
 pio run -e esp32cam
 pio run -e esp32cam -t upload
 ```
+
+The `esp32cam` environment defines `LEAFY_ESP32_CAM=1`. Camera capture code compiles and runs only with that flag; the `esp32dev` environment still builds without requiring camera hardware.
+
+## On-Demand Camera Capture
+
+Capture flow:
+
+1. The web device detail page calls `POST /iot/devices/{deviceId}/camera/capture`.
+2. The collector creates a media event and publishes `coffee/{env}/devices/{deviceUid}/camera/capture`.
+3. ESP32-CAM receives the command, captures one JPEG, and uploads it to file-service `POST /files/upload` as multipart field `file`.
+4. File-service stores the image through its existing S3 flow and returns a file id.
+5. ESP32-CAM publishes `coffee/{env}/devices/{deviceUid}/image/meta` with `requestId`, `success`, `fileId`, `contentType`, `sizeBytes`, `width`, and `height`.
+6. The collector updates the matching `DeviceMediaEvent`; the frontend refetches/polls `/iot/devices/{deviceId}/media`.
+
+The collector command uses the file-service upload model that exists today:
+
+```json
+{
+  "requestId": "uuid",
+  "deviceUid": "leafy-prototype-001",
+  "requestedAt": "2026-04-25T10:00:00Z",
+  "resolution": "VGA",
+  "quality": "MEDIUM",
+  "upload": {
+    "mode": "FILE_SERVICE_MULTIPART",
+    "endpoint": "http://localhost:8080/files/upload"
+  }
+}
+```
+
+Set collector property `app.file-service.upload-url` to a URL reachable from the ESP32-CAM, not just from the backend container. For local LAN testing, this is usually an API gateway or file-service host IP, for example `http://192.168.1.10:8080/files/upload`.
+
+Expected capture logs:
+
+```text
+[INFO] Subscribed camera capture topic coffee/prod/devices/{deviceUid}/camera/capture
+[INFO] Received camera capture command on coffee/prod/devices/{deviceUid}/camera/capture, bytes=...
+```
+
+Failure behavior:
+
+- Invalid command, missing `requestId`, missing upload endpoint, camera init/capture failure, and upload failure publish `success=false` to `image/meta`.
+- Capture failures do not reboot the device.
+- Non-camera `esp32dev` builds publish `CAMERA_NOT_ENABLED` if a capture command is received.
+- The firmware starts with VGA/MEDIUM defaults; QVGA can be requested to reduce memory and upload size.
 
 Bench overrides:
 
@@ -180,6 +230,7 @@ Reset behavior:
 [INFO] Connecting MQTT broker host:1883
 [INFO] MQTT connected
 [INFO] Subscribed config topic coffee/prod/devices/{deviceUid}/config/set
+[INFO] Subscribed camera capture topic coffee/prod/devices/{deviceUid}/camera/capture
 ```
 
 9. Confirm running state:
@@ -317,6 +368,9 @@ Use this before moving to setup portal or camera work:
 14. Confirm the new sampling/publish intervals take effect without rebooting.
 15. Push an invalid config such as `publishIntervalSec < samplingIntervalSec`; confirm ACK failure and previous active config remains effective.
 16. Push an older `configVersion`; confirm it is ignored as stale.
+17. On ESP32-CAM, press "Chụp ảnh hiện tại" on the device detail page.
+18. Confirm the serial log receives one capture command, uploads to file-service, and publishes one `image/meta` result.
+19. Confirm `/iot/devices/{deviceId}/media` shows `UPLOADED` with a file id, or `FAILED` with an error if upload/capture failed.
 
 ## Troubleshooting
 
@@ -386,7 +440,8 @@ LDR range looks wrong:
 - Local setup portal v1 has no captive DNS and no rich UI.
 - Local setup portal v1 saves Wi-Fi credentials only; MQTT endpoint and calibration editing remain build/NVS tasks.
 - No durable telemetry queue exists yet.
-- Camera/image-meta is not implemented.
+- Camera capture supports on-demand JPEG capture only; no periodic capture and no video.
+- File upload uses file-service multipart upload because file-service does not currently expose a device-safe presigned PUT creation endpoint.
 - DHT11 is low precision and slow.
 - YL-69 corrosion risk remains a hardware concern.
 - LDR output is normalized brightness, not true lux.

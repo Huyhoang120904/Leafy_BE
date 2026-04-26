@@ -6,12 +6,17 @@ import com.leafy.iotmetricscollectorservice.dto.device.DeviceResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.GenerateClaimCodeResponse;
 import com.leafy.iotmetricscollectorservice.dto.device.ProvisionDeviceRequest;
 import com.leafy.iotmetricscollectorservice.dto.device.UpdateDeviceConfigRequest;
+import com.leafy.iotmetricscollectorservice.dto.media.CameraCaptureRequest;
+import com.leafy.iotmetricscollectorservice.dto.media.CameraCaptureResponse;
+import com.leafy.iotmetricscollectorservice.dto.media.DeviceMediaEventResponse;
 import com.leafy.iotmetricscollectorservice.dto.common.PagedResponse;
 import com.leafy.iotmetricscollectorservice.model.enums.DeviceStatus;
 import com.leafy.iotmetricscollectorservice.model.enums.ProvisioningStatus;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigService;
 import com.leafy.iotmetricscollectorservice.service.DeviceConfigPushService;
 import com.leafy.iotmetricscollectorservice.service.DeviceService;
+import com.leafy.iotmetricscollectorservice.service.DeviceMediaService;
+import java.util.List;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +40,7 @@ public class DeviceController {
     private final DeviceService deviceService;
     private final DeviceConfigService deviceConfigService;
     private final DeviceConfigPushService deviceConfigPushService;
+    private final DeviceMediaService deviceMediaService;
 
     @PostMapping("/provision")
     public ResponseEntity<DeviceResponse> provisionDevice(@RequestBody ProvisionDeviceRequest request) {
@@ -99,5 +105,18 @@ public class DeviceController {
     @PostMapping("/{deviceId}/config/push")
     public ResponseEntity<DeviceConfigResponse> pushDeviceConfig(@PathVariable UUID deviceId) {
         return ResponseEntity.ok(deviceConfigPushService.pushConfig(deviceId));
+    }
+
+    @PostMapping("/{deviceId}/camera/capture")
+    public ResponseEntity<CameraCaptureResponse> captureDeviceImage(
+        @PathVariable UUID deviceId,
+        @RequestBody(required = false) CameraCaptureRequest request
+    ) {
+        return ResponseEntity.ok(deviceMediaService.requestCapture(deviceId, request));
+    }
+
+    @GetMapping("/{deviceId}/media")
+    public ResponseEntity<List<DeviceMediaEventResponse>> getDeviceMedia(@PathVariable UUID deviceId) {
+        return ResponseEntity.ok(deviceMediaService.listDeviceMedia(deviceId));
     }
 }
