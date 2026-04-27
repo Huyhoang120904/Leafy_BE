@@ -212,7 +212,7 @@ public class ProfileController {
      * @return page of matching profile responses
      */
     @GetMapping("/search")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<Page<ProfileResponse>>> searchProfiles(
             @RequestParam String searchTerm,
             @RequestParam(defaultValue = "0") int page,

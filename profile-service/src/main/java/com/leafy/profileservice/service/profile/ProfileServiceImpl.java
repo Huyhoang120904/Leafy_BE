@@ -294,6 +294,7 @@ public class ProfileServiceImpl implements ProfileService {
     public void deleteProfile(String profileId) {
         log.info("Deleting profile with ID: {}", profileId);
         Profile profile = getProfileEntityById(profileId);
+        publishProfileEvent(profile, EventType.PROFILE_DELETED);
         profileRepository.delete(profile);
         // 5. Delete associated approval requests
         approvalRequestRepository.deleteByProfileId(profileId);
@@ -306,6 +307,7 @@ public class ProfileServiceImpl implements ProfileService {
         Profile profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new AppException(ErrorCode.ACC_ACCOUNT_NOT_FOUND));
 
+        publishProfileEvent(profile, EventType.PROFILE_DELETED);
         profileRepository.delete(profile);
 
         // Delete associated approval requests
@@ -421,6 +423,7 @@ public class ProfileServiceImpl implements ProfileService {
     private void publishProfileEvent(Profile profile, EventType eventType) {
         ProfileEvent event = ProfileEvent.builder()
                 .profileId(profile.getId())
+                .userId(profile.getUserId())
                 .fullName(profile.getFullName())
                 .avatar(profile.getAvatar())
                 .role(profile.getRole() != null ? profile.getRole().name() : null)

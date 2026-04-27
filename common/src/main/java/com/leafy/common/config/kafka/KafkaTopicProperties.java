@@ -69,6 +69,7 @@ public class KafkaTopicProperties {
     public static class ProfileEvents {
         private String created = "profile.created";
         private String updated = "profile.updated";
+        private String deleted = "profile.deleted";
         private String connectionUpdated = "profile.connection.updated";
     }
 }

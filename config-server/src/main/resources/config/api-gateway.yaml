@@ -362,7 +362,7 @@ spring:
 
             # Messages Service Routes
             - id: messages-service
-              uri: lb://messages-server
+              uri: lb://message-service
               predicates:
                 - Path=/api/messages/**, /api/conversations/**
               filters:
@@ -374,17 +374,17 @@ spring:
 
             # Messages Service WebSocket Route
             - id: messages-service-ws
-              uri: lb:ws://messages-server
+              uri: lb:ws://message-service
               predicates:
                 - Path=/ws/messages/**
 
             # OpenAPI Documentation Routes for Messages Service
             - id: messages-service-openapi
-              uri: lb://messages-server
+              uri: lb://message-service
               predicates:
-                - Path=/messages-server/v3/api-docs/**
+                - Path=/message-service/v3/api-docs/**
               filters:
-                - RewritePath=/messages-server/v3/api-docs, /v3/api-docs
+                - RewritePath=/message-service/v3/api-docs, /v3/api-docs
 
           default-filters:
             - DedupeResponseHeader=Access-Control-Allow-Origin Access-Control-Allow-Credentials Access-Control-Allow-Methods Access-Control-Allow-Headers, RETAIN_FIRST
