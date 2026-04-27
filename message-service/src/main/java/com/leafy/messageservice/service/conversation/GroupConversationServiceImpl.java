@@ -410,32 +410,23 @@ public class GroupConversationServiceImpl implements GroupConversationService {
     }
 
     @Override
-    public ConversationResponse updateGroupAvatar(String conversationId, MultipartFile file) {
+    public ConversationResponse updateGroupAvatar(String conversationId, String avatarUrl) {
         String currentUserId = helper.getSecurityUtil().getCurrentUserId();
         Conversation conversation = helper.findGroupConversation(conversationId);
         helper.assertMember(conversation, currentUserId);
         helper.assertSettingAllowed(conversation, currentUserId, GroupSettings::isMemberCanChangeInfo);
 
-        if (file != null && !file.isEmpty()) {
-            String folder = "conversations/groups/" + conversationId + "/avatar";
-            com.leafy.common.dto.ApiResponse<Object> uploadResponse = null; // fileServiceClient.upload(file, folder);
-            if (uploadResponse != null && uploadResponse.data() != null) {
-                String oldAvatarKey = conversation.getAvatar();
-                String avatarKey = ""; // uploadResponse.data().key();
+        if (avatarUrl != null && !avatarUrl.isBlank()) {
+            String oldAvatarKey = conversation.getAvatar();
 
-                conversation.setAvatar(avatarKey);
-
-                var actorInfo = helper.fetchActorInfo(currentUserId);
+            if (!avatarUrl.equals(oldAvatarKey)) {
+                conversation.setAvatar(avatarUrl);
                 conversationRepository.save(conversation);
 
-                if (oldAvatarKey != null && !oldAvatarKey.isBlank() && !oldAvatarKey.equals(avatarKey)) {
-                    try {
-                        // fileServiceClient.delete(oldAvatarKey);
-                        log.info("[Group] Deleted old avatar {} for conversation {}", oldAvatarKey, conversationId);
-                    } catch (Exception e) {
-                        log.warn("[Group] Failed to delete old avatar {} for conversation {}: {}",
-                                oldAvatarKey, conversationId, e.getMessage());
-                    }
+                var actorInfo = helper.fetchActorInfo(currentUserId);
+
+                if (oldAvatarKey != null && !oldAvatarKey.isBlank()) {
+                    log.info("[Group] Old avatar {} for conversation {} should be marked for deletion", oldAvatarKey, conversationId);
                 }
 
                 systemMessageService.sendSystemMessage(conversationId, currentUserId, actorInfo.name(), actorInfo.avatar(),

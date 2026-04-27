@@ -194,8 +194,8 @@ public class ConversationHelper {
             }
         }
         String displayAvatar = room.isGroup()
-                ? (room.getAvatar() != null ? baseUrl + room.getAvatar() : null)
-                : (partner != null && partner.getAvatar() != null ? baseUrl + partner.getAvatar() : null);
+                ? s3UtilV2.getFullUrl(room.getAvatar())
+                : (partner != null ? s3UtilV2.getFullUrl(partner.getAvatar()) : null);
 
         boolean isFriend = !room.isGroup() && "ACCEPTED".equals(friendshipStatus);
 
@@ -371,8 +371,7 @@ public class ConversationHelper {
                     return ConversationMemberResponse.builder()
                             .userId(m.getUserId())
                             .fullName(memberInfo != null ? memberInfo.getFullName() : "Người dùng")
-                            .avatar(memberInfo != null && memberInfo.getAvatar() != null
-                                    ? baseUrl + memberInfo.getAvatar() : null)
+                            .avatar(memberInfo != null ? s3UtilV2.getFullUrl(memberInfo.getAvatar()) : null)
                             .lastReadMessageId(m.getLastReadMessageId())
                             .role(m.getRole() != null ? m.getRole() : null)
                             .build();

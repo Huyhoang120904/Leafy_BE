@@ -27,7 +27,7 @@ public interface GroupConversationService {
 
     ConversationResponse updateGroupName(String conversationId, String name);
 
-    ConversationResponse updateGroupAvatar(String conversationId, MultipartFile file);
+    ConversationResponse updateGroupAvatar(String conversationId, String avatarUrl);
 
     ConversationResponse updateGroupSettings(String conversationId, UpdateGroupSettingsRequest request);
 
