@@ -32,21 +32,6 @@ async def lifespan(app: FastAPI):
     # Store model in app state
     app.state.model = model
     
-    # Load and warmup TFLite model
-    try:
-        if Path(config.TFLITE_MODEL_PATH).exists():
-            logger.info("Loading TFLite model...")
-            tflite_interpreter = AIModelInference.load_tflite_model()
-            AIModelInference.warmup_tflite_model(tflite_interpreter)
-            app.state.tflite_interpreter = tflite_interpreter
-            logger.info("TFLite model loaded successfully")
-        else:
-            logger.warning(f"TFLite model not found at {config.TFLITE_MODEL_PATH}")
-            app.state.tflite_interpreter = None
-    except Exception as e:
-        logger.error(f"Failed to load TFLite model: {e}")
-        app.state.tflite_interpreter = None
-    
     # Load and warmup YOLO models
     try:
         # Load custom YOLO model (best.pt)

@@ -1,6 +1,7 @@
 package com.leafy.profileservice.service.profile;
 
 import com.leafy.common.dto.ApiResponse;
+import com.leafy.common.enums.ProfileRole;
 import com.leafy.common.event.profile.ProfileEvent;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
@@ -193,6 +194,20 @@ public class ProfileServiceImpl implements ProfileService {
     public Page<ProfileResponse> searchProfiles(String searchTerm, Pageable pageable) {
         log.info("Searching profiles with term: {}", searchTerm);
         Page<Profile> profiles = profileRepository.searchProfiles(searchTerm, pageable);
+        return profiles.map(this::buildFullProfileResponse);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<ProfileResponse> getFilteredProfiles(
+            String searchTerm,
+            ProfileRole role,
+            Boolean active,
+            Boolean isVerified,
+            Pageable pageable) {
+        log.info("Getting filtered profiles: searchTerm={}, role={}, active={}, isVerified={}",
+                searchTerm, role, active, isVerified);
+        Page<Profile> profiles = profileRepository.findProfilesFiltered(searchTerm, role, active, isVerified, pageable);
         return profiles.map(this::buildFullProfileResponse);
     }
 

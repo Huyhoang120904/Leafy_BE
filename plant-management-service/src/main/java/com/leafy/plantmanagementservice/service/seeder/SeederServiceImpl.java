@@ -279,7 +279,6 @@ public class SeederServiceImpl implements SeederService {
                     .nickName(buildPlantNickname(i))
                     .tagCode(String.format("TAG-%04d", i + 1))
                     .batchNumber(buildBatchNumber(i, now))
-                    .sourceType(sourceType)
                     .motherPlantId(null)        // filled in second pass below
                     .plantingDate(plantingDate)
                     .germinationDate(germinationDate)

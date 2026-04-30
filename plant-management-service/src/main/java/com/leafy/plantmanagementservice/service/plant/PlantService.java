@@ -4,6 +4,7 @@ import com.leafy.plantmanagementservice.dto.request.plant.PlantCreateRequest;
 import com.leafy.plantmanagementservice.dto.request.plant.PlantUpdateRequest;
 import com.leafy.plantmanagementservice.dto.response.plant.PlantResponse;
 import com.leafy.plantmanagementservice.model.Plant;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
@@ -16,7 +17,7 @@ public interface PlantService {
 
     Plant getPlantEntityById(String plantId);
 
-    Page<PlantResponse> getAllPlants(Pageable pageable);
+    Page<PlantResponse> getAllPlants(PlantStatus status, Pageable pageable);
 
     Page<PlantResponse> getPlantsBySpeciesId(String speciesId, Pageable pageable);
 

@@ -15,6 +15,10 @@ public record AddCertificateRequest(
         @NotBlank(message = "{validation.certificate.proofUrl.required}")
         String proofUrl,
 
+        String proofFileId,
+
+        String fileType,
+
         @NotNull(message = "{validation.certificate.issueDate.required}")
         LocalDate issueDate
 ) {

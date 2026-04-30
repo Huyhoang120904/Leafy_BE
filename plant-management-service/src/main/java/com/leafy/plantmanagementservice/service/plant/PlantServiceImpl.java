@@ -7,6 +7,7 @@ import com.leafy.plantmanagementservice.dto.request.plant.PlantUpdateRequest;
 import com.leafy.plantmanagementservice.dto.response.plant.PlantResponse;
 import com.leafy.plantmanagementservice.mapper.PlantMapper;
 import com.leafy.plantmanagementservice.model.Plant;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import com.leafy.plantmanagementservice.repository.PlantRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -67,8 +68,12 @@ public class PlantServiceImpl implements PlantService {
     }
 
     @Override
-    public Page<PlantResponse> getAllPlants(Pageable pageable) {
-        log.info("Fetching all plants with pagination");
+    public Page<PlantResponse> getAllPlants(PlantStatus status, Pageable pageable) {
+        log.info("Fetching all plants with pagination, status={}", status);
+        if (status != null) {
+            return plantRepository.findByPlantStatus(status, pageable)
+                    .map(plantMapper::toResponse);
+        }
         return plantRepository.findAll(pageable)
                 .map(plantMapper::toResponse);
     }

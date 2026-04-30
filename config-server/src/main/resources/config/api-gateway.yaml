@@ -37,11 +37,11 @@ spring:
                     name: authServiceCircuitBreaker
                     fallbackUri: forward:/fallback/auth-service
 
-            # Seed Routes (Auth Service)
-            - id: seed-service
+            # Admin Seed Routes — unified /api/admin/seed/{domain} (all use 120s seedServiceCircuitBreaker)
+            - id: admin-seed-accounts
               uri: lb://auth-service
               predicates:
-                - Path=/api/seed/**
+                - Path=/api/admin/seed/accounts
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
@@ -49,17 +49,60 @@ spring:
                     name: seedServiceCircuitBreaker
                     fallbackUri: forward:/fallback/auth-service
 
-            # Farm Seeder Route (must precede /api/farms/** for first-match routing; uses 120s timelimiter)
-            - id: farm-seeder-service
+            - id: admin-seed-farms
               uri: lb://farm-service
               predicates:
-                - Path=/api/farms/seeder/**
+                - Path=/api/admin/seed/farms
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
                   args:
                     name: seedServiceCircuitBreaker
                     fallbackUri: forward:/fallback/farm-service
+
+            - id: admin-seed-plants
+              uri: lb://plant-management-service
+              predicates:
+                - Path=/api/admin/seed/plants
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: seedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/plant-management-service
+
+            - id: admin-seed-species-perenual
+              uri: lb://plant-management-service
+              predicates:
+                - Path=/api/admin/seed/species/perenual
+              filters:
+                - RewritePath=/api/admin/seed/species/perenual, /species/seed/perenual
+                - name: CircuitBreaker
+                  args:
+                    name: seedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/plant-management-service
+
+            - id: admin-seed-community
+              uri: lb://community-feed-service
+              predicates:
+                - Path=/api/admin/seed/community
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: seedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/community-feed-service
+
+            - id: admin-seed-certificates
+              uri: lb://profile-service
+              predicates:
+                - Path=/api/admin/seed/certificates
+              filters:
+                - StripPrefix=1
+                - name: CircuitBreaker
+                  args:
+                    name: seedServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/profile-service
 
             # Farm Service Routes
             - id: farm-service
@@ -96,18 +139,6 @@ spring:
                   args:
                     name: notificationServiceCircuitBreaker
                     fallbackUri: forward:/fallback/notification-service
-
-            # Plant Management Seeder Route (must precede /api/plants/** for first-match routing; uses 120s timelimiter)
-            - id: plant-management-seeder
-              uri: lb://plant-management-service
-              predicates:
-                - Path=/api/plants/seeder/**
-              filters:
-                - StripPrefix=1
-                - name: CircuitBreaker
-                  args:
-                    name: seedServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/plant-management-service
 
             # Plant Management Service Routes
             - id: plant-management-service
@@ -301,7 +332,7 @@ spring:
             - id: search-service
               uri: lb://search-service
               predicates:
-                - Path=/api/search/posts/**, /api/search/profiles/**
+                - Path=/api/search/posts/**, /api/search/profiles/**, /api/search/sync/**, /api/search/failed-events/**
               filters:
                 - StripPrefix=2
                 - name: CircuitBreaker

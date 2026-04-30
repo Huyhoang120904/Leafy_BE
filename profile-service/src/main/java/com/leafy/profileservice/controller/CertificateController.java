@@ -2,8 +2,10 @@ package com.leafy.profileservice.controller;
 
 import com.leafy.common.dto.ApiResponse;
 import com.leafy.profileservice.dto.request.profile.CreateApprovalRequest;
+import com.leafy.profileservice.dto.request.profile.RevokeApprovalRequest;
 import com.leafy.profileservice.dto.request.profile.UpdateCertificateStatusRequest;
 import com.leafy.profileservice.dto.response.profile.ApprovalRequestDto;
+import com.leafy.profileservice.dto.response.profile.ApprovalRequestResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import com.leafy.profileservice.service.certificate.CertificateService;
 import jakarta.validation.Valid;
@@ -71,9 +73,42 @@ public class CertificateController {
      */
     @GetMapping("/pending")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<ApprovalRequestDto>>> getPendingApprovalRequests() {
+    public ResponseEntity<ApiResponse<List<ApprovalRequestResponse>>> getPendingApprovalRequests() {
         log.info("GET /profiles/approval-requests/pending - Fetching all pending approval requests");
-        List<ApprovalRequestDto> response = certificateService.getPendingApprovalRequests();
+        List<ApprovalRequestResponse> response = certificateService.getPendingApprovalRequests();
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Get all processed (APPROVED or REJECTED) approval requests across the platform
+     *
+     * @return list of processed approval requests
+     */
+    @GetMapping("/processed")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<List<ApprovalRequestResponse>>> getProcessedApprovalRequests() {
+        log.info("GET /profiles/approval-requests/processed - Fetching all processed approval requests");
+        List<ApprovalRequestResponse> response = certificateService.getProcessedApprovalRequests();
+        return ResponseEntity.ok(ApiResponse.success(response));
+    }
+
+    /**
+     * Revoke a previously approved approval request
+     *
+     * @param profileId the profile ID
+     * @param requestId the approval request ID to revoke
+     * @param request   optional revocation reason
+     * @return the updated profile response
+     */
+    @PatchMapping("/{requestId}/revoke")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<ProfileResponse>> revokeApprovalRequest(
+            @PathVariable String profileId,
+            @PathVariable String requestId,
+            @RequestBody(required = false) RevokeApprovalRequest request) {
+        log.info("PATCH /profiles/{}/approval-requests/{}/revoke - Revoking approval request", profileId, requestId);
+        String reason = request != null ? request.reason() : null;
+        ProfileResponse response = certificateService.revokeApprovalRequest(profileId, requestId, reason);
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 }

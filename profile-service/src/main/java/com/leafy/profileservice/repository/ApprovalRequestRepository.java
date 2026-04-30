@@ -35,4 +35,12 @@ public interface ApprovalRequestRepository extends MongoRepository<ApprovalReque
      * @return list of matching approval requests
      */
     List<ApprovalRequest> findByStatus(CertificateStatus status);
+
+    /**
+     * Find all approval requests whose status is NOT the given status
+     *
+     * @param status the status to exclude
+     * @return list of matching approval requests
+     */
+    List<ApprovalRequest> findByStatusNot(CertificateStatus status);
 }

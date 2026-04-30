@@ -1,5 +1,5 @@
 """
-Chit-Chat Node
+Direct Node
 
 Handles non-agricultural conversational messages (greetings, small talk, identity
 questions) with a brief, friendly Gemini Flash response.
@@ -22,9 +22,9 @@ logger = logging.getLogger(__name__)
 _MAX_HISTORY_PAIRS = 5
 
 
-def chit_chat_response(state: GraphState) -> dict:
+def direct_response(state: GraphState) -> dict:
     """
-    Generate a brief, warm conversational reply for chit-chat messages.
+    Generate a brief, warm conversational reply for direct messages.
 
     Uses recent conversation history for pronoun / context resolution but does
     NOT perform retrieval or safety auditing.
@@ -38,7 +38,7 @@ def chit_chat_response(state: GraphState) -> dict:
     """
     question = state.get("question", "")
     language = state.get("language", "English")
-    logger.info("[CHIT-CHAT] Generating conversational response")
+    logger.info("[DIRECT] Generating conversational response")
 
     # Inject recent history for follow-up awareness (exclude current HumanMessage)
     all_messages = state.get("messages", [])
@@ -71,11 +71,15 @@ def chit_chat_response(state: GraphState) -> dict:
         "history": history,
     })
 
-    logger.info("[CHIT-CHAT] Response generated (len=%d)", len(response))
+    logger.info("[DIRECT] Response generated (len=%d)", len(response))
     return {
         "generation": response,
         "messages": [AIMessage(content=response)],
-        # Pre-mark as safe — chit-chat responses never contain pesticide dosages.
+        # Pre-mark as safe — direct responses never contain pesticide dosages.
         "safety_passed": True,
         "safety_issues": [],
     }
+
+
+# Backward-compatible alias during rename rollout.
+chit_chat_response = direct_response

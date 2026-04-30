@@ -34,7 +34,6 @@ class Config(BaseConfig):
     # Model settings
     MODEL_NAME: str = "Coffee-MobileNetV2"
     MODEL_PATH: str = "weights/coffee_mobilenetv2_prod_final.keras"
-    TFLITE_MODEL_PATH: str = "weights/coffee_mobilenetv2_prod_final.tflite"
     MODEL_INPUT_SIZE: tuple[int, int] = (224, 224)
     MODEL_TOP_K: int = 3  # Top K predictions to return
 

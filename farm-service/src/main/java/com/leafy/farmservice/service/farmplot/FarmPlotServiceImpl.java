@@ -7,6 +7,7 @@ import com.leafy.farmservice.dto.request.farmplot.UpdateFarmPlotRequest;
 import com.leafy.farmservice.dto.response.farmplot.FarmPlotResponse;
 import com.leafy.farmservice.mapper.FarmPlotMapper;
 import com.leafy.farmservice.model.FarmPlot;
+import com.leafy.farmservice.model.enums.FarmPlotStatus;
 import com.leafy.farmservice.repository.FarmPlotRepository;
 import java.util.List;
 import java.util.Locale;
@@ -14,6 +15,8 @@ import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.AccessLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -42,6 +45,12 @@ public class FarmPlotServiceImpl implements FarmPlotService {
     @Override
     public List<FarmPlotResponse> getAllActive() {
         return farmPlotMapper.toResponseList(farmPlotRepository.findAllByActiveTrue());
+    }
+
+    @Override
+    public Page<FarmPlotResponse> getFilteredPlots(String searchTerm, FarmPlotStatus status, String provinceCode, Double minAreaM2, Double maxAreaM2, Pageable pageable) {
+        return farmPlotRepository.findPlotsFiltered(searchTerm, status, provinceCode, minAreaM2, maxAreaM2, pageable)
+                .map(farmPlotMapper::toResponse);
     }
 
     @Override

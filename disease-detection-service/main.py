@@ -46,3 +46,8 @@ def test_user_info(user: UserPrincipal = Depends(get_current_user)):
         "message": "Authentication successful",
         "user": user_info
     }
+
+@app.get("/actuator/health", tags=["Health"], summary="Eureka health check")
+async def eureka_health_check():
+    """Returns status UP for Eureka."""
+    return {"status": "UP"}

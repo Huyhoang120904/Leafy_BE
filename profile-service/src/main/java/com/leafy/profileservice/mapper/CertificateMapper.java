@@ -2,6 +2,7 @@ package com.leafy.profileservice.mapper;
 
 import com.leafy.profileservice.dto.request.profile.AddCertificateRequest;
 import com.leafy.profileservice.dto.response.profile.ApprovalRequestDto;
+import com.leafy.profileservice.dto.response.profile.ApprovalRequestResponse;
 import com.leafy.profileservice.dto.response.profile.CertificateDto;
 import com.leafy.profileservice.model.ApprovalRequest;
 import com.leafy.profileservice.model.Certificate;
@@ -52,4 +53,15 @@ public interface CertificateMapper {
      * Map list of ApprovalRequests to DTOs
      */
     List<ApprovalRequestDto> toApprovalRequestDtoList(List<ApprovalRequest> requests);
+
+    /**
+     * Map ApprovalRequest to ApprovalRequestResponse (userInfo must be set by caller).
+     */
+    @Mapping(target = "userInfo", ignore = true)
+    ApprovalRequestResponse toApprovalRequestResponse(ApprovalRequest approvalRequest);
+
+    /**
+     * Map list of ApprovalRequests to ApprovalRequestResponses (userInfo set by caller).
+     */
+    List<ApprovalRequestResponse> toApprovalRequestResponseList(List<ApprovalRequest> requests);
 }

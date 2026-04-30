@@ -24,6 +24,12 @@ public class Certificate {
     private String title;
     private String issuedBy;
     private String proofUrl;
+
+    /** ID of the file-service record backing this proof (null for legacy/user-uploaded certs) */
+    private String proofFileId;
+
+    /** Broad file category returned by file-service (PDF, IMAGE, DOCUMENT, OTHER) */
+    private String fileType;
     private LocalDate issueDate;
 
     @Builder.Default

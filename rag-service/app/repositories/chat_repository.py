@@ -2,6 +2,7 @@ import logging
 from typing import Any, Dict, List, Optional
 
 from app.models.treatment_plan_doc import TreatmentPlanDoc
+from app.repositories.conversation_repository import get_conversation_repository
 from app.repositories.treatment_plan_repository import get_treatment_plan_repository
 
 logger = logging.getLogger(__name__)
@@ -20,7 +21,9 @@ class ChatRepository:
 
     def __new__(cls):
         if cls._instance is None:
-            cls._instance = super().__new__(cls)
+            instance = super().__new__(cls)
+            instance._conversation_repository = get_conversation_repository()
+            cls._instance = instance
         return cls._instance
 
     def serialize_document(self, doc: Any) -> Dict[str, Any]:
@@ -110,6 +113,85 @@ class ChatRepository:
         except Exception as e:
             # Save errors are logged but NEVER propagate to the caller
             logger.error("Failed to persist TreatmentPlan: %s", e, exc_info=True)
+            return None
+
+    def _build_pipeline_state(
+        self,
+        *,
+        rag_state: Optional[str],
+        current_node: Optional[str],
+        step: Optional[int],
+    ) -> Dict[str, Any]:
+        payload: Dict[str, Any] = {}
+        if rag_state:
+            payload["ragState"] = rag_state
+        if current_node:
+            payload["currentNode"] = current_node
+        if step is not None:
+            payload["step"] = step
+        return payload
+
+    def _build_response_meta(
+        self,
+        final_state: Dict[str, Any],
+        *,
+        saved_plan_id: Optional[str],
+    ) -> Dict[str, Any]:
+        documents = final_state.get("documents") or []
+        web_results = final_state.get("web_search_results") or []
+        generated_plan = final_state.get("generated_plan")
+        return {
+            "documentsCount": len(documents),
+            "webResultsCount": len(web_results),
+            "savedPlanId": saved_plan_id,
+            "treatmentPlan": generated_plan if isinstance(generated_plan, dict) else None,
+        }
+
+    def persist_conversation_turn(
+        self,
+        *,
+        user_id: str,
+        thread_id: str,
+        question: str,
+        answer: str,
+        final_state: Dict[str, Any],
+        saved_plan_id: Optional[str],
+        rag_state: Optional[str] = None,
+        current_node: Optional[str] = None,
+        step: Optional[int] = None,
+    ) -> Optional[str]:
+        if not thread_id:
+            return None
+
+        try:
+            pipeline_state = self._build_pipeline_state(
+                rag_state=rag_state,
+                current_node=current_node,
+                step=step,
+            )
+            response_meta = self._build_response_meta(
+                final_state,
+                saved_plan_id=saved_plan_id,
+            )
+
+            result = self._conversation_repository.upsert_turn(
+                user_id=user_id,
+                thread_id=thread_id,
+                question=question,
+                answer=answer,
+                pipeline_state=pipeline_state or None,
+                response_meta=response_meta,
+            )
+            conversation_id = result.get("conversationId")
+            logger.info(
+                "Conversation turn persisted - conversationId=%s, threadId=%s, userId=%s",
+                conversation_id,
+                thread_id,
+                user_id,
+            )
+            return conversation_id
+        except Exception as e:
+            logger.error("Failed to persist conversation turn: %s", e, exc_info=True)
             return None
 
 

@@ -182,10 +182,10 @@ def safety_auditor(state: GraphState) -> dict:
     """
     logger.info("[SAFETY AUDIT] Checking generation for safety and compliance")
 
-    # ── Fast-pass: chit-chat responses never contain pesticide/dosage content ──
-    intent = state.get("intent", "agricultural_query")
-    if intent == "chit_chat":
-        logger.info("[SAFETY AUDIT] Chit-chat intent — skipping audit (PASS)")
+    # ── Fast-pass: direct responses never contain pesticide/dosage content ──
+    intent = state.get("intent", "agriculture_query")
+    if intent == "direct":
+        logger.info("[SAFETY AUDIT] Direct intent — skipping audit (PASS)")
         return {"safety_passed": True, "safety_issues": []}
 
     generation = state.get("generation", "")

@@ -57,14 +57,16 @@ class GraphState(TypedDict, total=False):
     language: Optional[str]
     # Authenticated user id for per-user vector search scoping
     user_id: Optional[str]
+    # Incoming bearer token propagated from request for internal gateway lookups
+    authorization: Optional[str]
     
     # Phase 2: Advanced Retrieval
     candidate_docs: Optional[List[Document]]
     reranked_docs: Optional[List[Document]]
     
     # Phase 1.5: Intent Classification (pre-retrieval)
-    # "chit_chat" → short-circuits to chit_chat node → END
-    # "agricultural_query" → full RAG pipeline
+    # "direct" → short-circuits to direct node → END
+    # "agriculture_query" → full RAG pipeline
     intent: Optional[str]
 
     # Phase 3: Routing

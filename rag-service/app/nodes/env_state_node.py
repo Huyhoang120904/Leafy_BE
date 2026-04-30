@@ -1,92 +1,191 @@
-"""
-Environment State Node (Phase 0)
+"""Environment State Node (Phase 0).
 
-Fetches real-time environmental context for the target plant from IoT sensors:
-  - Soil sensors (moisture, pH, NPK, temperature)
-  - GPS / location data
-  - Weather / microclimate readings
-
-TODO: Replace hardcoded values with actual IoT API calls.
-      Suggested integrations:
-        - Soil: MQTT / REST call to sensor hub by plant_id or farm_plot_id
-        - GPS:  PlantEvent or FarmPlot table lookup
-        - Weather: OpenWeatherMap / aWhere API by lat/lon
+Resolves plant -> farm plot -> zone through API Gateway, then fetches IoT zone
+overview to build real environmental context for downstream prompts.
 """
 
 import logging
+import re
+from datetime import datetime, timezone
+from typing import Any, Dict, Iterable, Optional
+
 from app.agents.rag_state import GraphState
+from app.services.env_gateway_client import get_env_gateway_client
 
 logger = logging.getLogger(__name__)
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Hardcoded placeholder values — replace with real IoT reads later
-# ─────────────────────────────────────────────────────────────────────────────
-_PLACEHOLDER_ENV = {
-    # --- Location ---
-    "gps": {
-        "latitude": 14.0583,       # Central Highlands, Vietnam
-        "longitude": 108.2772,
-        "farm_plot_id": "plot-001",
-        "altitude_m": 750,
-    },
+_UUID_RE = re.compile(
+    r"\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}\b"
+)
+_OBJECT_ID_RE = re.compile(r"\b[a-fA-F0-9]{24}\b")
+_PLANT_ID_RE = re.compile(
+    r"\bplant(?:\s*[_-]?\s*id)?\s*[:=#-]?\s*([A-Za-z0-9][A-Za-z0-9_-]{2,63})\b",
+    re.IGNORECASE,
+)
 
-    # --- Soil sensors ---
-    "soil": {
-        "moisture_pct": 62.4,      # % volumetric water content
-        "temperature_c": 24.1,     # °C at 10 cm depth
-        "ph": 5.8,                 # Ideal for coffee: 5.5–6.5
-        "nitrogen_ppm": 38,        # N — parts per million
-        "phosphorus_ppm": 12,      # P
-        "potassium_ppm": 95,       # K
-        "organic_matter_pct": 3.2,
-    },
 
-    # --- Weather / microclimate ---
-    "weather": {
-        "air_temp_c": 27.3,
-        "humidity_pct": 81,        # High humidity → higher fungal disease risk
-        "rainfall_mm_last_7d": 42,
-        "wind_speed_kmh": 8,
-        "uv_index": 6,
-        "forecast_rain_24h": False, # Affects spray scheduling
-    },
+_SOIL_MOISTURE_CODES = ("SOIL_MOISTURE", "MOISTURE", "SOIL_MOISTURE_PCT")
+_SOIL_TEMP_CODES = ("SOIL_TEMP", "SOIL_TEMPERATURE", "SOIL_TEMP_C")
+_SOIL_PH_CODES = ("SOIL_PH", "PH", "SOIL_ACIDITY")
+_NITROGEN_CODES = ("N", "NITROGEN", "NITROGEN_PPM", "SOIL_N")
+_PHOSPHORUS_CODES = ("P", "PHOSPHORUS", "PHOSPHORUS_PPM", "SOIL_P")
+_POTASSIUM_CODES = ("K", "POTASSIUM", "POTASSIUM_PPM", "SOIL_K")
 
-    # --- Data freshness ---
-    "reading_timestamp": "2026-02-25T14:00:00+07:00",  # TODO: use datetime.now()
-    "data_source": "HARDCODED_PLACEHOLDER",              # Change to "IOT_SENSOR" when live
-}
-# ─────────────────────────────────────────────────────────────────────────────
+_AIR_TEMP_CODES = ("AIR_TEMP", "AIR_TEMPERATURE", "TEMP", "TEMPERATURE")
+_HUMIDITY_CODES = ("HUMIDITY", "AIR_HUMIDITY", "RH")
+_RAINFALL_CODES = ("RAINFALL_7D", "RAIN_7D", "RAINFALL")
+_WIND_CODES = ("WIND_SPEED", "WIND_SPEED_KMH", "WIND")
+_UV_CODES = ("UV", "UV_INDEX")
 
+
+def _extract_plant_id(state: GraphState) -> Optional[str]:
+    state_plant_id = state.get("plant_id")
+    if isinstance(state_plant_id, str) and state_plant_id.strip():
+        return state_plant_id.strip()
+
+    question = state.get("question")
+    if not isinstance(question, str) or not question.strip():
+        return None
+
+    explicit_match = _PLANT_ID_RE.search(question)
+    if explicit_match:
+        return explicit_match.group(1)
+
+    uuid_match = _UUID_RE.search(question)
+    if uuid_match:
+        return uuid_match.group(0)
+
+    object_id_match = _OBJECT_ID_RE.search(question)
+    if object_id_match:
+        return object_id_match.group(0)
+
+    return None
+
+
+def _to_float(value: Any) -> Optional[float]:
+    try:
+        if value is None:
+            return None
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _build_reading_index(readings: Iterable[Dict[str, Any]]) -> Dict[str, Dict[str, Any]]:
+    index: Dict[str, Dict[str, Any]] = {}
+    for item in readings:
+        if not isinstance(item, dict):
+            continue
+        code = str(item.get("sensorCode") or "").strip().upper()
+        if code:
+            index[code] = item
+    return index
+
+
+def _pick_value(reading_index: Dict[str, Dict[str, Any]], aliases: Iterable[str]) -> Optional[float]:
+    for code in aliases:
+        item = reading_index.get(code)
+        if item is not None:
+            return _to_float(item.get("value"))
+    return None
+
+
+def _resolve_reading_timestamp(overview: Dict[str, Any], readings: Iterable[Dict[str, Any]]) -> str:
+    timestamp = overview.get("lastUpdatedAt")
+    if isinstance(timestamp, str) and timestamp.strip():
+        return timestamp
+
+    latest_reading_time: Optional[str] = None
+    for item in readings:
+        reading_time = item.get("readingTime")
+        if isinstance(reading_time, str) and reading_time.strip():
+            if latest_reading_time is None or reading_time > latest_reading_time:
+                latest_reading_time = reading_time
+
+    if latest_reading_time:
+        return latest_reading_time
+
+    return datetime.now(timezone.utc).isoformat()
+
+
+def _map_overview_to_env_state(zone_context: Dict[str, Any], overview: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    latest_readings = overview.get("latestReadings")
+    if not isinstance(latest_readings, list) or not latest_readings:
+        logger.info("[ENV STATE] No latest readings available for zone_id=%s", zone_context.get("zone_id"))
+        return None
+
+    reading_index = _build_reading_index(latest_readings)
+
+    env_state = {
+        "gps": {
+            "latitude": None,
+            "longitude": None,
+            "farm_plot_id": zone_context.get("farm_plot_id"),
+            "farm_zone_id": zone_context.get("zone_id"),
+            "altitude_m": zone_context.get("altitude_m"),
+        },
+        "soil": {
+            "moisture_pct": _pick_value(reading_index, _SOIL_MOISTURE_CODES),
+            "temperature_c": _pick_value(reading_index, _SOIL_TEMP_CODES),
+            "ph": _pick_value(reading_index, _SOIL_PH_CODES),
+            "nitrogen_ppm": _pick_value(reading_index, _NITROGEN_CODES),
+            "phosphorus_ppm": _pick_value(reading_index, _PHOSPHORUS_CODES),
+            "potassium_ppm": _pick_value(reading_index, _POTASSIUM_CODES),
+            "organic_matter_pct": None,
+        },
+        "weather": {
+            "air_temp_c": _pick_value(reading_index, _AIR_TEMP_CODES),
+            "humidity_pct": _pick_value(reading_index, _HUMIDITY_CODES),
+            "rainfall_mm_last_7d": _pick_value(reading_index, _RAINFALL_CODES),
+            "wind_speed_kmh": _pick_value(reading_index, _WIND_CODES),
+            "uv_index": _pick_value(reading_index, _UV_CODES),
+            "forecast_rain_24h": None,
+        },
+        "reading_timestamp": _resolve_reading_timestamp(overview, latest_readings),
+        "data_source": "IOT_SENSOR",
+    }
+    return env_state
 
 def fetch_env_state(state: GraphState) -> dict:
+    """Fetch real environmental context from IoT metrics via API Gateway.
+
+    If the plant/zone cannot be resolved or IoT data is unavailable, this node
+    returns no env context for the turn and allows the graph to continue.
     """
-    Fetch environmental context for the plant from IoT sensors.
+    plant_id = _extract_plant_id(state)
+    if not plant_id:
+        logger.info("[ENV STATE] No plant id found in state/question; skipping env context")
+        return {"env_state": None}
 
-    Currently returns hardcoded placeholder values.
-    Replace the _PLACEHOLDER_ENV dict (or this function body) with
-    actual sensor API calls keyed on plant_id / farm_plot_id.
+    auth_header = state.get("authorization")
+    if not isinstance(auth_header, str) or not auth_header.strip():
+        logger.info("[ENV STATE] Missing Authorization header; skipping env context")
+        return {"env_state": None}
 
-    Args:
-        state: Current graph state (question available for plant_id extraction if needed)
+    client = get_env_gateway_client()
+    zone_context = client.resolve_zone_context(plant_id=plant_id, auth_header=auth_header)
+    if zone_context is None:
+        logger.info("[ENV STATE] Unable to resolve deterministic zone for plant_id=%s", plant_id)
+        return {"env_state": None}
 
-    Returns:
-        Updated state with `env_state` dict containing soil, GPS, and weather readings.
-    """
-    logger.info("[ENV STATE] Fetching environment state (source: %s)", _PLACEHOLDER_ENV["data_source"])
+    zone_id = zone_context["zone_id"]
+    overview = client.get_zone_overview(zone_id=zone_id, auth_header=auth_header)
+    if overview is None:
+        logger.info("[ENV STATE] IoT overview unavailable for zone_id=%s", zone_id)
+        return {"env_state": None}
 
-    # TODO: extract plant_id from question and query real sensor API
-    # e.g. env = sensor_api.get_latest(plant_id=extract_plant_id(state["question"]))
-
-    env = dict(_PLACEHOLDER_ENV)  # shallow copy so we don't mutate the module-level dict
+    env_state = _map_overview_to_env_state(zone_context, overview)
+    if env_state is None:
+        return {"env_state": None}
 
     logger.debug(
-        "[ENV STATE] soil=pH%.1f moisture=%.0f%% | weather=%.1f°C humidity=%.0f%% rain_forecast=%s",
-        env["soil"]["ph"],
-        env["soil"]["moisture_pct"],
-        env["weather"]["air_temp_c"],
-        env["weather"]["humidity_pct"],
-        env["weather"]["forecast_rain_24h"],
+        "[ENV STATE] source=%s zone=%s soil_pH=%s moisture=%s air_temp=%s humidity=%s",
+        env_state.get("data_source"),
+        zone_id,
+        env_state["soil"].get("ph"),
+        env_state["soil"].get("moisture_pct"),
+        env_state["weather"].get("air_temp_c"),
+        env_state["weather"].get("humidity_pct"),
     )
-
-    return {"env_state": env}
+    return {"env_state": env_state}

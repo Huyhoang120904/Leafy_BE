@@ -33,34 +33,34 @@ from app.nodes.deep_generation_node import deep_generation
 from app.nodes.safety_auditor_node import safety_auditor
 from app.nodes.refinement_node import refinement
 
-# Phase 5: Treatment Planning
-from app.nodes.treatment_planner_node import treatment_planner
+# Phase 5: Planning
+from app.nodes.planner import planner
 
 # Phase 6: History summarization
 from app.nodes.summarization_node import maybe_summarize
 
 # Phase 1.5: Intent classification
-from app.nodes.intent_classifier_node import classify_intent
-from app.nodes.chit_chat_node import chit_chat_response
+from app.nodes.intent_classifier_node import classify_query_intent
+from app.nodes.direct_node import direct_response
 
 
 # === Conditional Edge Functions ===
 
 def route_by_intent(state: GraphState) -> str:
-    """Short-circuit chit-chat messages; send agricultural queries through full pipeline."""
-    intent = state.get("intent", "agricultural_query")
-    if intent == "chit_chat":
-        logger.info("[GRAPH] Chit-chat detected → CHIT-CHAT path (skip RAG)")
-        return "chit_chat"
+    """Short-circuit direct messages; send agricultural queries through full pipeline."""
+    intent = state.get("intent", "agriculture_query")
+    if intent == "direct":
+        logger.info("[GRAPH] Direct intent detected → DIRECT path (skip RAG)")
+        return "direct"
     logger.info("[GRAPH] Agricultural query → full RAG pipeline")
-    return "agricultural"
+    return "agriculture_query"
 
 
 def route_by_confidence(state: GraphState) -> str:
     """Route to planning, fast, or deep path based on router decision."""
     path_type = state.get("path_type", "deep")
     if path_type == "planning":
-        logger.info("[GRAPH] → PLANNING PATH (treatment planner directly)")
+        logger.info("[GRAPH] → PLANNING PATH (planner directly)")
         return "planning"
     elif path_type == "fast":
         logger.info("[GRAPH] → FAST PATH (Gemini Flash)")
@@ -125,8 +125,8 @@ def build_graph(checkpointer=None):
     workflow.add_node("maybe_summarize", maybe_summarize)
 
     # === Phase 1.5: Intent Classification ===
-    workflow.add_node("classify_intent", classify_intent)
-    workflow.add_node("chit_chat", chit_chat_response)
+    workflow.add_node("classify_intent", classify_query_intent)
+    workflow.add_node("direct", direct_response)
 
     # === Phase 0: Environment State ===
     workflow.add_node("env_state", fetch_env_state)
@@ -146,8 +146,8 @@ def build_graph(checkpointer=None):
     workflow.add_node("safety_audit", safety_auditor)
     workflow.add_node("refine", refinement)
 
-    # === Phase 5: Treatment Planning ===
-    workflow.add_node("treatment_planner", treatment_planner)
+    # === Phase 5: Planning ===
+    workflow.add_node("planner", planner)
     
     # === Entry Point ===
     workflow.set_entry_point("maybe_summarize")
@@ -160,11 +160,11 @@ def build_graph(checkpointer=None):
         "classify_intent",
         route_by_intent,
         {
-            "chit_chat": "chit_chat",    # chit-chat fast path → END
-            "agricultural": "env_state",  # full RAG pipeline
+            "direct": "direct",                   # direct fast path → END
+            "agriculture_query": "env_state",     # full RAG pipeline
         }
     )
-    workflow.add_edge("chit_chat", END)
+    workflow.add_edge("direct", END)
 
     # === Phase 0 → Phase 2 ===
     workflow.add_edge("env_state", "hybrid_search")
@@ -178,19 +178,19 @@ def build_graph(checkpointer=None):
         "router",
         route_by_confidence,
         {
-            "planning": "web_search_plan",  # planning path: web search THEN treatment planner
+            "planning": "web_search_plan",  # planning path: web search THEN planner
             "fast": "fast_gen",
             "deep": "web_search"
         }
     )
-    workflow.add_edge("web_search_plan", "treatment_planner")  # planning path
+    workflow.add_edge("web_search_plan", "planner")  # planning path
     workflow.add_edge("web_search", "deep_gen")                # deep Q&A path
     
     # === Phase 4 Safety Flow (Conditional) ===
     # All generation nodes converge to safety audit
     workflow.add_edge("fast_gen", "safety_audit")
     workflow.add_edge("deep_gen", "safety_audit")
-    workflow.add_edge("treatment_planner", "safety_audit")
+    workflow.add_edge("planner", "safety_audit")
     
     # Safety audit decision
     workflow.add_conditional_edges(

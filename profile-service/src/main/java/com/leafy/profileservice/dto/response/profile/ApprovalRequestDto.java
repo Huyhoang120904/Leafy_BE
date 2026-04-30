@@ -9,6 +9,7 @@ public record ApprovalRequestDto(
         String profileId,
         List<CertificateDto> certificates,
         CertificateStatus status,
-        String rejectionReason
+        String rejectionReason,
+        String proposedSpecialty
 ) {
 }

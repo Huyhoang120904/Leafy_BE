@@ -8,6 +8,7 @@ import java.util.List;
 public record CreateApprovalRequest(
         @NotEmpty(message = "{validation.certificates.notEmpty}")
         @Valid
-        List<AddCertificateRequest> certificates
+        List<AddCertificateRequest> certificates,
+        String proposedSpecialty
 ) {
 }

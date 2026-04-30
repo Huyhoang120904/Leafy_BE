@@ -7,12 +7,15 @@ import com.leafy.farmservice.dto.request.farmzone.UpdateFarmZoneRequest;
 import com.leafy.farmservice.dto.response.farmzone.FarmZoneResponse;
 import com.leafy.farmservice.mapper.FarmZoneMapper;
 import com.leafy.farmservice.model.FarmZone;
+import com.leafy.farmservice.model.enums.FarmZoneStatus;
 import com.leafy.farmservice.repository.FarmPlotRepository;
 import com.leafy.farmservice.repository.FarmZoneRepository;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.AccessLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -49,6 +52,12 @@ public class FarmZoneServiceImpl implements FarmZoneService {
     @Override
     public List<FarmZoneResponse> getAllActive() {
         return farmZoneMapper.toResponseList(farmZoneRepository.findAllByActiveTrue());
+    }
+
+    @Override
+    public Page<FarmZoneResponse> getFilteredZones(String searchTerm, FarmZoneStatus status, String cropType, String soilType, Double minAreaM2, Double maxAreaM2, Pageable pageable) {
+        return farmZoneRepository.findZonesFiltered(searchTerm, status, cropType, soilType, minAreaM2, maxAreaM2, pageable)
+                .map(farmZoneMapper::toResponse);
     }
 
     @Override

@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
-@RequestMapping("/farms/seeder")
+@RequestMapping("/admin/seed")
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class FarmSeederController {
@@ -27,7 +27,7 @@ public class FarmSeederController {
      * @param plotsPerProfile number of plots to create per profile (falls back to farm.seeder.plots-per-profile)
      * @param zonesPerPlot    number of zones to create per active plot (falls back to farm.seeder.zones-per-plot)
      */
-    @PostMapping("/reseed")
+    @PostMapping("/farms")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<FarmSeederResponse> reseed(
             @RequestParam(required = false) Integer plotsPerProfile,

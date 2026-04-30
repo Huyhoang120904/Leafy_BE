@@ -1,5 +1,6 @@
 package com.leafy.fileservice.service.file;
 
+import com.leafy.fileservice.model.enums.FileType;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.fileservice.dto.request.FileUpdateRequest;
@@ -46,10 +47,13 @@ public class FileServiceImpl implements FileService {
                 })
                 .defaultIfEmpty("unknown")
                 .flatMap(userId -> {
-                    request.setUploadedBy(userId);
+                    if (request.getUploadedBy() == null || request.getUploadedBy().isBlank()) {
+                        request.setUploadedBy(userId);
+                    }
                     return Mono.fromCallable(() -> {
                         log.info("Creating file metadata with S3 key: {}", request.getS3Key());
                         File file = fileMapper.toEntity(request);
+                        file.setFileType(FileType.fromContentType(file.getContentType()));
                         File savedFile = fileRepository.save(file);
                         log.info("File metadata created successfully with ID: {}", savedFile.getId());
                         return fileMapper.toResponse(savedFile);

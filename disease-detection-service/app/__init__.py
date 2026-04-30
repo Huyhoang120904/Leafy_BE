@@ -48,7 +48,6 @@ def root():
         "environment": config.ENV_STATE,
         "endpoints": {
             "predict": "/diseases/predict",
-            "predictTflite": "/diseases/predict/tflite",
             "health": "/diseases/predict/health",
             "detectLeaf": "/diseases/detect-leaf",
             "detectLeafVisualize": "/diseases/detect-leaf/visualize",

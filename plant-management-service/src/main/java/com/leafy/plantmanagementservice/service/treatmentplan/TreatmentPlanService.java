@@ -28,5 +28,7 @@ public interface TreatmentPlanService {
 
     TreatmentPlanResponse updateStatus(String planId, TreatmentStatus newStatus);
 
+    Page<TreatmentPlanResponse> getAllPlans(TreatmentStatus status, Pageable pageable);
+
     void deletePlan(String planId);
 }

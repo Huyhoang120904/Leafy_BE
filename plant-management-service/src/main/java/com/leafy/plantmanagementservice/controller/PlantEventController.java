@@ -16,6 +16,7 @@ import org.springframework.data.domain.Sort;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -28,6 +29,26 @@ import java.util.List;
 public class PlantEventController {
 
     private final PlantEventService plantEventService;
+
+    // ── List All (Admin) ───────────────────────────────────────────────────────
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<Page<PlantEventResponse>>> getAllEvents(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "calculatedStartDate") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) EventType eventType,
+            @RequestParam(required = false) Boolean planned,
+            @RequestParam(required = false) String farmPlotId,
+            @RequestParam(required = false) String farmZoneId) {
+        log.info("GET /plant-events - Getting all events, eventType={}, planned={}, farmPlotId={}, farmZoneId={}",
+                eventType, planned, farmPlotId, farmZoneId);
+        Pageable pageable = buildPageable(page, size, sortBy, sortDir);
+        return ResponseEntity.ok(ApiResponse.success(
+                plantEventService.getAllEvents(eventType, planned, farmPlotId, farmZoneId, pageable)));
+    }
 
     // ── Create ────────────────────────────────────────────────────────────────
 
@@ -169,6 +190,7 @@ public class PlantEventController {
     // ── Delete ────────────────────────────────────────────────────────────────
 
     @DeleteMapping("/{eventId}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable String eventId) {
         log.info("DELETE /plant-events/{} - Deleting event", eventId);
         plantEventService.deleteEvent(eventId);

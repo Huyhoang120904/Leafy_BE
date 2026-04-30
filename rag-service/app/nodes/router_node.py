@@ -4,7 +4,7 @@ Router Node
 Intelligent routing decision based on intent detection + confidence/completeness scoring.
 
 Routes:
-  - planning → Treatment Planner directly (skip generation + safety)
+    - planning → Planner directly (skip generation + safety)
   - fast     → Gemini Flash (high confidence internal docs)
   - deep     → Web Search + Gemini Pro (low confidence / incomplete)
 """
@@ -23,9 +23,13 @@ logger = logging.getLogger(__name__)
 
 _PLANNING_INTENT_RE = re.compile(
     r"\b(treatment plan|recovery plan|action plan|care plan|"
-    r"step-by-step|what steps|schedule|spray calendar|"
+    r"maintenance plan|pruning plan|denoting plan|"
+    r"step-by-step|what steps|schedule|spray calendar|care schedule|"
+    r"irrigation schedule|fertilizer schedule|weed control schedule|"
+    r"pruning schedule|denoting schedule|"
     r"give me a plan|plan for|"
-    r"kế hoạch|lịch trình|lịch phun|phác đồ|quy trình xử lý)\b",
+    r"kế hoạch|lịch trình|lịch phun|phác đồ|quy trình xử lý|"
+    r"chăm sóc|đốn|đốn tỉa|tỉa cành|dọn cỏ)\b",
     re.IGNORECASE,
 )
 
@@ -53,7 +57,7 @@ def route_decision(state: GraphState) -> dict:
     Evaluate the user question, retrieved documents, and environmental state, then decide the routing path.
 
     Routes:
-    - Planning intent detected → Planning Path (treatment_planner directly)
+    - Planning intent detected → Planning Path (planner directly)
     - High confidence + complete → Fast Path (Gemini Flash)
     - Low confidence OR incomplete → Deep Path (Web Search + Gemini Pro)
 
@@ -71,13 +75,13 @@ def route_decision(state: GraphState) -> dict:
 
     # Set default path if no documents
     if not documents:
-        # Planning intent must still reach treatment planner even when the
+        # Planning intent must still reach planner even when the
         # internal KB has no hits. In that case the graph should use web_search_plan
-        # and then call treatment_planner.
+        # and then call planner.
         if _PLANNING_INTENT_RE.search(question):
             logger.info(
                 "[ROUTER] No documents but planning intent detected — PLANNING path "
-                "(web_search_plan -> treatment_planner)"
+                "(web_search_plan -> planner)"
             )
             return {
                 "question": question,
@@ -143,10 +147,13 @@ STEP 1 — Detect planning intent (is_planning_request)
 ───────────────────────────────────────────────────────────────────
 Set TRUE if the user asks for ANY of:
   - A treatment or recovery plan / action schedule for a specific coffee plant or plot
+    - A general care / maintenance / pruning / denoting plan with chronological actions
   - A step-by-step disease/pest management programme (Leaf Rust, CBB, etc.)
   - A chronological list of agronomic events (spray calendar, fertilisation schedule, etc.)
   - Keywords: "create a plan", "schedule", "what steps", "treatment plan",
-              "kế hoạch", "lịch trình", "lịch phun", "kế hoạch xử lý"
+                            "care plan", "maintenance plan", "pruning plan", "denoting plan",
+                            "kế hoạch", "lịch trình", "lịch phun", "kế hoạch xử lý",
+                            "chăm sóc", "đốn", "tỉa cành"
 Set FALSE for general informational questions, identification requests, or advice.
 
 ───────────────────────────────────────────────────────────────────
@@ -215,7 +222,7 @@ Weather: {weather.get('air_temp_c')}°C, humidity {weather.get('humidity_pct')}%
     # Planning intent takes priority over confidence scoring
     if decision.is_planning_request:
         path_type = "planning"
-        logger.info("[ROUTER] → PLANNING PATH (treatment planner — skip generation)")
+        logger.info("[ROUTER] → PLANNING PATH (planner — skip generation)")
     else:
         # Get thresholds from environment
         confidence_threshold = float(os.getenv("CONFIDENCE_THRESHOLD", "0.6"))

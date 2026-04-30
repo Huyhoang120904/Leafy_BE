@@ -26,7 +26,6 @@ public class Plant extends BaseModel {
     String nickName;
     String tagCode;
     String batchNumber;
-    String sourceType;
     String motherPlantId;
     LocalDateTime plantingDate;
     LocalDateTime germinationDate;

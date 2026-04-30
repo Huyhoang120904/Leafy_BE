@@ -4,11 +4,16 @@ import com.leafy.common.dto.ApiResponse;
 import com.leafy.farmservice.dto.request.farmplot.CreateFarmPlotRequest;
 import com.leafy.farmservice.dto.request.farmplot.UpdateFarmPlotRequest;
 import com.leafy.farmservice.dto.response.farmplot.FarmPlotResponse;
+import com.leafy.farmservice.model.enums.FarmPlotStatus;
 import com.leafy.farmservice.service.farmplot.FarmPlotService;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.AccessLevel;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -47,8 +52,25 @@ public class FarmPlotController {
 
     @GetMapping("/admin")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<List<FarmPlotResponse>>> getAllActive() {
-        return ResponseEntity.ok(ApiResponse.success(farmPlotService.getAllActive()));
+    public ResponseEntity<ApiResponse<Page<FarmPlotResponse>>> getAllFiltered(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir,
+            @RequestParam(required = false) String searchTerm,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String provinceCode,
+            @RequestParam(required = false) Double minAreaM2,
+            @RequestParam(required = false) Double maxAreaM2) {
+        Sort sort = sortDir.equalsIgnoreCase("ASC")
+                ? Sort.by(sortBy).ascending()
+                : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        FarmPlotStatus statusEnum = (status != null && !status.isBlank())
+                ? FarmPlotStatus.valueOf(status.toUpperCase())
+                : null;
+        return ResponseEntity.ok(ApiResponse.success(
+                farmPlotService.getFilteredPlots(searchTerm, statusEnum, provinceCode, minAreaM2, maxAreaM2, pageable)));
     }
 
     @DeleteMapping("/{id}")

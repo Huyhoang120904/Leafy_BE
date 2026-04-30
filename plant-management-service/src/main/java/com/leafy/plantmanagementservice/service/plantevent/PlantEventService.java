@@ -36,5 +36,7 @@ public interface PlantEventService {
     List<PlantEventResponse> getEventsForCalendar(String farmPlotId, String farmZoneId, String plantId,
                                                    LocalDate startDate, LocalDate endDate);
 
+    Page<PlantEventResponse> getAllEvents(EventType eventType, Boolean planned, String farmPlotId, String farmZoneId, Pageable pageable);
+
     void deleteEvent(String eventId);
 }
