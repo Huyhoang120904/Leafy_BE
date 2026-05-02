@@ -1,5 +1,6 @@
 package com.leafy.notificationservice.model;
 
+import com.leafy.common.enums.NotificationType;
 import com.leafy.notificationservice.enums.NotificationChannel;
 import com.leafy.notificationservice.enums.NotificationStatus;
 import lombok.*;
@@ -32,7 +33,7 @@ public class Notification {
     private String pushTokenId;
 
     private NotificationChannel channel;
-    private String type;         // ALERT_TRIGGERED / ALERT_RESOLVED / TEST_PUSH
+    private NotificationType type;
     private String title;
     private String body;
 

@@ -273,7 +273,10 @@ public class UserConnectionServiceImpl implements UserConnectionService {
                             : null)
                     .type(NotificationType.CONSULT_REQUEST)
                     .referenceId(actorProfileId)
-                    .payload(Map.of("action", action))
+                    .payload(Map.of(
+                            "isRequest", "REQUESTED".equals(action),
+                            "isAccept", "ACCEPTED".equals(action)
+                    ))
                     .occurredAt(LocalDateTime.now())
                     .build());
         } catch (Exception e) {

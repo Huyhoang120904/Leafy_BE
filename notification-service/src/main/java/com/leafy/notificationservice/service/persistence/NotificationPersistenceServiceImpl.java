@@ -2,7 +2,6 @@ package com.leafy.notificationservice.service.persistence;
 
 import com.leafy.common.enums.NotificationType;
 import com.leafy.common.event.notification.RawNotificationEvent;
-import com.leafy.notificationservice.enums.NotificationChannel;
 import com.leafy.notificationservice.model.NotificationTemplate;
 import com.leafy.notificationservice.model.UserNotification;
 import com.leafy.notificationservice.model.UserNotificationState;
@@ -72,17 +71,21 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
         // 3. Build payload map (template variables + raw event fields)
         Map<String, Object> payload = buildPayload(event);
 
-        // 4. Render title and body
-        String[] rendered = renderTitleAndBody(event.getType(), payload);
+        // 4. Resolve template — drives rendered text AND delivery channels
+        NotificationTemplate template = templateService.find(event.getType(), DEFAULT_LOCALE);
 
-        // 5. Persist UserNotification
+        // 5. Render title and body
+        String[] rendered = renderTitleAndBody(template, payload, event.getType());
+
+        // 6. Persist UserNotification
         UserNotification saved = saveNotification(event, rendered[0], rendered[1], payload);
 
-        // 6. Increment unread count atomically
+        // 7. Increment unread count atomically
         incrementUnreadCount(event.getRecipientId());
 
-        log.info("[Persistence] Notification persisted: id={}, type={}, recipient={}",
-                saved.getId(), event.getType(), event.getRecipientId());
+        log.info("[Persistence] Notification persisted: id={}, type={}, recipient={}, channels={}",
+                saved.getId(), event.getType(), event.getRecipientId(),
+                template != null ? template.getChannels() : "[fallback]");
 
         return saved;
     }
@@ -114,12 +117,16 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
     }
 
     /**
-     * Renders title and body using the template for the given type,
+     * Renders title and body using the resolved template,
      * falling back to hardcoded Vietnamese strings when no template is seeded.
+     *
+     * @param template resolved template (may be {@code null})
+     * @param payload  interpolation variables
+     * @param type     notification type — used only for the hardcoded fallback
      */
-    private String[] renderTitleAndBody(NotificationType type, Map<String, Object> payload) {
-        NotificationTemplate template = templateService.find(type, NotificationChannel.FCM, DEFAULT_LOCALE);
-
+    private String[] renderTitleAndBody(NotificationTemplate template,
+                                        Map<String, Object> payload,
+                                        NotificationType type) {
         if (template != null) {
             return new String[]{
                     templateService.render(template.getTitleTemplate(), payload),

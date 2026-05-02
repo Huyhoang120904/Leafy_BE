@@ -42,7 +42,7 @@ public class NotificationTemplateController {
         LocalDateTime now = LocalDateTime.now();
         NotificationTemplate template = NotificationTemplate.builder()
                 .type(request.getType())
-                .channel(request.getChannel())
+                .channels(request.getChannels())
                 .locale(request.getLocale())
                 .titleTemplate(request.getTitleTemplate())
                 .bodyTemplate(request.getBodyTemplate())
@@ -62,7 +62,7 @@ public class NotificationTemplateController {
         return templateRepository.findById(id)
                 .map(existing -> {
                     existing.setType(request.getType());
-                    existing.setChannel(request.getChannel());
+                    existing.setChannels(request.getChannels());
                     existing.setLocale(request.getLocale());
                     existing.setTitleTemplate(request.getTitleTemplate());
                     existing.setBodyTemplate(request.getBodyTemplate());

@@ -3,7 +3,6 @@ package com.leafy.notificationservice.service.delivery.channel;
 import com.leafy.notificationservice.enums.NotificationChannel;
 import com.leafy.notificationservice.event.ReadyToDeliverEvent;
 import com.leafy.notificationservice.service.mail.MailingService;
-import com.leafy.notificationservice.service.push.ChannelDeliveryStrategy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 

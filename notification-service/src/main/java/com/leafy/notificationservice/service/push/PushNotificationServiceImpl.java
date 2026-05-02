@@ -1,5 +1,6 @@
 package com.leafy.notificationservice.service.push;
 
+import com.leafy.common.enums.NotificationType;
 import com.leafy.common.event.notification.AlertTriggeredEvent;
 import com.leafy.common.exception.AppException;
 import com.leafy.notificationservice.enums.NotificationChannel;
@@ -147,7 +148,7 @@ public class PushNotificationServiceImpl implements PushNotificationService {
                     .userId(event.getOwnerUserId())
                     .pushTokenId(token.getId())
                     .channel(NotificationChannel.FCM)
-                    .type(event.getEventType())
+                    .type(NotificationType.valueOf(event.getEventType()))
                     .title(event.getTitle())
                     .body(event.getMessage())
                     .payload(buildLogPayload(event))

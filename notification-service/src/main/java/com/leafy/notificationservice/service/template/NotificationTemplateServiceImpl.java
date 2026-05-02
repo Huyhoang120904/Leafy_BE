@@ -1,7 +1,6 @@
 package com.leafy.notificationservice.service.template;
 
 import com.leafy.common.enums.NotificationType;
-import com.leafy.notificationservice.enums.NotificationChannel;
 import com.leafy.notificationservice.model.NotificationTemplate;
 import com.leafy.notificationservice.repository.NotificationTemplateRepository;
 import com.leafy.notificationservice.utils.TemplateEngine;
@@ -23,18 +22,18 @@ public class NotificationTemplateServiceImpl implements NotificationTemplateServ
     TemplateEngine templateEngine;
 
     @Override
-    public NotificationTemplate find(NotificationType type, NotificationChannel channel, String locale) {
+    public NotificationTemplate find(NotificationType type, String locale) {
         // Try the requested locale first, fall back to Vietnamese
-        return templateRepository.findByTypeAndChannelAndLocaleAndActiveTrue(type, channel, locale)
+        return templateRepository.findByTypeAndLocaleAndActiveTrue(type, locale)
                 .or(() -> {
                     if (!"vi".equals(locale)) {
                         log.debug("[Template] Locale '{}' not found for type={}, falling back to 'vi'", locale, type);
-                        return templateRepository.findByTypeAndChannelAndLocaleAndActiveTrue(type, channel, "vi");
+                        return templateRepository.findByTypeAndLocaleAndActiveTrue(type, "vi");
                     }
                     return java.util.Optional.empty();
                 })
                 .orElseGet(() -> {
-                    log.debug("[Template] No active template found for type={}, channel={}, locale={}", type, channel, locale);
+                    log.debug("[Template] No active template found for type={}, locale={}", type, locale);
                     return null;
                 });
     }

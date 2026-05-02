@@ -65,7 +65,7 @@ public class PushDeliveryConfig {
      */
     @Bean
     @ConditionalOnProperty(name = "brevo.enabled", havingValue = "true", matchIfMissing = true)
-    public com.leafy.notificationservice.service.push.ChannelDeliveryStrategy mailDeliveryStrategy(MailingService mailingService) {
+    public ChannelDeliveryStrategy mailDeliveryStrategy(MailingService mailingService) {
         log.info("[PushDelivery] E-mail delivery channel (Brevo) is ENABLED");
         return new MailDeliveryStrategy(mailingService);
     }

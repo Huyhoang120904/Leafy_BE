@@ -3,15 +3,19 @@ package com.leafy.notificationservice.service.delivery;
 import com.leafy.common.event.notification.RawNotificationEvent;
 import com.leafy.notificationservice.enums.NotificationChannel;
 import com.leafy.notificationservice.event.ReadyToDeliverEvent;
+import com.leafy.notificationservice.model.NotificationTemplate;
 import com.leafy.notificationservice.model.UserNotification;
+import com.leafy.notificationservice.repository.NotificationUserRepository;
+import com.leafy.notificationservice.service.delivery.channel.ChannelDeliveryStrategy;
 import com.leafy.notificationservice.service.persistence.NotificationPersistenceService;
-import com.leafy.notificationservice.service.push.ChannelDeliveryStrategy;
+import com.leafy.notificationservice.service.template.NotificationTemplateService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -21,18 +25,24 @@ import java.util.Set;
 /**
  * Stage 2 of the notification pipeline — persist then deliver.
  *
- * <p>Mirrors CNM's {@code DeliveryServiceImpl}:
+ * <p>
+ * Mirrors CNM's {@code DeliveryServiceImpl}:
  * <ol>
- *   <li>Delegates to {@link NotificationPersistenceService} — guards, renders,
- *       saves the {@code UserNotification} document, and increments unread count.</li>
- *   <li>On a {@code null} return (self-notification / duplicate) — returns immediately.</li>
- *   <li>Builds an internal {@link ReadyToDeliverEvent} from the raw event + persisted ID.</li>
- *   <li>Iterates all registered {@link ChannelDeliveryStrategy} beans and invokes those
- *       matching the declared channels ({@code FCM + IN_APP}).</li>
+ * <li>Delegates to {@link NotificationPersistenceService} — guards, renders,
+ * saves the {@code UserNotification} document, and increments unread
+ * count.</li>
+ * <li>On a {@code null} return (self-notification / duplicate) — returns
+ * immediately.</li>
+ * <li>Builds an internal {@link ReadyToDeliverEvent} from the raw event +
+ * persisted ID.</li>
+ * <li>Iterates all registered {@link ChannelDeliveryStrategy} beans and invokes
+ * those
+ * matching the declared channels ({@code FCM + IN_APP}).</li>
  * </ol>
  *
  * <h3>Adding a new channel</h3>
- * Register a new {@link ChannelDeliveryStrategy} bean — this class requires no modification.
+ * Register a new {@link ChannelDeliveryStrategy} bean — this class requires no
+ * modification.
  */
 @Service
 @Slf4j
@@ -42,6 +52,8 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
 
     NotificationPersistenceService persistenceService;
     List<ChannelDeliveryStrategy> strategies;
+    NotificationUserRepository notificationUserRepository;
+    NotificationTemplateService templateService;
 
     @Override
     public void deliver(RawNotificationEvent event) {
@@ -62,7 +74,8 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
         for (ChannelDeliveryStrategy strategy : strategies) {
             boolean matches = (channels == null || channels.isEmpty())
                     || channels.stream().anyMatch(strategy::supports);
-            if (!matches) continue;
+            if (!matches)
+                continue;
 
             try {
                 strategy.deliver(delivery);
@@ -80,22 +93,50 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
 
     /**
      * Builds the internal {@link ReadyToDeliverEvent} passed to channel strategies.
-     * Uses the pre-rendered title/body from the persisted document and targets:
-     * <ul>
-     *   <li>{@link NotificationChannel#FCM} — always</li>
-     *   <li>{@link NotificationChannel#IN_APP} — always</li>
-     *   <li>{@link NotificationChannel#EMAIL} — only when {@code event.getRecipientEmail()} is non-null</li>
-     * </ul>
+     *
+     * <p>
+     * Channels are sourced from the
+     * {@link com.leafy.notificationservice.model.NotificationTemplate}
+     * associated with this notification type. If the template declares a non-empty
+     * {@code channels} set, those channels are used directly; otherwise the service
+     * falls back to {@code {FCM, IN_APP}} to preserve backward compatibility.
+     *
+     * <p>
+     * The {@link NotificationChannel#EMAIL} channel is additionally appended when
+     * {@code event.getRecipientEmail()} is non-null — regardless of the template
+     * declaration —
+     * because e-mail is opt-in per event, not per template.
      */
     private ReadyToDeliverEvent toDeliveryEvent(RawNotificationEvent event, UserNotification persisted) {
-        Set<NotificationChannel> channels = new HashSet<>(Set.of(NotificationChannel.FCM, NotificationChannel.IN_APP));
+        // Resolve channels from template; fall back to FCM + IN_APP
+        NotificationTemplate template = templateService.find(event.getType(), "vi");
+        Set<NotificationChannel> channels;
+        if (template != null
+                && template.getChannels() != null
+                && !template.getChannels().isEmpty()) {
+            channels = new HashSet<>(template.getChannels());
+        } else {
+            channels = EnumSet.of(NotificationChannel.IN_APP);
+        }
+
+        // EMAIL is opt-in via the raw event — not driven by the template
         if (event.getRecipientEmail() != null && !event.getRecipientEmail().isBlank()) {
             channels.add(NotificationChannel.EMAIL);
+        }
+
+        // Resolve profileId → auth accountId from the local notification_users buffer
+        String recipientAccountId = notificationUserRepository.findById(event.getRecipientId())
+                .map(u -> u.getAccountId())
+                .orElse(null);
+        if (recipientAccountId == null) {
+            log.warn("[Delivery] No NotificationUser found for profileId={} — IN_APP routing may fail",
+                    event.getRecipientId());
         }
 
         return ReadyToDeliverEvent.builder()
                 .notificationId(persisted.getId())
                 .recipientId(event.getRecipientId())
+                .recipientAccountId(recipientAccountId)
                 .recipientEmail(event.getRecipientEmail())
                 .title(persisted.getTitle())
                 .body(persisted.getBody())
