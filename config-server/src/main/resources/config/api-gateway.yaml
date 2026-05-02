@@ -386,7 +386,7 @@ spring:
             - id: messages-service
               uri: lb://message-service
               predicates:
-                - Path=/api/messages/**, /api/conversations/**
+                - Path=/api/messages/**, /api/conversations/**, /api/v2/conversations/**
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
