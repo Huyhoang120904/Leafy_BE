@@ -1,5 +1,7 @@
-package com.leafy.notificationservice.document;
+package com.leafy.notificationservice.model;
 
+import com.leafy.notificationservice.enums.NotificationChannel;
+import com.leafy.notificationservice.enums.NotificationStatus;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -19,7 +21,7 @@ import java.util.Map;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class NotificationLogDocument {
+public class Notification {
 
     @Id
     private String id;
@@ -29,14 +31,14 @@ public class NotificationLogDocument {
     private String userId;
     private String pushTokenId;
 
-    private String channel;      // FCM / EMAIL
+    private NotificationChannel channel;
     private String type;         // ALERT_TRIGGERED / ALERT_RESOLVED / TEST_PUSH
     private String title;
     private String body;
 
     private Map<String, Object> payload;
 
-    private String status;       // SENT / FAILED / INVALID_TOKEN
+    private NotificationStatus status;
     private String providerMessageId;
     private String errorCode;
     private String errorMessage;

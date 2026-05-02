@@ -1,5 +1,6 @@
-package com.leafy.notificationservice.document;
+package com.leafy.notificationservice.model;
 
+import com.leafy.notificationservice.enums.Platform;
 import lombok.*;
 import org.springframework.data.annotation.Id;
 import org.springframework.data.mongodb.core.index.CompoundIndex;
@@ -15,13 +16,13 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @AllArgsConstructor
 @Builder
-public class PushTokenDocument {
+public class TokenDevice {
 
     @Id
     private String id;
 
     private String userId;
-    private String platform; // ANDROID, IOS, WEB
+    private Platform platform;
     private String deviceIdentifier;
     @Indexed(name = "idx_push_tokens_fcm_token", unique = true)
     private String fcmToken;
