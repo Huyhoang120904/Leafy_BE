@@ -31,6 +31,16 @@ public class KafkaTopicConfig {
         return createTopic(topicProperties.getProfileEvents().getUpdated());
     }
 
+    @Bean
+    public NewTopic profileDeletedEvents() {
+        return createTopic(topicProperties.getProfileEvents().getDeleted());
+    }
+
+    @Bean
+    public NewTopic socketEvents() {
+        return createTopic(topicProperties.getSocketEvents().getSocketEvents());
+    }
+
     private NewTopic createTopic(String topicName) {
         log.info("Creating Kafka topic: {}", topicName);
         return TopicBuilder.name(topicName)
