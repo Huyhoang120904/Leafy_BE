@@ -51,6 +51,7 @@ public class KafkaTopicProperties {
     @Getter
     @Setter
     public static class SystemEvents {
+        private String planApplyRequested = "system.plan.apply-requested";
         private String planApplied = "system.plan.applied";
     }
 

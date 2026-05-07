@@ -157,6 +157,22 @@ services:
     depends_on:
       elasticsearch:
         condition: service_healthy
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: leafy-qdrant
+    restart: unless-stopped
+    ports:
+      - "${QDRANT_HTTP_PORT:-6333}:6333"
+      - "${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    networks:
+      - leafy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:6333/healthz || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 networks:
   leafy-network:
@@ -172,3 +188,4 @@ volumes:
   postgresql_farm_data:
   mosquitto_data:
   mosquitto_log:
+  qdrant_data:

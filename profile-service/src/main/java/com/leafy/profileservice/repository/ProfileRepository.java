@@ -41,6 +41,8 @@ public interface ProfileRepository extends MongoRepository<Profile, String>, Pro
      */
     Page<Profile> findByActiveTrue(Pageable pageable);
 
+    java.util.List<Profile> findByActiveTrueAndIdNotIn(java.util.List<String> ids, Pageable pageable);
+
     /**
      * Search profiles by full name
      *

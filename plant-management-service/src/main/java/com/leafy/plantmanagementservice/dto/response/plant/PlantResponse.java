@@ -28,4 +28,5 @@ public class PlantResponse {
     String speciesId;
     String farmPlotId;
     String farmZoneId;
+    String ownerProfileId;
 }

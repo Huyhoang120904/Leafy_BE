@@ -3,6 +3,7 @@ package com.leafy.profileservice.service.profile;
 import com.leafy.profileservice.dto.request.profile.ProfileCreateRequest;
 import com.leafy.profileservice.dto.request.profile.InternalCreateProfileRequest;
 import com.leafy.profileservice.dto.request.profile.ProfileUpdateRequest;
+import com.leafy.profileservice.dto.response.profile.InternalProfileResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import com.leafy.profileservice.dto.response.profile.UserSyncResponse;
@@ -75,6 +76,15 @@ public interface ProfileService {
      * @return the profile entity
      */
     Profile getProfileEntityById(String profileId);
+
+    /**
+     * Get multiple profiles by their IDs in a single batch call.
+     * Missing IDs are silently skipped.
+     *
+     * @param ids list of profile IDs
+     * @return list of InternalProfileResponse for found profiles
+     */
+    List<InternalProfileResponse> getProfilesByIds(List<String> ids);
 
     /**
      * Get profile by user ID

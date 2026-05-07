@@ -1,9 +1,13 @@
 package com.leafy.plantmanagementservice.controller;
 
 import com.leafy.common.dto.ApiResponse;
+import com.leafy.common.utils.ServiceSecurityUtils;
+import com.leafy.plantmanagementservice.dto.request.plan.BulkPlanDeleteRequest;
+import com.leafy.plantmanagementservice.dto.request.plan.BulkPlanStatusUpdateRequest;
 import com.leafy.plantmanagementservice.dto.request.plan.PlanCreateRequest;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
-import com.leafy.plantmanagementservice.model.enums.TreatmentStatus;
+import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import com.leafy.plantmanagementservice.service.plan.PlanService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -34,7 +38,7 @@ public class PlanController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
-            @RequestParam(required = false) TreatmentStatus status) {
+            @RequestParam(required = false) PlanStatus status) {
         log.info("GET /plans - Getting all plans, status={}", status);
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -74,7 +78,7 @@ public class PlanController {
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(defaultValue = "createdAt") String sortBy,
             @RequestParam(defaultValue = "DESC") String sortDir,
-            @RequestParam(required = false) TreatmentStatus status) {
+            @RequestParam(required = false) PlanStatus status) {
         log.info("GET /plans/me status={}", status);
         Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(page, size, sort);
@@ -128,10 +132,18 @@ public class PlanController {
     @PatchMapping("/{planId}/status")
     public ResponseEntity<ApiResponse<PlanResponse>> updateStatus(
             @PathVariable String planId,
-            @RequestParam TreatmentStatus status) {
+            @RequestParam PlanStatus status) {
         log.info("PATCH /plans/{}/status → {}", planId, status);
         return ResponseEntity.ok(ApiResponse.success(planService.updateStatus(planId, status)));
     }
+
+    @PutMapping("/{planId}/visibility/toggle")
+    public ResponseEntity<ApiResponse<PlanResponse>> toggleVisibility(
+            @PathVariable String planId) {
+        log.info("PUT /plans/{}/visibility/toggle", planId);
+        return ResponseEntity.ok(ApiResponse.success(planService.toggleVisibility(planId)));
+    }
+
 
     // ── Delete ────────────────────────────────────────────────────────────────
 
@@ -141,5 +153,50 @@ public class PlanController {
         log.info("DELETE /plans/{}", planId);
         planService.deletePlan(planId);
         return ResponseEntity.ok(ApiResponse.success(null));
+    }
+
+    // ── Consulting (Expert access) ─────────────────────────────────────────
+
+    @GetMapping("/consulting")
+    public ResponseEntity<ApiResponse<Page<PlanResponse>>> getConsultingPlans(
+            @RequestParam String farmerProfileId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir) {
+        log.info("GET /plans/consulting - farmerProfileId={}", farmerProfileId);
+        String expertProfileId = ServiceSecurityUtils.getCurrentProfileId();
+        Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return ResponseEntity.ok(ApiResponse.success(planService.getConsultingPlans(expertProfileId, farmerProfileId, pageable)));
+    }
+
+    @PostMapping("/consulting")
+    public ResponseEntity<ApiResponse<PlanResponse>> createConsultingPlan(
+            @RequestParam String farmerProfileId,
+            @Valid @RequestBody PlanCreateRequest request) {
+        log.info("POST /plans/consulting - farmerProfileId={}, disease={}", farmerProfileId, request.getDiseaseName());
+        String expertProfileId = ServiceSecurityUtils.getCurrentProfileId();
+        PlanResponse response = planService.createConsultingPlan(expertProfileId, farmerProfileId, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.success(response));
+    }
+
+    // ── Bulk Operations ────────────────────────────────────────────────────────
+
+    @PatchMapping("/bulk/status")
+    public ResponseEntity<ApiResponse<BulkOperationResult>> bulkUpdatePlanStatus(
+            @Valid @RequestBody BulkPlanStatusUpdateRequest request) {
+        log.info("PATCH /plans/bulk/status - {} plans → {}", request.getPlanIds().size(), request.getStatus());
+        BulkOperationResult result = planService.bulkUpdateStatus(request.getPlanIds(), request.getStatus());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @DeleteMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<BulkOperationResult>> bulkDeletePlans(
+            @Valid @RequestBody BulkPlanDeleteRequest request) {
+        log.info("DELETE /plans/bulk - {} plans", request.getPlanIds().size());
+        BulkOperationResult result = planService.bulkDelete(request.getPlanIds());
+        return ResponseEntity.ok(ApiResponse.success(result));
     }
 }

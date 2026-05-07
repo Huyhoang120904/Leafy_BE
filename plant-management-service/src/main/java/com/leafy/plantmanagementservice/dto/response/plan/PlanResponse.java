@@ -1,6 +1,6 @@
 package com.leafy.plantmanagementservice.dto.response.plan;
 
-import com.leafy.plantmanagementservice.model.enums.TreatmentStatus;
+import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -18,7 +18,8 @@ public class PlanResponse {
     String id;
 
     // ── Source tracking ───────────────────────────────────────────────────────
-    String userId;
+    String creatorId;
+    String ownerId;
     String ragPlanId;
     String planName;
     String question;
@@ -45,8 +46,18 @@ public class PlanResponse {
     List<String> plantEventIds;
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
-    TreatmentStatus status;
+    PlanStatus status;
     Integer applyCount;
+
+    // ── Visibility ────────────────────────────────────────────────────────────
+    Boolean isPublic;
+
+    // ── Consulting ───────────────────────────────────────────────────────────
+    Boolean isConsulted;
+
+    // ── Author info (enriched from profile-service) ───────────────────────────
+    AuthorInfo ownerInfo;
+    AuthorInfo creatorInfo;
 
     // ── Audit fields (BaseModel) ──────────────────────────────────────────────
     LocalDateTime createdAt;

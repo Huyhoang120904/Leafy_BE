@@ -1,7 +1,7 @@
 package com.leafy.plantmanagementservice.model;
 
 import com.leafy.common.model.BaseModel;
-import com.leafy.plantmanagementservice.model.enums.TreatmentStatus;
+import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -38,6 +38,14 @@ public class Plan extends BaseModel {
 
     /** ID of the user who triggered the plan via the RAG chat endpoint. */
     String userId;
+
+    /** Profile ID of whoever created this plan (farmer or expert). */
+    @Indexed
+    String creatorId;
+
+    /** Profile ID of the farmer who owns the target farm/plant. */
+    @Indexed
+    String ownerId;
 
     /**
      * {@code planId} UUID from the RAG service {@code PlanDoc}.
@@ -103,11 +111,27 @@ public class Plan extends BaseModel {
 
     // ── Lifecycle ─────────────────────────────────────────────────────────────
 
-    /** Current status of the treatment plan. Defaults to {@link TreatmentStatus#PENDING}. */
+    /** Current status of the treatment plan. Defaults to {@link PlanStatus#PENDING}. */
     @Builder.Default
-    TreatmentStatus status = TreatmentStatus.PENDING;
+    PlanStatus status = PlanStatus.PENDING;
 
     /** Number of times this plan has been applied to plants/farms. */
     @Builder.Default
     Integer applyCount = 0;
+
+    // ── Visibility ────────────────────────────────────────────────────────────
+
+    /**
+     * Whether this plan is publicly visible to all authenticated users.
+     * When {@code false} (default), only the owner and creator can access it.
+     */
+    @Builder.Default
+    boolean isPublic = false;
+
+    /**
+     * {@code true} when the plan was created by an expert on behalf of a farmer
+     * (i.e. {@link #creatorId} differs from {@link #ownerId}).
+     */
+    @Builder.Default
+    boolean isConsulted = false;
 }

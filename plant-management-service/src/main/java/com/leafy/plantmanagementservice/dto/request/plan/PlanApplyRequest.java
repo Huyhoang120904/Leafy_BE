@@ -1,10 +1,12 @@
 package com.leafy.plantmanagementservice.dto.request.plan;
 
+import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -22,4 +24,11 @@ public class PlanApplyRequest {
     String farmPlotId;
     
     String farmZoneId;
+
+    /** Required for FARM/ZONE scope; ignored for PLANT scope. */
+    TrackingGranularity trackingGranularity;
+
+    List<String> excludedPlantIds;
+
+    List<String> excludedFarmZoneIds;
 }

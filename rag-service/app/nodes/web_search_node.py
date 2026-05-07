@@ -9,8 +9,10 @@ import os
 import logging
 from typing import List
 from tavily import TavilyClient
+from langchain_core.messages import HumanMessage, SystemMessage
 
 from app.agents.rag_state import GraphState
+from app.core.ai_providers import get_gemini_flash
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +44,12 @@ def _derive_regulatory_focus_terms(safety_issues: List[str]) -> List[str]:
             "thời gian cách ly thuốc bảo vệ thực vật cà phê",
         ])
 
-    if any(k in joined for k in ("banned", "restricted", "paraquat", "chlorpyrifos", "fipronil")):
+    if any(k in joined for k in ("banned", "restricted", "paraquat", "chlorpyrifos", "fipronil",
+                                  "copper oxychloride", "apollo")):
         focus_terms.extend([
-            "Vietnam PPD banned pesticide list coffee Circular 03/2023",
-            "danh mục thuốc bảo vệ thực vật cấm sử dụng trên cà phê",
+            "Vietnam PPD approved fungicide coffee leaf rust Circular 03/2023",
+            "thuốc trừ nấm được phép dùng trên cà phê bệnh gỉ sắt danh mục PPD",
+            "approved alternative fungicide coffee Hemileia vastatrix Vietnam",
         ])
 
     if any(k in joined for k in ("ppe", "gloves", "mask", "boots", "protective")):
@@ -86,6 +90,40 @@ APPROVED_DOMAINS = [
     "sciencedirect.com",       # Open access papers for YOLO/MobileNet technical benchmarks
 ]
 
+_QUERY_REWRITE_SYSTEM = """\
+You are an expert agricultural search query optimizer for Vietnamese coffee farming.
+Given a user's conversational question, rewrite it as a concise, keyword-rich web \
+search query (max 15 words) that will return authoritative technical results.
+
+Rules:
+- Remove filler words and politeness (e.g. "cho tôi", "bạn có thể", "please").
+- Keep the core agronomic topic: disease, pest, treatment, fertilizer, regulation, etc.
+- Add "Việt Nam" or "Vietnam" if the topic is locale-specific and not already present.
+- Do NOT add fabricated facts or chemicals.
+- Output ONLY the search query — no explanation, no quotes, no punctuation at the end.
+"""
+
+def _rewrite_query_for_search(question: str) -> str:
+    """
+    Use a fast LLM to convert a conversational user question into a concise,
+    search-optimised query string.  Falls back to the raw question on any error.
+    """
+    try:
+        llm = get_gemini_flash(temperature=0)
+        messages = [
+            SystemMessage(content=_QUERY_REWRITE_SYSTEM),
+            HumanMessage(content=question),
+        ]
+        result = llm.invoke(messages)
+        rewritten = result.content.strip()
+        if rewritten:
+            logger.info("[WEB SEARCH] Query rewritten: '%s' → '%s'", question[:60], rewritten)
+            return rewritten
+    except Exception as exc:
+        logger.warning("[WEB SEARCH] Query rewrite failed (%s) — using raw question", exc)
+    return question
+
+
 def web_search(state: GraphState) -> dict:
     """
     Perform web search using Tavily API focused on Vietnamese Agriculture.
@@ -116,48 +154,55 @@ def web_search(state: GraphState) -> dict:
         }
     
     client = TavilyClient(api_key=tavily_api_key)
-    
-    # ── Coffee-domain query enrichment ───────────────────────────────────────
-    # If the question does not already mention Vietnam or a Vietnamese keyword,
-    # append geographic context so Tavily returns local regulations and outbreak data
-    # rather than generic or Brazilian/Colombian results.
-    search_query = question
-    vn_keywords = ["vietnam", "việt nam", "vn", "tây nguyên", "đắk lắk", "lâm đồng",
-                   "robusta", "arabica", "cà phê"]
-    if not any(k in question.lower() for k in vn_keywords):
-        if any(ord(c) > 127 for c in question):   # has Vietnamese unicode
-            search_query = f"{question} cà phê Việt Nam Tây Nguyên"
-        else:
-            search_query = f"{question} coffee Vietnam Central Highlands"
 
-    # Boost precision for coffee-specific sub-domains when the question is clearly
-    # about coffee diseases, pests, or regulations.
-    coffee_disease_kw = [
-        "leaf rust", "gỉ sắt", "hemileia", "brown eye spot", "cercospora",
-        "root rot", "phytophthora", "berry borer", "cbb", "hypothenemus",
-        "white stem borer", "xylotrechus", "mealybug", "planococcus",
-        "fertilizer", "phân bón", "npk", "potassium", "kali", "nitrogen",
-        "pesticide", "fungicide", "thuốc", "chlorpyrifos", "mancozeb",
-    ]
-    is_coffee_specific = any(kw in question.lower() for kw in coffee_disease_kw)
-    if is_coffee_specific and "coffee" not in search_query.lower() and "cà phê" not in search_query.lower():
-        search_query = f"coffee {search_query}" if not any(ord(c) > 127 for c in question) else f"cà phê {search_query}"
-
-    # Refinement-aware compliance enrichment:
-    # if the previous answer failed the safety audit, force legal/technical terms
-    # into the query so Tavily can surface regulatory sources (MRL/PHI/PPD tables).
+    # ── Refinement-aware search override ─────────────────────────────────────
+    # On refinement passes we skip LLM rewriting and build a purpose-specific
+    # query targeting approved alternatives and regulatory approval lists so the
+    # LLM receives different, compliant source material.
     if refinement_count > 0 and safety_issues:
         focus_terms = _derive_regulatory_focus_terms(safety_issues)
-        if not focus_terms and any(k in " ".join(safety_issues).lower() for k in _LEGAL_TECH_TRIGGER_KEYWORDS):
+        if not focus_terms:
             focus_terms = [
-                "Vietnam coffee pesticide regulation",
-                "MRL PHI compliance",
+                "Vietnam coffee approved pesticide alternative PPD regulation",
+                "thuốc trừ nấm được phép sử dụng trên cà phê Việt Nam danh mục PPD",
             ]
-        if focus_terms:
-            search_query = f"{search_query} {' '.join(focus_terms)}"
-            logger.info("[WEB SEARCH] Refinement-aware enrichment applied (%d terms)", len(focus_terms))
+        search_query = " ".join(focus_terms)
+        logger.info(
+            "[WEB SEARCH] Refinement pass %d — using solution-focused query (%d terms)",
+            refinement_count,
+            len(focus_terms),
+        )
+    else:
+        # ── LLM query rewriting ───────────────────────────────────────────────
+        # Convert the raw conversational question into a concise, keyword-rich
+        # search query before applying domain enrichment.
+        search_query = _rewrite_query_for_search(question)
 
-    logger.debug("[WEB SEARCH] Enriched query: %s", search_query)
+        # ── Coffee-domain geographic enrichment ──────────────────────────────
+        # Ensure results are scoped to Vietnam / Central Highlands context.
+        vn_keywords = ["vietnam", "việt nam", "vn", "tây nguyên", "đắk lắk", "lâm đồng",
+                       "robusta", "arabica", "cà phê"]
+        if not any(k in search_query.lower() for k in vn_keywords):
+            if any(ord(c) > 127 for c in search_query):   # has Vietnamese unicode
+                search_query = f"{search_query} cà phê Việt Nam Tây Nguyên"
+            else:
+                search_query = f"{search_query} coffee Vietnam Central Highlands"
+
+        # Boost precision when the rewritten query is clearly about coffee
+        # diseases, pests, or chemicals but lacks the word "coffee"/"cà phê".
+        coffee_disease_kw = [
+            "leaf rust", "gỉ sắt", "hemileia", "brown eye spot", "cercospora",
+            "root rot", "phytophthora", "berry borer", "cbb", "hypothenemus",
+            "white stem borer", "xylotrechus", "mealybug", "planococcus",
+            "fertilizer", "phân bón", "npk", "potassium", "kali", "nitrogen",
+            "pesticide", "fungicide", "thuốc", "chlorpyrifos", "mancozeb",
+        ]
+        is_coffee_specific = any(kw in search_query.lower() for kw in coffee_disease_kw)
+        if is_coffee_specific and "coffee" not in search_query.lower() and "cà phê" not in search_query.lower():
+            prefix = "cà phê" if any(ord(c) > 127 for c in search_query) else "coffee"
+            search_query = f"{prefix} {search_query}"
+
+    logger.debug("[WEB SEARCH] Final query: %s", search_query)
 
     # Perform search
     try:

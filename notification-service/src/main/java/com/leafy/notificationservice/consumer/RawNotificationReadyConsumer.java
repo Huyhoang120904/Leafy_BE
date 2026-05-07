@@ -1,6 +1,6 @@
 package com.leafy.notificationservice.consumer;
 
-import com.leafy.common.event.notification.RawNotificationEvent;
+import com.leafy.common.event.notification.BatchedNotificationEvent;
 import com.leafy.notificationservice.service.delivery.NotificationDeliveryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -19,10 +19,10 @@ import org.springframework.stereotype.Component;
 /**
  * Stage 2 of the notification pipeline — persist and deliver.
  *
- * <p>Consumes validated {@link RawNotificationEvent}s from the internal
- * {@code notification.ready} topic and delegates to
- * {@link NotificationDeliveryService} which handles persistence and
- * multi-channel delivery (FCM, in-app).
+ * <p>Consumes aggregated {@link BatchedNotificationEvent}s from the internal
+ * {@code notification.ready} topic (produced by the batching layer in Stage 1)
+ * and delegates to {@link NotificationDeliveryService} which handles
+ * persistence and multi-channel delivery (FCM, in-app, e-mail).
  *
  * <p>Mirrors CNM's {@code ReadyNotificationListener}:
  * <ul>
@@ -58,9 +58,9 @@ public class RawNotificationReadyConsumer {
 
         log.info("[Stage2] Received: topic={}, partition={}, offset={}", topic, partition, offset);
 
-        RawNotificationEvent event;
+        BatchedNotificationEvent event;
         try {
-            event = objectMapper.readValue(message, RawNotificationEvent.class);
+            event = objectMapper.readValue(message, BatchedNotificationEvent.class);
         } catch (Exception e) {
             // Stage 1 already validated — deserialization failure here is unexpected.
             // Drop rather than looping forever.
@@ -71,7 +71,9 @@ public class RawNotificationReadyConsumer {
 
         try {
             notificationDeliveryService.deliver(event);
-            log.info("[Stage2] Delivery complete: type={}, recipient={}", event.getType(), event.getRecipientId());
+            log.info("[Stage2] Delivery complete: type={}, recipient={}, eventCount={}, actorCount={}",
+                    event.getType(), event.getRecipientId(),
+                    event.getTotalEventCount(), event.getActorCount());
             if (acknowledgment != null) acknowledgment.acknowledge();
         } catch (Exception e) {
             log.error("[Stage2] Delivery failed: type={}, recipient={}", event.getType(), event.getRecipientId(), e);

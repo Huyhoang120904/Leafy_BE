@@ -19,6 +19,9 @@ import com.leafy.communityfeedservice.model.ProfileSummary;
 import com.leafy.communityfeedservice.repository.CommentRepository;
 import com.leafy.communityfeedservice.repository.PostRepository;
 import com.leafy.communityfeedservice.repository.ProfileSummaryRepository;
+import com.leafy.communityfeedservice.repository.VoteRepository;
+import com.leafy.communityfeedservice.model.enums.VoteTargetType;
+import com.leafy.communityfeedservice.model.Vote;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -46,6 +49,7 @@ public class CommentServiceImpl implements CommentService {
     OutboxEventPublisher outboxEventPublisher;
     ProfileSummaryRepository profileSummaryRepository;
     RawNotificationEventPublisher notificationPublisher;
+    VoteRepository voteRepository;
 
     @Override
     @Transactional
@@ -212,6 +216,14 @@ public class CommentServiceImpl implements CommentService {
     private CommentResponse enrichCommentResponse(CommentResponse response) {
         profileSummaryRepository.findById(response.getAuthorId())
                 .ifPresent(response::setAuthorInfo);
+        try {
+            String callerId = ServiceSecurityUtils.getCurrentProfileId();
+            voteRepository
+                    .findByAuthorIdAndTargetIdAndTargetType(callerId, response.getId(), VoteTargetType.COMMENT)
+                    .ifPresent(v -> response.setCurrentUserVoteType(v.getType()));
+        } catch (Exception ignored) {
+            // unauthenticated context — leave currentUserVoteType null
+        }
         return response;
     }
 
@@ -221,12 +233,33 @@ public class CommentServiceImpl implements CommentService {
                 .filter(Objects::nonNull)
                 .collect(Collectors.toSet());
 
-        if (authorIds.isEmpty()) return;
+        if (!authorIds.isEmpty()) {
+            Map<String, ProfileSummary> profileMap = profileSummaryRepository
+                    .findAllByIdIn(new ArrayList<>(authorIds)).stream()
+                    .collect(Collectors.toMap(ProfileSummary::getId, Function.identity()));
+            responses.forEach(r -> r.setAuthorInfo(profileMap.get(r.getAuthorId())));
+        }
 
-        Map<String, ProfileSummary> profileMap = profileSummaryRepository
-                .findAllByIdIn(new ArrayList<>(authorIds)).stream()
-                .collect(Collectors.toMap(ProfileSummary::getId, Function.identity()));
-
-        responses.forEach(r -> r.setAuthorInfo(profileMap.get(r.getAuthorId())));
+        // Resolve currentUserVoteType for all comments in a single batch query
+        try {
+            String callerId = ServiceSecurityUtils.getCurrentProfileId();
+            List<String> commentIds = responses.stream()
+                    .map(CommentResponse::getId)
+                    .filter(Objects::nonNull)
+                    .collect(Collectors.toList());
+            if (!commentIds.isEmpty()) {
+                Map<String, Vote> voteMap = voteRepository
+                        .findByAuthorIdAndTargetIdInAndTargetTypeAndActiveTrue(
+                                callerId, commentIds, VoteTargetType.COMMENT)
+                        .stream()
+                        .collect(Collectors.toMap(Vote::getTargetId, Function.identity()));
+                responses.forEach(r -> {
+                    Vote v = voteMap.get(r.getId());
+                    if (v != null) r.setCurrentUserVoteType(v.getType());
+                });
+            }
+        } catch (Exception ignored) {
+            // unauthenticated context — leave currentUserVoteType null for all
+        }
     }
 }

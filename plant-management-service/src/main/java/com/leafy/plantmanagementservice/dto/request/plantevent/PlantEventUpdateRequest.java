@@ -1,10 +1,12 @@
 package com.leafy.plantmanagementservice.dto.request.plantevent;
 
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import jakarta.validation.Valid;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -30,4 +32,9 @@ public class PlantEventUpdateRequest {
     String mrlNote;
     String estimatedCost;
     String sourcePlanId;
+    Boolean completed;
+
+    /** Replace the entire task list when non-null. Null means "leave tasks unchanged". */
+    @Valid
+    List<EventTaskRequest> tasks;
 }

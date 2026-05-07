@@ -12,5 +12,6 @@ public record PostUpdateRequest(
         List<PostMedia> media,
         PostContent sharedCaption,
         LocationInfo location,
-        Visibility visibility
+        Visibility visibility,
+        String planId
 ) {}

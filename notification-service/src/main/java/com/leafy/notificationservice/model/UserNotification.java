@@ -8,6 +8,8 @@ import org.springframework.data.mongodb.core.index.CompoundIndexes;
 import org.springframework.data.mongodb.core.mapping.Document;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -18,13 +20,29 @@ import java.util.Map;
  * notification bell / unread badge.
  *
  * <p>Collection: {@code user_notifications}
+ *
+ * <h3>Aggregation</h3>
+ * Notifications produced by the batching layer carry the full set of distinct
+ * actor profile IDs in {@link #actorIds} (most-recent first), along with the
+ * convenience fields {@link #actorCount}, {@link #othersCount} and
+ * {@link #totalEventCount}. The legacy {@code actorId/actorName/actorAvatar}
+ * fields always reflect the <em>most recent</em> actor so existing FE code
+ * continues to work without modification.
+ *
+ * <p>The compound unique index
+ * {@code (recipientId, type, referenceId)} (sparse) enables idempotent upsert
+ * of aggregated rows while leaving legacy rows that pre-date this index
+ * untouched.
  */
 @Document("user_notifications")
 @CompoundIndexes({
         @CompoundIndex(name = "recipient_active_occurred_idx",
                 def = "{'recipientId': 1, 'active': 1, 'occurredAt': -1}"),
         @CompoundIndex(name = "recipient_active_unread_idx",
-                def = "{'recipientId': 1, 'active': 1, 'isRead': 1}")
+                def = "{'recipientId': 1, 'active': 1, 'isRead': 1}"),
+        @CompoundIndex(name = "recipient_type_reference_unique_idx",
+                def = "{'recipientId': 1, 'type': 1, 'referenceId': 1}",
+                unique = true, sparse = true)
 })
 @Getter
 @Setter
@@ -45,14 +63,38 @@ public class UserNotification {
     /** ID of the resource the notification relates to (postId, commentId, etc.). */
     private String referenceId;
 
-    /** Profile ID of the user who performed the action. */
+    /** Profile ID of the most-recent actor (for backward-compat with FE history feed). */
     private String actorId;
 
-    /** Display name of the actor — pre-filled by the publishing service. */
+    /** Display name of the most-recent actor — pre-filled by the publishing service. */
     private String actorName;
 
-    /** Avatar URL of the actor — pre-filled by the publishing service. */
+    /** Avatar URL of the most-recent actor — pre-filled by the publishing service. */
     private String actorAvatar;
+
+    /**
+     * Distinct actor profile IDs aggregated into this notification — ordered
+     * with the most-recent actor first. Always contains at least
+     * {@link #actorId} (a single-actor notification stores {@code [actorId]}).
+     */
+    @Builder.Default
+    private List<String> actorIds = new ArrayList<>();
+
+    /** {@code actorIds.size()} — denormalized for fast read access on the FE. */
+    @Builder.Default
+    private int actorCount = 1;
+
+    /** {@code max(0, actorCount - 1)} — convenience field for "X and N others" rendering. */
+    @Builder.Default
+    private int othersCount = 0;
+
+    /**
+     * Total number of raw events that have been merged into this notification.
+     * May exceed {@link #actorCount} when the same user triggers multiple events
+     * (e.g. like → unlike → like).
+     */
+    @Builder.Default
+    private int totalEventCount = 1;
 
     /** Rendered notification title (from template or hardcoded fallback). */
     private String title;
@@ -72,8 +114,11 @@ public class UserNotification {
 
     private LocalDateTime readAt;
 
-    /** When the source action occurred (set by the publishing service). */
+    /** When the source action occurred — set to the most-recent event's timestamp. */
     private LocalDateTime occurredAt;
 
     private LocalDateTime createdAt;
+
+    /** Last time this row was upserted by an aggregating batch flush. */
+    private LocalDateTime lastModifiedAt;
 }

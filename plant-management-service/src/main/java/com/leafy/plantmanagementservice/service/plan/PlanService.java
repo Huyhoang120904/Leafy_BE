@@ -2,9 +2,12 @@ package com.leafy.plantmanagementservice.service.plan;
 
 import com.leafy.plantmanagementservice.dto.request.plan.PlanCreateRequest;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
-import com.leafy.plantmanagementservice.model.enums.TreatmentStatus;
+import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.util.List;
 
 public interface PlanService {
 
@@ -23,7 +26,7 @@ public interface PlanService {
 
     Page<PlanResponse> getPlansByCurrentUser(Pageable pageable);
 
-    Page<PlanResponse> getPlansByCurrentUserAndStatus(TreatmentStatus status, Pageable pageable);
+    Page<PlanResponse> getPlansByCurrentUserAndStatus(PlanStatus status, Pageable pageable);
 
     Page<PlanResponse> getPlansByPlantId(String plantId, Pageable pageable);
 
@@ -31,9 +34,24 @@ public interface PlanService {
 
     Page<PlanResponse> getPlansByFarmZoneId(String farmZoneId, Pageable pageable);
 
-    PlanResponse updateStatus(String planId, TreatmentStatus newStatus);
+    PlanResponse updateStatus(String planId, PlanStatus newStatus);
 
-    Page<PlanResponse> getAllPlans(TreatmentStatus status, Pageable pageable);
+    Page<PlanResponse> getAllPlans(PlanStatus status, Pageable pageable);
 
     void deletePlan(String planId);
+
+    PlanResponse createConsultingPlan(String expertProfileId, String farmerProfileId, PlanCreateRequest request);
+
+    Page<PlanResponse> getConsultingPlans(String expertProfileId, String farmerProfileId, Pageable pageable);
+
+    BulkOperationResult bulkUpdateStatus(List<String> planIds, PlanStatus status);
+
+    BulkOperationResult bulkDelete(List<String> planIds);
+
+    /**
+     * Toggles the public/private visibility of a plan.
+     * Only the owner or creator of the plan can change its visibility.
+     */
+    PlanResponse toggleVisibility(String planId);
 }
+

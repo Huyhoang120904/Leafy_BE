@@ -26,4 +26,10 @@ public interface PlantRepository extends MongoRepository<Plant, String>, PlantRe
 
     /** Returns plants that belong to any of the given plots OR any of the given zones. */
     List<Plant> findByFarmPlotIdInOrFarmZoneIdIn(List<String> farmPlotIds, List<String> farmZoneIds);
+
+    Page<Plant> findByOwnerProfileId(String ownerProfileId, Pageable pageable);
+
+    long countByOwnerProfileId(String ownerProfileId);
+
+    List<Plant> findByOwnerProfileIdIn(List<String> ownerProfileIds);
 }

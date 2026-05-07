@@ -65,8 +65,18 @@ def deep_generation(state: GraphState) -> dict:
         soil = env_state.get("soil", {})
         weather = env_state.get("weather", {})
         gps = env_state.get("gps", {})
+        farm_info = env_state.get("farm_info", {})
+        farm_lines = ""
+        if farm_info:
+            farm_lines = (
+                f"Farm plot  : {farm_info.get('plot_name') or 'N/A'} (code: {farm_info.get('plot_code') or 'N/A'})"
+                f", area={farm_info.get('plot_area_m2') or 'N/A'}m², address={farm_info.get('plot_address') or 'N/A'}\n            "
+                f"Zone       : {farm_info.get('zone_name') or 'N/A'} (code: {farm_info.get('zone_code') or 'N/A'})"
+                f", area={farm_info.get('zone_area_m2') or 'N/A'}m², soil_type={farm_info.get('soil_type') or 'N/A'}"
+                f", crop_type={farm_info.get('crop_type') or 'N/A'}\n            "
+            )
         env_context = f"""=== Current Environmental State (IoT Sensors - {env_state.get('reading_timestamp', 'N/A')}) ===
-            Location: lat={gps.get('latitude')}, lon={gps.get('longitude')}, altitude={gps.get('altitude_m')}m, farm plot: {gps.get('farm_plot_id')}
+            {farm_lines}Location: lat={gps.get('latitude')}, lon={gps.get('longitude')}, altitude={gps.get('altitude_m')}m, farm plot: {gps.get('farm_plot_id')}
             Soil: pH {soil.get('ph')}, moisture {soil.get('moisture_pct')}%, temp {soil.get('temperature_c')}°C
                 N={soil.get('nitrogen_ppm')}ppm, P={soil.get('phosphorus_ppm')}ppm, K={soil.get('potassium_ppm')}ppm
                 Organic matter {soil.get('organic_matter_pct')}%

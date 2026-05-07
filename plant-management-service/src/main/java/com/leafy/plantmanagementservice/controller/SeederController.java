@@ -21,21 +21,23 @@ public class SeederController {
     SeederService seederService;
 
     /**
-     * Upserts species master data, then wipes and reseeds plants and plant events.
+     * Upserts species master data, then wipes and reseeds plants, plant events, and treatment plans.
      * Fetches real farmPlotIds/farmZoneIds from farm-service for referential integrity.
      *
      * <p>Recommended run order: auth seeder → farm seeder → plant seeder.
      *
-     * @param speciesCount    number of species to upsert (falls back to plant-management.seeder.species-count)
-     * @param plantCount      number of plants to seed (falls back to plant-management.seeder.plant-count)
-     * @param eventsPerPlant  number of events to seed per plant (falls back to plant-management.seeder.events-per-plant)
+     * @param speciesCount    number of species to upsert (defaults to config)
+     * @param plantCount      number of plants to seed per owner (defaults to config)
+     * @param eventsPerPlant  number of events to seed per plant (defaults to config)
+     * @param planCount       number of plans to seed across all users (defaults to config)
      */
     @PostMapping("/plants")
     @PreAuthorize("hasRole('ADMIN')")
     public ApiResponse<PlantSeederResponse> reseed(
             @RequestParam(required = false) Integer speciesCount,
             @RequestParam(required = false) Integer plantCount,
-            @RequestParam(required = false) Integer eventsPerPlant) {
-        return ApiResponse.success(seederService.reseed(speciesCount, plantCount, eventsPerPlant));
+            @RequestParam(required = false) Integer eventsPerPlant,
+            @RequestParam(required = false) Integer planCount) {
+        return ApiResponse.success(seederService.reseed(speciesCount, plantCount, eventsPerPlant, planCount));
     }
 }

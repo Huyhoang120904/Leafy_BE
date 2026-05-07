@@ -14,5 +14,8 @@ public class SeederProperties {
     private int voteCount = 700;
     private int profilePageSize = 200;
     private int profileMaxPages = 3;
+    private int planPageSize = 100;
+    private int planMaxPages = 5;
     private long randomSeed = 20260324L;
 }
+

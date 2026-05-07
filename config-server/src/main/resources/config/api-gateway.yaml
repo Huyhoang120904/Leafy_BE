@@ -50,7 +50,7 @@ spring:
                     fallbackUri: forward:/fallback/auth-service
 
             - id: admin-seed-farms
-              uri: lb://farm-service
+              uri: lb://plant-management-service
               predicates:
                 - Path=/api/admin/seed/farms
               filters:
@@ -58,7 +58,7 @@ spring:
                 - name: CircuitBreaker
                   args:
                     name: seedServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/farm-service
+                    fallbackUri: forward:/fallback/plant-management-service
 
             - id: admin-seed-plants
               uri: lb://plant-management-service
@@ -126,17 +126,17 @@ spring:
                     name: seedServiceCircuitBreaker
                     fallbackUri: forward:/fallback/profile-service
 
-            # Farm Service Routes
+            # Farm Routes (served by plant-management-service)
             - id: farm-service
-              uri: lb://farm-service
+              uri: lb://plant-management-service
               predicates:
                 - Path=/api/farms/**
               filters:
                 - StripPrefix=1
                 - name: CircuitBreaker
                   args:
-                    name: farmServiceCircuitBreaker
-                    fallbackUri: forward:/fallback/farm-service
+                    name: plantManagementServiceCircuitBreaker
+                    fallbackUri: forward:/fallback/plant-management-service
 
             # File Service Routes
             - id: file-service
@@ -260,14 +260,6 @@ spring:
                 - Path=/user-service/v3/api-docs/**
               filters:
                 - RewritePath=/user-service/v3/api-docs, /v3/api-docs
-
-            # OpenAPI Documentation Routes for Farm Service
-            - id: farm-service-openapi
-              uri: lb://farm-service
-              predicates:
-                - Path=/farm-service/v3/api-docs/**
-              filters:
-                - RewritePath=/farm-service/v3/api-docs, /v3/api-docs
 
             # OpenAPI Documentation Routes for File Service
             - id: file-service-openapi
@@ -476,8 +468,6 @@ resilience4j:
         baseConfig: default
       userServiceCircuitBreaker:
         baseConfig: default
-      farmServiceCircuitBreaker:
-        baseConfig: default
       fileServiceCircuitBreaker:
         baseConfig: default
       notificationServiceCircuitBreaker:
@@ -509,8 +499,6 @@ resilience4j:
       authServiceCircuitBreaker:
         baseConfig: default
       userServiceCircuitBreaker:
-        baseConfig: default
-      farmServiceCircuitBreaker:
         baseConfig: default
       fileServiceCircuitBreaker:
         baseConfig: default
@@ -553,8 +541,6 @@ springdoc:
         url: /auth-service/v3/api-docs
       - name: user-service
         url: /user-service/v3/api-docs
-      - name: farm-service
-        url: /farm-service/v3/api-docs
       - name: file-service
         url: /file-service/v3/api-docs
       - name: notification-service

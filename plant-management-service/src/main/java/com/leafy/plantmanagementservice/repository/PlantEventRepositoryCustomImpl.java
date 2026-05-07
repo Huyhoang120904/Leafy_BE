@@ -65,6 +65,31 @@ public class PlantEventRepositoryCustomImpl implements PlantEventRepositoryCusto
         return new PageImpl<>(results, pageable, total);
     }
 
+    // ── Shared date-overlap criteria ─────────────────────────────────────────
+    //
+    // An event overlaps [startDate, endDate] when:
+    //   calculatedStartDate <= endDate  AND  calculatedEndDate >= startDate
+    //
+    // Events with null calculatedEndDate are treated as single-day events:
+    // they are included when calculatedStartDate falls inside [startDate, endDate].
+    //
+    private Criteria buildDateOverlapCriteria(java.time.LocalDate startDate, java.time.LocalDate endDate) {
+        // Events that have an explicit end date and overlap the range
+        Criteria rangedEvent = new Criteria().andOperator(
+                Criteria.where("calculatedStartDate").ne(null).lte(endDate),
+                Criteria.where("calculatedEndDate").ne(null).gte(startDate)
+        );
+        // Single-day events (no end date) whose start date falls inside the range
+        Criteria singleDayEvent = new Criteria().andOperator(
+                Criteria.where("calculatedStartDate").gte(startDate).lte(endDate),
+                new Criteria().orOperator(
+                        Criteria.where("calculatedEndDate").exists(false),
+                        Criteria.where("calculatedEndDate").is(null)
+                )
+        );
+        return new Criteria().orOperator(rangedEvent, singleDayEvent);
+    }
+
     // ── Profile calendar events (broad ownership scope) ───────────────────────
 
     @Override
@@ -75,10 +100,7 @@ public class PlantEventRepositoryCustomImpl implements PlantEventRepositoryCusto
             java.time.LocalDate startDate,
             java.time.LocalDate endDate
     ) {
-        Criteria dateCriteria = new Criteria().andOperator(
-                Criteria.where("calculatedStartDate").lte(endDate),
-                Criteria.where("calculatedEndDate").gte(startDate)
-        );
+        Criteria dateCriteria = buildDateOverlapCriteria(startDate, endDate);
 
         List<Criteria> orCriterias = new ArrayList<>();
         if (farmPlotIds != null && !farmPlotIds.isEmpty()) {
@@ -109,15 +131,66 @@ public class PlantEventRepositoryCustomImpl implements PlantEventRepositoryCusto
             java.time.LocalDate startDate,
             java.time.LocalDate endDate
     ) {
-        Criteria dateCriteria = new Criteria().andOperator(
-                Criteria.where("calculatedStartDate").lte(endDate),
-                Criteria.where("calculatedEndDate").gte(startDate)
-        );
+        Criteria dateCriteria = buildDateOverlapCriteria(startDate, endDate);
         Criteria locationCriteria = new Criteria().orOperator(
                 Criteria.where("farmPlotId").is(farmPlotId.trim()),
                 Criteria.where("farmZoneId").is(farmZoneId.trim())
         );
         Query query = new Query(new Criteria().andOperator(dateCriteria, locationCriteria));
         return mongoTemplate.find(query, PlantEvent.class);
+    }
+
+    // ── Entity-scoped calendar helpers ────────────────────────────────────────
+
+    @Override
+    public List<PlantEvent> findByPlantIdAndDateRange(
+            String plantId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    ) {
+        Criteria criteria = new Criteria().andOperator(
+                buildDateOverlapCriteria(startDate, endDate),
+                Criteria.where("plantId").is(plantId)
+        );
+        return mongoTemplate.find(new Query(criteria), PlantEvent.class);
+    }
+
+    @Override
+    public List<PlantEvent> findByFarmPlotIdAndDateRange(
+            String farmPlotId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    ) {
+        Criteria criteria = new Criteria().andOperator(
+                buildDateOverlapCriteria(startDate, endDate),
+                Criteria.where("farmPlotId").is(farmPlotId)
+        );
+        return mongoTemplate.find(new Query(criteria), PlantEvent.class);
+    }
+
+    @Override
+    public List<PlantEvent> findByFarmZoneIdAndDateRange(
+            String farmZoneId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    ) {
+        Criteria criteria = new Criteria().andOperator(
+                buildDateOverlapCriteria(startDate, endDate),
+                Criteria.where("farmZoneId").is(farmZoneId)
+        );
+        return mongoTemplate.find(new Query(criteria), PlantEvent.class);
+    }
+
+    @Override
+    public List<PlantEvent> findBySourcePlanIdAndDateRange(
+            String sourcePlanId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    ) {
+        Criteria criteria = new Criteria().andOperator(
+                buildDateOverlapCriteria(startDate, endDate),
+                Criteria.where("sourcePlanId").is(sourcePlanId)
+        );
+        return mongoTemplate.find(new Query(criteria), PlantEvent.class);
     }
 }

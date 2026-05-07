@@ -50,4 +50,42 @@ public interface PlantEventRepositoryCustom {
             java.time.LocalDate startDate,
             java.time.LocalDate endDate
     );
+
+    /**
+     * Calendar events for a single plant, handling null calculatedEndDate
+     * (treats such events as single-day events on their calculatedStartDate).
+     */
+    List<PlantEvent> findByPlantIdAndDateRange(
+            String plantId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    );
+
+    /**
+     * Calendar events for a farm plot, handling null calculatedEndDate.
+     */
+    List<PlantEvent> findByFarmPlotIdAndDateRange(
+            String farmPlotId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    );
+
+    /**
+     * Calendar events for a farm zone, handling null calculatedEndDate.
+     */
+    List<PlantEvent> findByFarmZoneIdAndDateRange(
+            String farmZoneId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    );
+
+    /**
+     * Calendar events linked to a specific plan (by sourcePlanId) that overlap the date range.
+     * Handles null calculatedEndDate (treated as single-day events).
+     */
+    List<PlantEvent> findBySourcePlanIdAndDateRange(
+            String sourcePlanId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    );
 }

@@ -64,4 +64,9 @@ public class PlanCreateRequest {
      */
     @Valid
     List<PlantEventCreateRequest> schedule;
+
+    // ── Visibility ────────────────────────────────────────────────────────────
+
+    /** If true, this plan will be visible to all authenticated users. Defaults to false (private). */
+    Boolean isPublic;
 }

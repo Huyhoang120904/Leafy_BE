@@ -54,6 +54,8 @@ class ChatService:
             "refinement_guidance": "",
             "generated_plan": None,
             "plant_id": None,
+            "farm_plot_id": request.farm_plot_id or None,
+            "farm_zone_id": request.farm_zone_id or None,
         }
 
     def _build_chat_result(
@@ -157,7 +159,7 @@ class ChatService:
     ) -> ChatResponse:
         """Execute non-streaming chat flow and return final response DTO."""
         thread_id = request.thread_id or str(uuid.uuid4())
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 50}
         initial_state = self._build_initial_state(request, current_user.id, auth_header)
 
         try:
@@ -173,6 +175,7 @@ class ChatService:
             final_state,
             user_id=current_user.id,
             question=request.question,
+            auth_header=auth_header,
         )
 
         result = self._build_chat_result(
@@ -203,7 +206,7 @@ class ChatService:
     ) -> AsyncGenerator[str, None]:
         """Stream chat execution via SSE events."""
         thread_id = request.thread_id or str(uuid.uuid4())
-        config = {"configurable": {"thread_id": thread_id}}
+        config = {"configurable": {"thread_id": thread_id}, "recursion_limit": 50}
         initial_state = self._build_initial_state(request, current_user.id, auth_header)
 
         graph = self._get_graph()
@@ -330,6 +333,7 @@ class ChatService:
                 latest_state,
                 user_id=current_user.id,
                 question=request.question,
+                auth_header=auth_header,
             )
             result = self._build_chat_result(
                 latest_state,

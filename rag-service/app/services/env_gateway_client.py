@@ -30,27 +30,109 @@ class EnvGatewayClient:
             logger.info("[ENV LOOKUP] Missing farmPlotId for plant_id=%s", plant_id)
             return None
 
+        return self.resolve_zone_context_from_plot(
+            farm_plot_id=str(farm_plot_id),
+            auth_header=auth_header,
+            plant_id=plant_id,
+        )
+
+    def resolve_zone_context_from_plot(
+        self,
+        farm_plot_id: str,
+        auth_header: Optional[str],
+        plant_id: Optional[str] = None,
+    ) -> Optional[Dict[str, Any]]:
+        """Resolve a single deterministic zone context directly from a farm plot id.
+
+        Returns None when the zone list is unavailable or empty.
+        Also fetches farm plot details and embeds them in the returned context.
+        """
         zones_payload = self._get_wrapped_data(f"/api/farms/plots/{farm_plot_id}/zones", auth_header)
         if not isinstance(zones_payload, list):
             logger.info("[ENV LOOKUP] Zone list unavailable for farm_plot_id=%s", farm_plot_id)
             return None
 
         zones = [zone for zone in zones_payload if isinstance(zone, dict) and zone.get("id")]
-        if len(zones) != 1:
-            logger.info(
-                "[ENV LOOKUP] Expected exactly one zone for farm_plot_id=%s but got=%d",
-                farm_plot_id,
-                len(zones),
-            )
+        if not zones:
+            logger.info("[ENV LOOKUP] No zones found for farm_plot_id=%s", farm_plot_id)
             return None
 
+        # Use the first zone when there are multiple; log a note if count > 1
+        if len(zones) > 1:
+            logger.info(
+                "[ENV LOOKUP] Multiple zones (%d) for farm_plot_id=%s — using first zone",
+                len(zones),
+                farm_plot_id,
+            )
+
         zone = zones[0]
+        plot_info = self.get_farm_plot_info(farm_plot_id=farm_plot_id, auth_header=auth_header)
         return {
             "plant_id": plant_id,
             "farm_plot_id": str(farm_plot_id),
             "zone_id": str(zone.get("id")),
             "altitude_m": self._to_float(zone.get("elevationM")),
+            # Zone metadata (already available from zones list payload)
+            "zone_name": zone.get("zoneName"),
+            "zone_code": zone.get("zoneCode"),
+            "soil_type": zone.get("soilType"),
+            "crop_type": zone.get("cropType"),
+            "zone_area_m2": self._to_float(zone.get("areaM2")),
+            # Farm plot metadata
+            "plot_name": plot_info.get("name") if plot_info else None,
+            "plot_code": plot_info.get("code") if plot_info else None,
+            "plot_area_m2": self._to_float(plot_info.get("areaM2")) if plot_info else None,
+            "plot_address": plot_info.get("addressLine") if plot_info else None,
+            "plot_latitude": self._to_float(plot_info.get("latitude")) if plot_info else None,
+            "plot_longitude": self._to_float(plot_info.get("longitude")) if plot_info else None,
         }
+
+    def resolve_zone_context_from_zone(
+        self,
+        farm_zone_id: str,
+        auth_header: Optional[str],
+        farm_plot_id: Optional[str] = None,
+        plant_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Build a zone context from a known zone id by fetching zone and plot details."""
+        zone_info = self.get_farm_zone_info(farm_zone_id=farm_zone_id, auth_header=auth_header)
+        resolved_plot_id = farm_plot_id or (zone_info.get("farmPlotId") if zone_info else None)
+        plot_info = self.get_farm_plot_info(farm_plot_id=resolved_plot_id, auth_header=auth_header) if resolved_plot_id else None
+        return {
+            "plant_id": plant_id,
+            "farm_plot_id": resolved_plot_id,
+            "zone_id": str(farm_zone_id),
+            "altitude_m": self._to_float(zone_info.get("elevationM")) if zone_info else None,
+            # Zone metadata
+            "zone_name": zone_info.get("zoneName") if zone_info else None,
+            "zone_code": zone_info.get("zoneCode") if zone_info else None,
+            "soil_type": zone_info.get("soilType") if zone_info else None,
+            "crop_type": zone_info.get("cropType") if zone_info else None,
+            "zone_area_m2": self._to_float(zone_info.get("areaM2")) if zone_info else None,
+            # Farm plot metadata
+            "plot_name": plot_info.get("name") if plot_info else None,
+            "plot_code": plot_info.get("code") if plot_info else None,
+            "plot_area_m2": self._to_float(plot_info.get("areaM2")) if plot_info else None,
+            "plot_address": plot_info.get("addressLine") if plot_info else None,
+            "plot_latitude": self._to_float(plot_info.get("latitude")) if plot_info else None,
+            "plot_longitude": self._to_float(plot_info.get("longitude")) if plot_info else None,
+        }
+
+    def get_farm_plot_info(self, farm_plot_id: str, auth_header: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Fetch farm plot details (name, area, location) from plant-management-service."""
+        plot = self._get_wrapped_data(f"/api/farms/plots/{farm_plot_id}", auth_header)
+        if not isinstance(plot, dict):
+            logger.info("[ENV LOOKUP] Farm plot info unavailable for farm_plot_id=%s", farm_plot_id)
+            return None
+        return plot
+
+    def get_farm_zone_info(self, farm_zone_id: str, auth_header: Optional[str]) -> Optional[Dict[str, Any]]:
+        """Fetch farm zone details (name, soil type, crop type, area) from plant-management-service."""
+        zone = self._get_wrapped_data(f"/api/farms/zones/{farm_zone_id}", auth_header)
+        if not isinstance(zone, dict):
+            logger.info("[ENV LOOKUP] Farm zone info unavailable for farm_zone_id=%s", farm_zone_id)
+            return None
+        return zone
 
     def get_zone_overview(self, zone_id: str, auth_header: Optional[str]) -> Optional[Dict[str, Any]]:
         """Fetch IoT zone overview for a resolved zone id."""

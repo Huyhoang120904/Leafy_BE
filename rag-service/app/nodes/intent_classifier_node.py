@@ -46,7 +46,11 @@ _AGRI_SIGNAL_RE = re.compile(
     r"\b(coffee|cà phê|plant|cây|pest|sâu|bệnh|disease|fertilizer|phân bón|"
     r"harvest|thu hoạch|soil|đất|leaf|lá|root|rễ|fungicide|thuốc|spray|phun|"
     r"treatment|điều trị|irrigation|tưới|crop|mùa vụ|rust|gỉ sắt|borer|mọt|"
-    r"robusta|arabica|tây nguyên|central highland|agri|nông|vườn|farm)\b",
+    r"robusta|arabica|tây nguyên|central highland|agri|nông|vườn|farm|"
+    # Planning / scheduling keywords — ensure "lập kế hoạch cho tôi" and similar
+    # short requests are never mis-classified as small-talk / direct.
+    r"kế hoạch|lịch trình|lịch phun|phác đồ|lịch chăm sóc|lịch bón phân|"
+    r"care plan|treatment plan|schedule|lập lịch|quy trình)\b",
     re.IGNORECASE,
 )
 

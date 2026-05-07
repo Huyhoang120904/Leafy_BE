@@ -12,5 +12,6 @@ public class SeederProperties {
     private int speciesCount = 15;
     private int plantCount = 30;
     private int eventsPerPlant = 5;
+    private int planCount = 20;
     private long randomSeed = 20260324L;
 }

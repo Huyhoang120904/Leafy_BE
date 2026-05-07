@@ -13,6 +13,7 @@ import com.leafy.profileservice.dto.request.profile.InternalCreateProfileRequest
 import com.leafy.profileservice.dto.request.profile.ProfileCreateRequest;
 import com.leafy.profileservice.dto.request.profile.ProfileUpdateRequest;
 import com.leafy.profileservice.dto.response.profile.ProfileDetailsResponse;
+import com.leafy.profileservice.dto.response.profile.InternalProfileResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import com.leafy.profileservice.dto.response.profile.UserSyncResponse;
 import com.leafy.profileservice.mapper.CertificateMapper;
@@ -170,6 +171,26 @@ public class ProfileServiceImpl implements ProfileService {
                     log.error("Profile not found with ID: {}", profileId);
                     return new AppException(ErrorCode.ACC_ACCOUNT_NOT_FOUND);
                 });
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<InternalProfileResponse> getProfilesByIds(List<String> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+        return ((List<Profile>) profileRepository.findAllById(ids)).stream()
+                .map(p -> InternalProfileResponse.builder()
+                        .id(p.getId())
+                        .userId(p.getUserId())
+                        .fullName(p.getFullName())
+                        .profilePicture(p.getProfilePicture())
+                        .avatar(p.getAvatar())
+                        .role(p.getRole())
+                        .specialty(p.getSpecialty())
+                        .isVerified(p.getIsVerified())
+                        .active(p.isActive())
+                        .bio(p.getBio())
+                        .build())
+                .toList();
     }
 
     @Override

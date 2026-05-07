@@ -2,6 +2,7 @@ package com.leafy.plantmanagementservice.model;
 
 import com.leafy.common.model.BaseModel;
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 import org.springframework.data.mongodb.core.index.Indexed;
@@ -10,6 +11,7 @@ import org.springframework.data.mongodb.core.mapping.FieldType;
 import org.springframework.data.mongodb.core.mapping.MongoId;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -73,4 +75,41 @@ public class PlantEvent extends BaseModel {
     // ── Source Tracking ───────────────────────────────────────────────────────
     /** ID of the Plan (MongoDB) that generated this event, if any. */
     String sourcePlanId;
+
+    // ── Completion ────────────────────────────────────────────────────────────
+    /**
+     * Overall event-level completion flag, independent of individual task completion.
+     * Toggled directly by the user to mark the whole event done.
+     */
+    boolean completed;
+
+    /**
+     * Optional list of sub-tasks belonging to this event.
+     * Each task tracks its own completion status.
+     * Stored as an embedded array inside the event document.
+     */
+    List<EventTask> tasks;
+
+    // ── Progress Tracking (broad-scope events only) ──────────────────────────
+    /**
+     * How this event is tracked across child targets.
+     * <ul>
+     *   <li>{@code NONE} — no per-target tracking (plant-scope or untracked broad events).</li>
+     *   <li>{@code ZONE} — one progress entry per zone in the parent farm plot.</li>
+     *   <li>{@code PLANT} — one progress entry per plant in the parent plot/zone.</li>
+     * </ul>
+     */
+    TrackingGranularity trackingGranularity;
+
+    /** Plant IDs explicitly excluded from progress generation. */
+    List<String> excludedPlantIds;
+
+    /** Farm zone IDs explicitly excluded from progress generation. */
+    List<String> excludedFarmZoneIds;
+
+    /** Denormalized total number of progress entries generated for this event. */
+    Integer progressTotal;
+
+    /** Denormalized number of progress entries currently marked completed. */
+    Integer progressCompleted;
 }

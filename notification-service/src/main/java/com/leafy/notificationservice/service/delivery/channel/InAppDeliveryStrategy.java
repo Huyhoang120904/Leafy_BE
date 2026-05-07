@@ -70,6 +70,10 @@ public class InAppDeliveryStrategy implements ChannelDeliveryStrategy {
                 event.getActorId(),
                 null,   // actorName — not carried in ReadyToDeliverEvent; client fetches from profile
                 null,   // actorAvatar — same as above
+                event.getActorIds(),
+                event.getActorCount(),
+                event.getOthersCount(),
+                event.getTotalEventCount(),
                 event.getTitle(),
                 event.getBody(),
                 event.getOccurredAt()

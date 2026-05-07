@@ -1,6 +1,8 @@
 package com.leafy.plantmanagementservice.dto.request.plantevent;
 
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -8,6 +10,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @Getter
 @Setter
@@ -52,4 +55,25 @@ public class PlantEventCreateRequest {
      * Optional: link to the RAG-generated Plan that produced this event.
      */
     String sourcePlanId;
+
+    /** Optional sub-tasks for this event. */
+    @Valid
+    List<EventTaskRequest> tasks;
+
+    // ── Progress tracking (broad-scope events only) ──────────────────────────
+    /**
+     * How this event should be tracked across its scope.
+     * <ul>
+     *   <li>{@code FARM} scope events accept {@code ZONE} or {@code PLANT}.</li>
+     *   <li>{@code ZONE} scope events accept {@code PLANT} only.</li>
+     *   <li>{@code PLANT} scope events must use {@code NONE} (or null).</li>
+     * </ul>
+     */
+    TrackingGranularity trackingGranularity;
+
+    /** Plant IDs to exclude from progress generation. */
+    List<String> excludedPlantIds;
+
+    /** Farm zone IDs to exclude from progress generation. */
+    List<String> excludedFarmZoneIds;
 }

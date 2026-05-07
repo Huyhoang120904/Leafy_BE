@@ -7,6 +7,7 @@ import lombok.*;
 import lombok.experimental.FieldDefaults;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -72,6 +73,28 @@ public class ReadyToDeliverEvent {
 
     /** Profile ID of the actor who triggered this notification. */
     String actorId;
+
+    /**
+     * Distinct profile IDs of all actors aggregated into this notification —
+     * most-recent first. For non-batched notifications this list contains a
+     * single element ({@code actorId}).
+     */
+    List<String> actorIds;
+
+    /** {@code actorIds.size()} — denormalized for downstream channels (FCM data, FE). */
+    int actorCount;
+
+    /** {@code max(0, actorCount - 1)} — used by FE for "X and N others" rendering. */
+    int othersCount;
+
+    /**
+     * Total number of raw events merged into this notification — may exceed
+     * {@link #actorCount} when the same actor triggered multiple events.
+     */
+    int totalEventCount;
+
+    /** Display name of the second-most-recent actor (used by some templates). */
+    String secondActorName;
 
     /**
      * Pre-built FCM data map — keyed string values suitable for

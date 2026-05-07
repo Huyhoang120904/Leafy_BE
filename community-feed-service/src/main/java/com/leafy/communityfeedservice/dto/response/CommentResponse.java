@@ -2,6 +2,7 @@ package com.leafy.communityfeedservice.dto.response;
 
 import com.leafy.communityfeedservice.model.ProfileSummary;
 import com.leafy.communityfeedservice.model.embedded.PostMedia;
+import com.leafy.communityfeedservice.model.enums.VoteType;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -29,6 +30,7 @@ public class CommentResponse {
     int replyCount;
     int upvoteCount;
     int downvoteCount;
+    VoteType currentUserVoteType; // null when the caller has not voted
     boolean isEdited;
     boolean active;
     LocalDateTime createdAt;

@@ -59,9 +59,16 @@ def fast_generation(state: GraphState) -> dict:
         soil = env_state.get("soil", {})
         weather = env_state.get("weather", {})
         gps = env_state.get("gps", {})
+        farm_info = env_state.get("farm_info", {})
+        farm_line = ""
+        if farm_info:
+            farm_line = (
+                f"Farm: {farm_info.get('plot_name') or 'N/A'} (zone: {farm_info.get('zone_name') or 'N/A'}), "
+                f"soil_type={farm_info.get('soil_type') or 'N/A'}, crop_type={farm_info.get('crop_type') or 'N/A'}\n            "
+            )
         env_context = f"""
             Environmental Context (IoT sensors):
-            Location: lat={gps.get('latitude')}, lon={gps.get('longitude')}, altitude={gps.get('altitude_m')}m
+            {farm_line}Location: lat={gps.get('latitude')}, lon={gps.get('longitude')}, altitude={gps.get('altitude_m')}m
             Soil: pH {soil.get('ph')}, moisture {soil.get('moisture_pct')}%, temp {soil.get('temperature_c')}°C, N={soil.get('nitrogen_ppm')}ppm, P={soil.get('phosphorus_ppm')}ppm, K={soil.get('potassium_ppm')}ppm
             Weather: {weather.get('air_temp_c')}°C, humidity {weather.get('humidity_pct')}%, wind {weather.get('wind_speed_kmh')}km/h, rain last 7d={weather.get('rainfall_mm_last_7d')}mm, rain forecast 24h={weather.get('forecast_rain_24h')}
             """

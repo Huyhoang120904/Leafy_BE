@@ -46,7 +46,7 @@ public class JoinRequestServiceImpl implements JoinRequestService {
 
     @Override
     public ConversationResponse joinByLink(String token, JoinByLinkRequest request) {
-        String currentUserId = helper.getSecurityUtil().getCurrentProfileId();
+        String currentProfileId = helper.getSecurityUtil().getCurrentProfileId();
 
         Conversation conversation = conversationRepository.findByJoinLinkToken(token)
                 .orElseThrow(() -> new AppException(ErrorCode.SYS_UNCATEGORIZED));
@@ -59,31 +59,31 @@ public class JoinRequestServiceImpl implements JoinRequestService {
         }
 
         boolean isAlreadyActive = conversation.getMembers().stream()
-                .anyMatch(m -> m.getProfileId().equals(currentUserId) && helper.isActiveMember(m));
+                .anyMatch(m -> m.getProfileId().equals(currentProfileId) && helper.isActiveMember(m));
         if (isAlreadyActive) {
             throw new AppException(ErrorCode.SYS_UNCATEGORIZED);
         }
 
         // Check if user is blocked from this group
-        if (conversation.getBlockedUserIds() != null && conversation.getBlockedUserIds().contains(currentUserId)) {
+        if (conversation.getBlockedUserIds() != null && conversation.getBlockedUserIds().contains(currentProfileId)) {
             throw new AppException(ErrorCode.SYS_UNCATEGORIZED);
         }
 
         // Invited users (from group creation) bypass approval on first join
         boolean isInvited = conversation.getInvitedUserIds() != null
-                && conversation.getInvitedUserIds().contains(currentUserId);
+                && conversation.getInvitedUserIds().contains(currentProfileId);
 
         if (!isInvited && (settings.isMembershipApprovalEnabled() || settings.getJoinQuestion() != null)) {
             String joinAnswer = request != null ? request.joinAnswer() : null;
-            return handleJoinRequest(conversation, currentUserId, joinAnswer);
+            return handleJoinRequest(conversation, currentProfileId, joinAnswer);
         }
 
         // Remove from invited list so subsequent rejoins require approval
         if (isInvited && conversation.getInvitedUserIds() != null) {
-            conversation.getInvitedUserIds().remove(currentUserId);
+            conversation.getInvitedUserIds().remove(currentProfileId);
         }
 
-        return directJoinByLink(conversation, currentUserId);
+        return directJoinByLink(conversation, currentProfileId);
     }
 
     @Override

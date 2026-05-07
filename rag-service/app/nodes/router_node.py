@@ -12,6 +12,7 @@ Routes:
 import os
 import logging
 import re
+from langchain_core.messages import HumanMessage
 from langchain_core.prompts import ChatPromptTemplate
 from pydantic import BaseModel, Field
 
@@ -73,23 +74,55 @@ def route_decision(state: GraphState) -> dict:
     documents = state.get("documents", [])
     env_state = state.get("env_state", {})
 
-    # Set default path if no documents
-    if not documents:
-        # Planning intent must still reach planner even when the
-        # internal KB has no hits. In that case the graph should use web_search_plan
-        # and then call planner.
-        if _PLANNING_INTENT_RE.search(question):
-            logger.info(
-                "[ROUTER] No documents but planning intent detected — PLANNING path "
-                "(web_search_plan -> planner)"
-            )
-            return {
-                "question": question,
-                "path_type": "planning",
-                "confidence_score": 0.0,
-                "completeness_score": 0.0,
-            }
+    # ── Priority 1: pending planning intent from a prior clarification turn ─────
+    # When the user answered a clarification question (e.g. replied "cây cà phê"
+    # after being asked what crop they grow), the clarification node preserved
+    # the original planning intent in state.  Force the planning path here so
+    # we don't lose it because the reply itself has no planning keywords.
+    if state.get("pending_planning_intent"):
+        logger.info(
+            "[ROUTER] Pending planning intent from prior clarification → PLANNING path"
+        )
+        return {
+            "path_type": "planning",
+            "confidence_score": 0.0,
+            "completeness_score": 0.0,
+            "pending_planning_intent": False,   # reset — consumed this turn
+        }
 
+    # ── Priority 2: planning keywords in current question ───────────────────────
+    if _PLANNING_INTENT_RE.search(question):
+        logger.info("[ROUTER] Planning keyword in question → PLANNING path")
+        return {
+            "path_type": "planning",
+            "confidence_score": 0.0,
+            "completeness_score": 0.0,
+            "pending_planning_intent": False,
+        }
+
+    # ── Priority 3: planning keywords in recent conversation history ─────────
+    # Catches follow-up short messages like "lập kế hoạch cho tôi" that were
+    # preceded by planning context in the last assistant turn.
+    all_messages = state.get("messages", [])
+    recent_human = [
+        m for m in all_messages[-(6):]
+        if isinstance(m, HumanMessage)
+    ]
+    # Exclude the current question (last human message) to avoid double-counting
+    prior_human_texts = [m.content for m in recent_human[:-1]]
+    if any(_PLANNING_INTENT_RE.search(t) for t in prior_human_texts):
+        logger.info(
+            "[ROUTER] Planning keyword in recent conversation history → PLANNING path"
+        )
+        return {
+            "path_type": "planning",
+            "confidence_score": 0.0,
+            "completeness_score": 0.0,
+            "pending_planning_intent": False,
+        }
+
+    # ── No documents: fast/deep heuristic ───────────────────────────────────
+    if not documents:
         # Short / generic questions with no retrieved docs don't benefit from a
         # Tavily web-search round-trip — use Gemini Flash's pre-training knowledge.
         # Long or detail-heavy questions still warrant web search (deep path).
@@ -103,14 +136,12 @@ def route_decision(state: GraphState) -> dict:
         if is_simple:
             logger.info("[ROUTER] No documents + simple query — FAST path (no web search)")
             return {
-                "question": question,
                 "path_type": "fast",
                 "confidence_score": 0.3,
                 "completeness_score": 0.3,
             }
         logger.warning("[ROUTER] No documents retrieved — forcing DEEP path (web search)")
         return {
-            "question": question,
             "path_type": "deep",
             "confidence_score": 0.0,
             "completeness_score": 0.0,

@@ -34,9 +34,22 @@ public interface PlantEventService {
     Page<PlantEventResponse> getEventsByFarmZoneId(String farmZoneId, Pageable pageable);
 
     List<PlantEventResponse> getEventsForCalendar(String profileId, String farmPlotId, String farmZoneId, String plantId,
-                                                   LocalDate startDate, LocalDate endDate);
+                                                   String sourcePlanId, LocalDate startDate, LocalDate endDate);
 
     Page<PlantEventResponse> getAllEvents(EventType eventType, Boolean planned, String farmPlotId, String farmZoneId, Pageable pageable);
 
     void deleteEvent(String eventId);
+
+    Page<PlantEventResponse> getConsultingPlantEvents(String expertProfileId, String farmerProfileId, String plantId, Pageable pageable);
+
+    PlantEventResponse createConsultingPlantEvent(String expertProfileId, String farmerProfileId, PlantEventCreateRequest request);
+
+    /**
+     * Toggle the {@code completed} flag of a single task inside an event.
+     *
+     * @param eventId   the parent event ID
+     * @param taskIndex 0-based index of the task in the {@code tasks} list
+     * @return the updated event response
+     */
+    PlantEventResponse toggleTask(String eventId, int taskIndex);
 }

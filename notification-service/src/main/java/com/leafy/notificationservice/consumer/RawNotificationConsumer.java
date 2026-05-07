@@ -1,6 +1,9 @@
 package com.leafy.notificationservice.consumer;
 
+import com.leafy.common.event.notification.BatchedNotificationEvent;
 import com.leafy.common.event.notification.RawNotificationEvent;
+import com.leafy.notificationservice.batch.BatcherService;
+import com.leafy.notificationservice.batch.SingleEventBatchFactory;
 import com.leafy.notificationservice.publisher.NotificationReadyPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
@@ -41,6 +44,7 @@ import org.springframework.stereotype.Component;
 public class RawNotificationConsumer {
 
     NotificationReadyPublisher notificationReadyPublisher;
+    BatcherService batcherService;
 
     ObjectMapper objectMapper = new ObjectMapper()
             .registerModule(new JavaTimeModule())
@@ -73,8 +77,22 @@ public class RawNotificationConsumer {
         }
 
         try {
-            notificationReadyPublisher.publish(event);
-            log.info("[Stage1] Forwarded to ready queue: type={}, recipient={}, actor={}",
+            // Try the Redis-backed batching layer first. When buffered, the
+            // BatchScheduler will eventually flush an aggregated event onto
+            // the ready queue — this consumer simply ACKs and moves on.
+            boolean buffered = batcherService.buffer(event);
+            if (buffered) {
+                log.info("[Stage1] Buffered for batching: type={}, recipient={}, actor={}",
+                        event.getType(), event.getRecipientId(), event.getActorId());
+                ack(acknowledgment);
+                return;
+            }
+
+            // Non-batchable type (or Redis outage) — wrap as a one-element batch
+            // and forward immediately so the delivery path stays uniform.
+            BatchedNotificationEvent wrapped = SingleEventBatchFactory.wrap(event);
+            notificationReadyPublisher.publishBatched(wrapped);
+            log.info("[Stage1] Forwarded (single-event batch): type={}, recipient={}, actor={}",
                     event.getType(), event.getRecipientId(), event.getActorId());
             ack(acknowledgment);
         } catch (Exception e) {

@@ -17,6 +17,7 @@ public enum NotificationType {
     // ── Social / Profile ───────────────────────────────────
     USER_FOLLOW,        // Someone followed you
     CONSULT_REQUEST,    // Someone sent you a consultation request (or accepted yours)
+    PLAN_CONSULTING_CREATED, // An expert created a treatment plan for you via consulting
 
     // ── System ─────────────────────────────────────────────
     SYSTEM              // Generic system notification (admin broadcast, etc.)

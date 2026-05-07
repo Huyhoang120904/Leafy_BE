@@ -134,6 +134,34 @@ EventTypeEnum = Literal[
 PlanSourceEnum = Literal["websearch", "documents"]
 
 
+class EventTask(BaseModel):
+    """A sub-task embedded inside a PlantEvent.
+
+    Field names match EventTaskRequest DTO in plant-management-service.
+    """
+
+    title: str = Field(
+        ...,
+        description="Short label describing what needs to be done, e.g. 'Mix fungicide solution'.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional longer explanation, dosage instructions, or notes for this specific task.",
+    )
+    order: Optional[int] = Field(
+        default=None,
+        description="Display order within the parent event's task list (0-based). Assign sequentially.",
+    )
+    estimatedCost: Optional[str] = Field(
+        default=None,
+        description="Cost or resource estimate for this individual task, e.g. '50,000 VND'. Leave null if not applicable.",
+    )
+    completed: bool = Field(
+        default=False,
+        description="Always false at generation time — tasks are not yet completed.",
+    )
+
+
 class PlantEvent(BaseModel):
     """A single scheduled action in the treatment plan.
 
@@ -234,6 +262,16 @@ class PlantEvent(BaseModel):
         default=None,
         description="Farm zone ID this event belongs to. Populated by the caller from plant context.",
     )
+    # ── Sub-tasks (optional step-by-step breakdown of this event) ──────────────
+    tasks: Optional[List["EventTask"]] = Field(
+        default=None,
+        description=(
+            "Optional ordered list of sub-tasks that break this event into smaller steps. "
+            "Include tasks when the event has multiple distinct actions "
+            "(e.g. mixing, applying, cleaning equipment). "
+            "Leave null for simple single-step events."
+        ),
+    )
     # ── Source tracking (filled after plan is persisted to MongoDB) ───────────
     sourcePlanId: Optional[str] = Field(
         default=None,
@@ -249,9 +287,17 @@ class Plan(BaseModel):
     """
 
     # --- Identity ---
-    plantId: str = Field(
+    plantId: Optional[str] = Field(
+        None,
+        description="Leave as null. The plant ID is injected from the caller's request context, not extracted from the query.",
+    )
+    planName: str = Field(
         ...,
-        description="The ID of the plant extracted from the user query.",
+        description=(
+            "Short, descriptive title for this plan. "
+            "e.g. 'Coffee Leaf Rust Treatment — Week 1' or 'Post-Harvest Pruning & Fertilisation Plan'. "
+            "Should clearly convey the primary objective and timeframe."
+        ),
     )
     diseaseName: str = Field(
         ...,

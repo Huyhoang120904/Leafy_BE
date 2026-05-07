@@ -81,6 +81,12 @@ public class NotificationTemplateSeeder implements CommandLineRunner {
                 + "{{#isAccept}}đã chấp nhận yêu cầu tư vấn của bạn.{{/isAccept}}"
             ),
             new SeedEntry(
+                NotificationType.PLAN_CONSULTING_CREATED,
+                PUSH_AND_IN_APP,
+                "Kế hoạch tư vấn mới",
+                "{{actorName}} đã tạo cho bạn một kế hoạch mới{{#planName}} có tên \"{{planName}}\"{{/planName}}{{#diseaseName}} cho bệnh {{diseaseName}}{{/diseaseName}}."
+            ),
+            new SeedEntry(
                 NotificationType.SYSTEM,
                 PUSH_AND_IN_APP,
                 "Thông báo hệ thống",
