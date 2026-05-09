@@ -176,4 +176,31 @@ public class NotificationController {
                 UserNotificationState.class
         );
     }
+
+    // ── Locale preference ────────────────────────────────────────────────────
+
+    /**
+     * Updates the preferred notification locale for the authenticated user.
+     *
+     * <p>Called by the FE whenever the user changes their language setting so that
+     * future push and in-app notifications are rendered in the correct language.
+     *
+     * <p>Body: {@code { "locale": "en" }} or {@code { "locale": "vi" }}
+     */
+    @PatchMapping("/locale")
+    public ResponseEntity<ApiResponse<Void>> updateLocale(@RequestBody java.util.Map<String, String> body) {
+        String profileId = ServiceSecurityUtils.getCurrentProfileId();
+        String locale = body.getOrDefault("locale", "vi");
+        // Only accept known locales — silently normalise unknown values to "vi"
+        if (!"en".equals(locale) && !"vi".equals(locale)) {
+            locale = "vi";
+        }
+        mongoTemplate.upsert(
+                new Query(Criteria.where("_id").is(profileId)),
+                new Update().set("locale", locale),
+                com.leafy.notificationservice.model.NotificationUser.class
+        );
+        log.info("[Locale] Updated notification locale for profileId={} to '{}'", profileId, locale);
+        return ResponseEntity.ok(ApiResponse.success(null));
+    }
 }

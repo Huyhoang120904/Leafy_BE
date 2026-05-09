@@ -18,6 +18,7 @@ public class KafkaTopicProperties {
     private ProfileEvents profileEvents = new ProfileEvents();
     private SocketEvents socketEvents = new SocketEvents();
     private SystemEvents systemEvents = new SystemEvents();
+    private PlantManagementEvents plantManagementEvents = new PlantManagementEvents();
 
     @Getter
     @Setter
@@ -73,5 +74,12 @@ public class KafkaTopicProperties {
         private String updated = "profile.updated";
         private String deleted = "profile.deleted";
         private String connectionUpdated = "profile.connection.updated";
+    }
+
+    @Getter
+    @Setter
+    public static class PlantManagementEvents {
+        private String planUpserted = "plant-management.plan.upserted";
+        private String planDeleted = "plant-management.plan.deleted";
     }
 }

@@ -4,7 +4,10 @@ import com.leafy.plantmanagementservice.model.PlantEvent;
 import com.leafy.plantmanagementservice.model.enums.EventType;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+
+import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 public interface PlantEventRepositoryCustom {
 
@@ -87,5 +90,56 @@ public interface PlantEventRepositoryCustom {
             String sourcePlanId,
             java.time.LocalDate startDate,
             java.time.LocalDate endDate
+    );
+
+    /**
+     * Calendar events linked to a specific PlanApply instance (by planApplyId) that overlap the date range.
+     */
+    List<PlantEvent> findByPlanApplyIdAndDateRange(
+            String planApplyId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    );
+
+    // ── Stats aggregation methods ─────────────────────────────────────────────
+
+    /**
+     * Count events grouped by {@code eventType} for a user's profile scope.
+     */
+    Map<String, Long> countByEventTypeForProfile(
+            List<String> farmPlotIds,
+            List<String> farmZoneIds,
+            List<String> plantIds
+    );
+
+    /**
+     * Count events matching profile scope + optional date + optional completion filter.
+     *
+     * @param farmPlotIds  user's farm plot IDs
+     * @param farmZoneIds  user's farm zone IDs
+     * @param plantIds     user's plant IDs
+     * @param startDate    if non-null, events must overlap on or after this date
+     * @param endDate      if non-null, events must overlap on or before this date
+     * @param completed    if non-null, filter by completion status
+     * @param overdue      if true, filter for events whose calculatedEndDate < today AND completed = false
+     */
+    long countProfileEventsFiltered(
+            List<String> farmPlotIds,
+            List<String> farmZoneIds,
+            List<String> plantIds,
+            LocalDate startDate,
+            LocalDate endDate,
+            Boolean completed,
+            boolean overdue
+    );
+
+    /**
+     * Fetch the N most-recently-created events for the user's profile scope.
+     */
+    List<PlantEvent> findRecentProfileEvents(
+            List<String> farmPlotIds,
+            List<String> farmZoneIds,
+            List<String> plantIds,
+            int limit
     );
 }

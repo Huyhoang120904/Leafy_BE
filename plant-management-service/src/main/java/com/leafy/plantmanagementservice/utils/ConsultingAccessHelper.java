@@ -1,4 +1,4 @@
-package com.leafy.plantmanagementservice.helper;
+package com.leafy.plantmanagementservice.utils;
 
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;

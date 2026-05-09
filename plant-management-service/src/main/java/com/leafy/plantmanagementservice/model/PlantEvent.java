@@ -2,6 +2,7 @@ package com.leafy.plantmanagementservice.model;
 
 import com.leafy.common.model.BaseModel;
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.TargetType;
 import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -34,6 +35,16 @@ public class PlantEvent extends BaseModel {
 
     @Indexed
     String farmZoneId;
+
+    /**
+     * The scope this event is targeting.
+     * <ul>
+     *   <li>{@link TargetType#FARM}      — entire farm plot ({@code farmPlotId} is set).</li>
+     *   <li>{@link TargetType#FARM_ZONE} — specific zone ({@code farmZoneId} is set).</li>
+     *   <li>{@link TargetType#PLANT}     — individual plant ({@code plantId} is set).</li>
+     * </ul>
+     */
+    TargetType targetType;
 
     // ── Core Event Fields ────────────────────────────────────────────────────
     EventType eventType;
@@ -74,7 +85,23 @@ public class PlantEvent extends BaseModel {
 
     // ── Source Tracking ───────────────────────────────────────────────────────
     /** ID of the Plan (MongoDB) that generated this event, if any. */
+    @Indexed
     String sourcePlanId;
+
+    /** ID of the PlanApply instance that generated this event, if any. */
+    @Indexed
+    String planApplyId;
+
+    /**
+     * ID of the parent {@link PlantEvent} in the hierarchy created during plan apply.
+     * <ul>
+     *   <li>FARM_ZONE events point to their parent FARM event.</li>
+     *   <li>PLANT events point to their parent FARM_ZONE event.</li>
+     * </ul>
+     * {@code null} for top-level events or events created outside the plan-apply flow.
+     */
+    @Indexed
+    String parentPlantEventId;
 
     // ── Completion ────────────────────────────────────────────────────────────
     /**

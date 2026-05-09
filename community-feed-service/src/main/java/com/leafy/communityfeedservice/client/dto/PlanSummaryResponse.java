@@ -33,9 +33,8 @@ public class PlanSummaryResponse {
     List<String> requiredInputs;
     List<String> safetyWarnings;
     String successIndicators;
-    Integer applyCount;
+    Long applyCount;
     List<String> plantEventIds;
     boolean isPublic;
-    String status;   // PlanStatus enum serialised as string
     LocalDateTime createdAt;
 }

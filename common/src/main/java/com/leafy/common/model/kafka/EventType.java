@@ -30,5 +30,9 @@ public enum EventType {
     PROFILE_CREATED,
     PROFILE_UPDATED,
     PROFILE_DELETED,
-    PROFILE_CONNECTION_UPDATED
+    PROFILE_CONNECTION_UPDATED,
+
+    // Plant Management Events
+    PLAN_UPSERTED,
+    PLAN_DELETED
 }

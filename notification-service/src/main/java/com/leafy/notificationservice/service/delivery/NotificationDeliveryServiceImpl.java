@@ -110,8 +110,9 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
      * because e-mail is opt-in per event, not per template.
      */
     private ReadyToDeliverEvent toDeliveryEvent(BatchedNotificationEvent batched, UserNotification persisted) {
-        // Resolve channels from template; fall back to IN_APP
-        NotificationTemplate template = templateService.find(batched.getType(), "vi");
+        // Resolve channels from template using recipient's locale; fall back to IN_APP
+        String locale = resolveLocale(batched.getRecipientId());
+        NotificationTemplate template = templateService.find(batched.getType(), locale);
         Set<NotificationChannel> channels;
         if (template != null
                 && template.getChannels() != null
@@ -126,11 +127,11 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
             channels.add(NotificationChannel.EMAIL);
         }
 
-        // Resolve profileId → auth accountId from the local notification_users buffer
-        String recipientAccountId = notificationUserRepository.findById(batched.getRecipientId())
-                .map(u -> u.getAccountId())
+        // Resolve profileId → auth userId from the local notification_users buffer
+        String recipientUserId = notificationUserRepository.findById(batched.getRecipientId())
+                .map(u -> u.getUserId())
                 .orElse(null);
-        if (recipientAccountId == null) {
+        if (recipientUserId == null) {
             log.warn("[Delivery] No NotificationUser found for profileId={} — IN_APP routing may fail",
                     batched.getRecipientId());
         }
@@ -138,7 +139,7 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
         return ReadyToDeliverEvent.builder()
                 .notificationId(persisted.getId())
                 .recipientId(batched.getRecipientId())
-                .recipientAccountId(recipientAccountId)
+                .recipientUserId(recipientUserId)
                 .recipientEmail(batched.getRecipientEmail())
                 .title(persisted.getTitle())
                 .body(persisted.getBody())
@@ -165,5 +166,13 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
         data.put("othersCount", String.valueOf(persisted.getOthersCount()));
         data.put("totalEventCount", String.valueOf(persisted.getTotalEventCount()));
         return data;
+    }
+
+    /** Resolves the preferred notification locale for a given recipient profile ID. */
+    private String resolveLocale(String profileId) {
+        if (profileId == null) return "vi";
+        return notificationUserRepository.findById(profileId)
+                .map(u -> u.getLocale() != null && !u.getLocale().isBlank() ? u.getLocale() : "vi")
+                .orElse("vi");
     }
 }

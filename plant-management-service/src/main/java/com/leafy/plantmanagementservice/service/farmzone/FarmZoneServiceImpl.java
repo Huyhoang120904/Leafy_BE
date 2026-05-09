@@ -5,7 +5,7 @@ import com.leafy.common.exception.ErrorCode;
 import com.leafy.plantmanagementservice.dto.request.farmzone.CreateFarmZoneRequest;
 import com.leafy.plantmanagementservice.dto.request.farmzone.UpdateFarmZoneRequest;
 import com.leafy.plantmanagementservice.dto.response.farmzone.FarmZoneResponse;
-import com.leafy.plantmanagementservice.helper.ConsultingAccessHelper;
+import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
 import com.leafy.plantmanagementservice.mapper.FarmZoneMapper;
 import com.leafy.plantmanagementservice.model.FarmZone;
 import com.leafy.plantmanagementservice.model.enums.FarmZoneStatus;

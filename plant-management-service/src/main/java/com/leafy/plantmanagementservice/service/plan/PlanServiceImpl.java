@@ -10,18 +10,19 @@ import com.leafy.common.publisher.RawNotificationEventPublisher;
 import com.leafy.common.utils.ServiceSecurityUtils;
 import com.leafy.plantmanagementservice.client.ProfileServiceClient;
 import com.leafy.plantmanagementservice.client.dto.ProfileSummary;
-import com.leafy.plantmanagementservice.dto.request.plan.PlanApplyRequest;
-import com.leafy.plantmanagementservice.dto.request.plan.PlanCreateRequest;
-import com.leafy.plantmanagementservice.dto.request.plantevent.PlantEventCreateRequest;
+import com.leafy.plantmanagementservice.dto.request.plan.*;
 import com.leafy.plantmanagementservice.dto.response.plan.AuthorInfo;
+import com.leafy.plantmanagementservice.dto.response.plan.PlanApplyResponse;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
 import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
-import com.leafy.plantmanagementservice.helper.ConsultingAccessHelper;
+import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
+import com.leafy.plantmanagementservice.mapper.PlanApplyMapper;
 import com.leafy.plantmanagementservice.mapper.PlanMapper;
 import com.leafy.plantmanagementservice.model.Plan;
+import com.leafy.plantmanagementservice.model.PlanApply;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
+import com.leafy.plantmanagementservice.repository.PlanApplyRepository;
 import com.leafy.plantmanagementservice.repository.PlanRepository;
-import com.leafy.plantmanagementservice.service.plantevent.PlantEventService;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -34,11 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.Objects;
+import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -49,8 +46,9 @@ import java.util.stream.Stream;
 public class PlanServiceImpl implements PlanService {
 
     PlanRepository planRepository;
+    PlanApplyRepository planApplyRepository;
     PlanMapper planMapper;
-    PlantEventService plantEventService;
+    PlanApplyMapper planApplyMapper;
     KafkaTemplate<String, Object> kafkaTemplate;
     KafkaTopicProperties kafkaTopicProperties;
     ConsultingAccessHelper consultingAccessHelper;
@@ -63,7 +61,7 @@ public class PlanServiceImpl implements PlanService {
         String userId = ServiceSecurityUtils.getCurrentAccountId();
         log.info("Creating Plan for userId={} disease={}", userId, request.getDiseaseName());
 
-        // 1. Build entity (no id, userId, eventIds yet)
+        // 1. Build entity
         String profileId = ServiceSecurityUtils.getCurrentProfileId();
         Plan plan = planMapper.toEntity(request);
         plan.setUserId(userId);
@@ -71,50 +69,49 @@ public class PlanServiceImpl implements PlanService {
         plan.setOwnerId(profileId);
         plan.setPublic(request.getIsPublic() != null && request.getIsPublic());
 
-        // 2. Persist the plan first so we have a real MongoDB _id for the events
-        Plan saved = planRepository.save(plan);
-        String realPlanId = saved.getId();
-
-        // 3. Bulk-create scheduled plant events using the real plan _id
-        List<String> eventIds = Collections.emptyList();
+        // 2. Embed template events directly — no separate PlantEvent documents created here
         if (!CollectionUtils.isEmpty(request.getSchedule())) {
-            List<PlantEventCreateRequest> events = request.getSchedule();
-            // Inject plant/farm scope and the real plan _id as sourcePlanId
-            events.forEach(e -> {
-                if (e.getPlantId() == null) e.setPlantId(request.getPlantId());
-                if (e.getFarmPlotId() == null) e.setFarmPlotId(request.getFarmPlotId());
-                if (e.getFarmZoneId() == null) e.setFarmZoneId(request.getFarmZoneId());
-                e.setSourcePlanId(realPlanId);
-            });
-            eventIds = plantEventService.createEvents(events).stream()
-                    .map(r -> r.getId())
-                    .toList();
+            plan.setEvents(planMapper.toEmbeddedEventList(request.getSchedule()));
         }
 
-        // 4. Patch the plan with the generated event IDs
-        saved.setPlantEventIds(eventIds);
-        saved = planRepository.save(saved);
-
-        log.info("Plan created id={} with {} events", saved.getId(), eventIds.size());
-        return enrich(planMapper.toResponse(saved));
+        // 3. Persist the plan in a single save
+        Plan saved = planRepository.save(plan);
+        int eventCount = saved.getEvents() != null ? saved.getEvents().size() : 0;
+        log.info("Plan created id={} with {} embedded template events", saved.getId(), eventCount);
+        return enrichWithApplyCount(enrich(planMapper.toResponse(saved)));
     }
 
     @Override
     @Transactional
-    public void applyPlan(String planId, PlanApplyRequest request) {
-        log.info("Scheduling async apply for Plan id={} with startDate={}", planId, request.getStartDate());
+    public PlanApplyResponse applyPlan(String planId, PlanApplyRequest request) {
+        log.info("Applying Plan id={} with startDate={}", planId, request.getStartDate());
         Plan plan = getPlanEntity(planId);
 
-        if (CollectionUtils.isEmpty(plan.getPlantEventIds())) {
-            log.warn("Plan id={} has no template events to apply", planId);
-            return;
+        if (CollectionUtils.isEmpty(plan.getEvents())) {
+            log.warn("Plan id={} has no embedded template events to apply", planId);
+            throw new AppException(ErrorCode.PLAN_NOT_FOUND);
         }
 
-        plan.setStatus(PlanStatus.APPLYING);
-        planRepository.save(plan);
+        // 1. Create a new PlanApply record
+        String profileId = ServiceSecurityUtils.getCurrentProfileId();
+        PlanApply apply = PlanApply.builder()
+                .planId(planId)
+                .appliedById(profileId)
+                .plantId(request.getPlantId())
+                .farmPlotId(request.getFarmPlotId())
+                .farmZoneId(request.getFarmZoneId())
+                .startDate(request.getStartDate())
+                .trackingGranularity(request.getTrackingGranularity())
+                .excludedPlantIds(request.getExcludedPlantIds())
+                .excludedFarmZoneIds(request.getExcludedFarmZoneIds())
+                .status(PlanStatus.APPLYING)
+                .build();
+        apply = planApplyRepository.save(apply);
 
+        // 2. Dispatch Kafka event with both planId and applyId
         PlanApplyRequestedEvent event = PlanApplyRequestedEvent.builder()
                 .planId(planId)
+                .applyId(apply.getId())
                 .startDate(request.getStartDate())
                 .plantId(request.getPlantId())
                 .farmZoneId(request.getFarmZoneId())
@@ -125,7 +122,9 @@ public class PlanServiceImpl implements PlanService {
                 .build();
 
         kafkaTemplate.send(kafkaTopicProperties.getSystemEvents().getPlanApplyRequested(), planId, event);
-        log.info("Dispatched PlanApplyRequestedEvent for planId={}", planId);
+        log.info("Dispatched PlanApplyRequestedEvent for planId={} applyId={}", planId, apply.getId());
+
+        return planApplyMapper.toResponse(apply);
     }
 
     @Override
@@ -143,7 +142,12 @@ public class PlanServiceImpl implements PlanService {
                 throw new AppException(ErrorCode.AUTH_UNAUTHORIZED);
             }
         }
-        return enrich(planMapper.toResponse(plan));
+        PlanResponse response = enrich(planMapper.toResponse(plan));
+        // Populate applies list for detail view
+        List<PlanApply> applies = planApplyRepository.findByPlanId(planId);
+        response.setApplies(planApplyMapper.toResponseList(applies));
+        response.setApplyCount((long) applies.size());
+        return response;
     }
 
     @Override
@@ -154,37 +158,57 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
-    public Page<PlanResponse> getPlansByCurrentUserAndStatus(PlanStatus status, Pageable pageable) {
+    public Page<PlanResponse> getMyPlans(String search, Pageable pageable) {
         String profileId = ServiceSecurityUtils.getCurrentProfileId();
-        return enrichPage(planRepository.findByOwnerIdAndStatus(profileId, status, pageable)
-                .map(planMapper::toResponse));
+        boolean hasSearch = search != null && !search.isBlank();
+
+        Page<Plan> page;
+        if (hasSearch) {
+            page = planRepository.findByOwnerOrCreatorAndSearch(profileId, search, pageable);
+        } else {
+            page = planRepository.findByOwnerIdOrCreatorId(profileId, profileId, pageable);
+        }
+        return enrichPage(page.map(planMapper::toResponse));
     }
 
     @Override
-    public Page<PlanResponse> getPlansByPlantId(String plantId, Pageable pageable) {
-        return enrichPage(planRepository.findByPlantId(plantId, pageable)
-                .map(planMapper::toResponse));
-    }
+    public Page<PlanResponse> getPublicPlans(String search, Pageable pageable) {
+        boolean hasSearch = search != null && !search.isBlank();
 
-    @Override
-    public Page<PlanResponse> getPlansByFarmPlotId(String farmPlotId, Pageable pageable) {
-        return enrichPage(planRepository.findByFarmPlotId(farmPlotId, pageable)
-                .map(planMapper::toResponse));
-    }
-
-    @Override
-    public Page<PlanResponse> getPlansByFarmZoneId(String farmZoneId, Pageable pageable) {
-        return enrichPage(planRepository.findByFarmZoneId(farmZoneId, pageable)
-                .map(planMapper::toResponse));
+        Page<Plan> page;
+        if (hasSearch) {
+            page = planRepository.findPublicBySearch(search, pageable);
+        } else {
+            page = planRepository.findByIsPublicTrue(pageable);
+        }
+        return enrichPage(page.map(planMapper::toResponse));
     }
 
     @Override
     @Transactional
-    public PlanResponse updateStatus(String planId, PlanStatus newStatus) {
-        log.info("Updating Plan id={} status → {}", planId, newStatus);
+    public PlanResponse updatePlan(String planId, PlanUpdateRequest request) {
+        log.info("Updating Plan id={}", planId);
         Plan plan = getPlanEntity(planId);
-        plan.setStatus(newStatus);
-        return enrich(planMapper.toResponse(planRepository.save(plan)));
+        String profileId = ServiceSecurityUtils.getCurrentProfileId();
+        boolean isOwner = profileId != null && profileId.equals(plan.getOwnerId());
+        boolean isCreator = profileId != null && profileId.equals(plan.getCreatorId());
+        if (!isOwner && !isCreator) {
+            throw new AppException(ErrorCode.AUTH_UNAUTHORIZED);
+        }
+
+        if (request.getPlanName() != null)          plan.setPlanName(request.getPlanName());
+        if (request.getDiseaseName() != null)        plan.setDiseaseName(request.getDiseaseName());
+        if (request.getConfidenceScore() != null)    plan.setConfidenceScore(request.getConfidenceScore());
+        if (request.getSeverityLevel() != null)      plan.setSeverityLevel(request.getSeverityLevel());
+        if (request.getUrgency() != null)            plan.setUrgency(request.getUrgency());
+        if (request.getRequiredInputs() != null)     plan.setRequiredInputs(request.getRequiredInputs());
+        if (request.getSafetyWarnings() != null)     plan.setSafetyWarnings(request.getSafetyWarnings());
+        if (request.getSuccessIndicators() != null)  plan.setSuccessIndicators(request.getSuccessIndicators());
+        if (request.getEstimatedCost() != null)      plan.setEstimatedCost(request.getEstimatedCost());
+
+        Plan saved = planRepository.save(plan);
+        log.info("Plan id={} updated by profileId={}", planId, profileId);
+        return enrichWithApplyCount(enrich(planMapper.toResponse(saved)));
     }
 
     @Override
@@ -217,32 +241,21 @@ public class PlanServiceImpl implements PlanService {
         plan.setPublic(request.getIsPublic() != null && request.getIsPublic());
         plan.setConsulted(true);
 
-        // Persist first to get a real MongoDB _id for the events
-        Plan saved = planRepository.save(plan);
-        String realPlanId = saved.getId();
-
-        List<String> eventIds = Collections.emptyList();
+        // Embed template events directly — same pattern as createPlan()
         if (!CollectionUtils.isEmpty(request.getSchedule())) {
-            List<PlantEventCreateRequest> events = request.getSchedule();
-            events.forEach(e -> {
-                if (e.getPlantId() == null) e.setPlantId(request.getPlantId());
-                if (e.getFarmPlotId() == null) e.setFarmPlotId(request.getFarmPlotId());
-                if (e.getFarmZoneId() == null) e.setFarmZoneId(request.getFarmZoneId());
-                e.setSourcePlanId(realPlanId);
-            });
-            eventIds = plantEventService.createEvents(events).stream()
-                    .map(r -> r.getId())
-                    .toList();
+            plan.setEvents(planMapper.toEmbeddedEventList(request.getSchedule()));
         }
 
-        saved.setPlantEventIds(eventIds);
-        saved = planRepository.save(saved);
-        log.info("Consulting plan created id={} by expert={} for farmer={}", saved.getId(), expertProfileId, farmerProfileId);
+        // Single save — no second round-trip needed
+        Plan saved = planRepository.save(plan);
+        int eventCount = saved.getEvents() != null ? saved.getEvents().size() : 0;
+        log.info("Consulting plan created id={} by expert={} for farmer={} with {} embedded events",
+                saved.getId(), expertProfileId, farmerProfileId, eventCount);
 
         // ── Notify the farmer that an expert created a treatment plan for them ──
         publishConsultingPlanNotification(saved, expertProfileId, farmerProfileId);
 
-        return enrich(planMapper.toResponse(saved));
+        return enrichWithApplyCount(enrich(planMapper.toResponse(saved)));
     }
 
     /**
@@ -297,12 +310,8 @@ public class PlanServiceImpl implements PlanService {
     // ── Helper ────────────────────────────────────────────────────────────────
 
     @Override
-    public Page<PlanResponse> getAllPlans(PlanStatus status, Pageable pageable) {
-        log.info("Fetching all Plans, status={}", status);
-        if (status != null) {
-            return enrichPage(planRepository.findByStatus(status, pageable)
-                    .map(planMapper::toResponse));
-        }
+    public Page<PlanResponse> getAllPlans(Pageable pageable) {
+        log.info("Fetching all Plans");
         return enrichPage(planRepository.findAll(pageable)
                 .map(planMapper::toResponse));
     }
@@ -325,33 +334,7 @@ public class PlanServiceImpl implements PlanService {
         boolean newValue = !plan.isPublic();
         log.info("Toggling Plan id={} visibility: {} → {}", planId, plan.isPublic(), newValue);
         plan.setPublic(newValue);
-        return enrich(planMapper.toResponse(planRepository.save(plan)));
-    }
-
-
-    @Override
-    @Transactional
-    public BulkOperationResult bulkUpdateStatus(List<String> planIds, PlanStatus status) {
-        log.info("Bulk updating {} plans to status={}", planIds.size(), status);
-        int successCount = 0;
-        List<String> failedIds = new ArrayList<>();
-        for (String planId : planIds) {
-            try {
-                Plan plan = planRepository.findById(planId)
-                        .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
-                plan.setStatus(status);
-                planRepository.save(plan);
-                successCount++;
-            } catch (Exception e) {
-                log.warn("Failed to update status for plan id={}: {}", planId, e.getMessage());
-                failedIds.add(planId);
-            }
-        }
-        return BulkOperationResult.builder()
-                .successCount(successCount)
-                .failedCount(failedIds.size())
-                .failedIds(failedIds)
-                .build();
+        return enrichWithApplyCount(enrich(planMapper.toResponse(planRepository.save(plan))));
     }
 
     @Override
@@ -379,6 +362,94 @@ public class PlanServiceImpl implements PlanService {
                 .build();
     }
 
+    // ── PlanApply operations ─────────────────────────────────────────────────
+
+    @Override
+    public Page<PlanApplyResponse> getAppliesByPlan(String planId, Pageable pageable) {
+        return planApplyRepository.findByPlanId(planId, pageable)
+                .map(planApplyMapper::toResponse);
+    }
+
+    @Override
+    public Page<PlanApplyResponse> getMyApplies(PlanStatus status, Pageable pageable) {
+        String profileId = ServiceSecurityUtils.getCurrentProfileId();
+        Page<PlanApply> page;
+        if (status != null) {
+            page = planApplyRepository.findByAppliedByIdAndStatus(profileId, status, pageable);
+        } else {
+            page = planApplyRepository.findByAppliedById(profileId, pageable);
+        }
+        return page.map(planApplyMapper::toResponse);
+    }
+
+    @Override
+    @Transactional
+    public PlanApplyResponse updateApplyStatus(String applyId, PlanStatus newStatus) {
+        log.info("Updating PlanApply id={} status → {}", applyId, newStatus);
+        PlanApply apply = planApplyRepository.findById(applyId)
+                .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
+        apply.setStatus(newStatus);
+        return planApplyMapper.toResponse(planApplyRepository.save(apply));
+    }
+
+    @Override
+    @Transactional
+    public BulkOperationResult bulkUpdateApplyStatus(List<String> applyIds, PlanStatus status) {
+        log.info("Bulk updating {} applies to status={}", applyIds.size(), status);
+        int successCount = 0;
+        List<String> failedIds = new ArrayList<>();
+        for (String applyId : applyIds) {
+            try {
+                PlanApply apply = planApplyRepository.findById(applyId)
+                        .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
+                apply.setStatus(status);
+                planApplyRepository.save(apply);
+                successCount++;
+            } catch (Exception e) {
+                log.warn("Failed to update status for apply id={}: {}", applyId, e.getMessage());
+                failedIds.add(applyId);
+            }
+        }
+        return BulkOperationResult.builder()
+                .successCount(successCount)
+                .failedCount(failedIds.size())
+                .failedIds(failedIds)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public BulkOperationResult bulkApplyCustom(List<PlanApplyItemRequest> items) {
+        log.info("Bulk-apply-custom: {} items", items.size());
+        int successCount = 0;
+        List<String> failedIds = new ArrayList<>();
+
+        for (PlanApplyItemRequest item : items) {
+            try {
+                PlanApplyRequest req = PlanApplyRequest.builder()
+                        .startDate(item.getStartDate())
+                        .plantId(item.getPlantId())
+                        .farmPlotId(item.getFarmPlotId())
+                        .farmZoneId(item.getFarmZoneId())
+                        .trackingGranularity(item.getTrackingGranularity())
+                        .excludedPlantIds(item.getExcludedPlantIds())
+                        .excludedFarmZoneIds(item.getExcludedFarmZoneIds())
+                        .build();
+                applyPlan(item.getPlanId(), req);
+                successCount++;
+            } catch (Exception e) {
+                log.warn("Failed to apply plan id={}: {}", item.getPlanId(), e.getMessage());
+                failedIds.add(item.getPlanId());
+            }
+        }
+
+        return BulkOperationResult.builder()
+                .successCount(successCount)
+                .failedCount(failedIds.size())
+                .failedIds(failedIds)
+                .build();
+    }
+
     // ── Author enrichment ─────────────────────────────────────────────────────
 
     private PlanResponse enrich(PlanResponse response) {
@@ -396,6 +467,11 @@ public class PlanServiceImpl implements PlanService {
         return response;
     }
 
+    private PlanResponse enrichWithApplyCount(PlanResponse response) {
+        response.setApplyCount(planApplyRepository.countByPlanId(response.getId()));
+        return response;
+    }
+
     private Page<PlanResponse> enrichPage(Page<PlanResponse> page) {
         List<String> ids = page.getContent().stream()
                 .flatMap(r -> Stream.of(r.getOwnerId(), r.getCreatorId()))
@@ -408,6 +484,7 @@ public class PlanServiceImpl implements PlanService {
         page.getContent().forEach(r -> {
             if (r.getOwnerId() != null) r.setOwnerInfo(profileMap.get(r.getOwnerId()));
             if (r.getCreatorId() != null) r.setCreatorInfo(profileMap.get(r.getCreatorId()));
+            r.setApplyCount(planApplyRepository.countByPlanId(r.getId()));
         });
         return page;
     }

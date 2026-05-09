@@ -1,6 +1,7 @@
 package com.leafy.plantmanagementservice.dto.request.plantevent;
 
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.TargetType;
 import jakarta.validation.Valid;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
@@ -18,6 +19,9 @@ public class PlantEventUpdateRequest {
 
     String farmPlotId;
     String farmZoneId;
+
+    /** Optional scope correction. Null leaves the existing targetType unchanged. */
+    TargetType targetType;
 
     EventType eventType;
     String note;

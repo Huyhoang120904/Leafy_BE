@@ -55,6 +55,7 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
     UserNotificationRepository userNotificationRepository;
     NotificationTemplateService templateService;
     MongoTemplate mongoTemplate;
+    com.leafy.notificationservice.repository.NotificationUserRepository notificationUserRepository;
 
     @Override
     public UserNotification persist(BatchedNotificationEvent batched) {
@@ -70,9 +71,10 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
         // 2. Build payload (merged event payload + aggregation context).
         Map<String, Object> payload = buildPayload(batched, actorCount, othersCount);
 
-        // 3. Resolve template + render.
-        NotificationTemplate template = templateService.find(batched.getType(), DEFAULT_LOCALE);
-        String[] rendered = renderTitleAndBody(template, payload, batched.getType(), actorCount);
+        // 3. Resolve template + render using recipient's preferred locale.
+        String locale = resolveLocale(batched.getRecipientId());
+        NotificationTemplate template = templateService.find(batched.getType(), locale);
+        String[] rendered = renderTitleAndBody(template, payload, batched.getType(), actorCount, locale);
 
         // 4. Persist (upsert-merge or insert).
         UserNotification saved = (batched.getReferenceId() != null && !batched.getReferenceId().isBlank())
@@ -94,6 +96,12 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
     /** Removes actorIds equal to the recipient (self-notification filter). */
     private List<String> stripSelfActors(BatchedNotificationEvent batched) {
         List<String> source = batched.getActorIds() != null ? batched.getActorIds() : Collections.emptyList();
+        
+        // Allow self-notifications for system-driven actions
+        if (batched.getType() == NotificationType.PLAN_APPLIED) {
+            return new ArrayList<>(source);
+        }
+
         String recipientId = batched.getRecipientId();
         List<String> out = new ArrayList<>(source.size());
         for (String id : source) {
@@ -127,12 +135,13 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
 
     /**
      * Renders title and body using the resolved template, falling back to
-     * hardcoded Vietnamese strings when no template is seeded for this type.
+     * locale-aware hardcoded strings when no template is seeded for this type.
      */
     private String[] renderTitleAndBody(NotificationTemplate template,
                                         Map<String, Object> payload,
                                         NotificationType type,
-                                        int actorCount) {
+                                        int actorCount,
+                                        String locale) {
         if (template != null) {
             return new String[]{
                     templateService.render(template.getTitleTemplate(), payload),
@@ -140,11 +149,23 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
             };
         }
         String actorName = payload.getOrDefault("actorName", "Ai đó").toString();
-        return new String[]{"Leafy", fallbackBody(type, actorName, actorCount)};
+        return new String[]{"Leafy", fallbackBody(type, actorName, actorCount, locale)};
     }
 
-    private String fallbackBody(NotificationType type, String actorName, int actorCount) {
-        if (type == null) return "Bạn có thông báo mới từ " + actorName;
+    private String fallbackBody(NotificationType type, String actorName, int actorCount, String locale) {
+        if ("en".equals(locale)) {
+            String suffix = actorCount > 1 ? " and " + (actorCount - 1) + " others" : "";
+            return switch (type) {
+                case POST_COMMENT    -> actorName + suffix + " commented on your post";
+                case POST_UPVOTE     -> actorName + suffix + " upvoted your post";
+                case COMMENT_REPLY   -> actorName + suffix + " replied to your comment";
+                case COMMENT_UPVOTE  -> actorName + suffix + " upvoted your comment";
+                case USER_FOLLOW     -> actorName + suffix + " started following you";
+                case CONSULT_REQUEST -> actorName + " sent you a consultation request";
+                default              -> "You have a new notification from " + actorName + suffix;
+            };
+        }
+        // Vietnamese fallback
         String suffix = actorCount > 1 ? " và " + (actorCount - 1) + " người khác" : "";
         return switch (type) {
             case POST_COMMENT    -> actorName + suffix + " đã bình luận bài viết của bạn";
@@ -155,6 +176,14 @@ public class NotificationPersistenceServiceImpl implements NotificationPersisten
             case CONSULT_REQUEST -> actorName + " đã gửi yêu cầu tư vấn";
             default              -> "Bạn có thông báo mới từ " + actorName + suffix;
         };
+    }
+
+    /** Resolves the preferred notification locale for a given recipient profile ID. */
+    private String resolveLocale(String profileId) {
+        if (profileId == null) return DEFAULT_LOCALE;
+        return notificationUserRepository.findById(profileId)
+                .map(u -> u.getLocale() != null && !u.getLocale().isBlank() ? u.getLocale() : DEFAULT_LOCALE)
+                .orElse(DEFAULT_LOCALE);
     }
 
     /**

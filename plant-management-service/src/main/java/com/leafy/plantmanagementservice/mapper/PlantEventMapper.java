@@ -11,8 +11,13 @@ import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
 import org.mapstruct.MappingTarget;
 import org.mapstruct.NullValuePropertyMappingStrategy;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface PlantEventMapper {
@@ -23,6 +28,7 @@ public interface PlantEventMapper {
     @Mapping(target = "progressCompleted", ignore = true)
     PlantEvent toEntity(PlantEventCreateRequest request);
 
+    @Mapping(target = "children", ignore = true)
     PlantEventResponse toResponse(PlantEvent event);
 
     List<PlantEventResponse> toResponseList(List<PlantEvent> events);
@@ -50,5 +56,56 @@ public interface PlantEventMapper {
     @Mapping(target = "excludedFarmZoneIds", ignore = true)
     @Mapping(target = "progressTotal", ignore = true)
     @Mapping(target = "progressCompleted", ignore = true)
+    @Mapping(target = "parentPlantEventId", ignore = true)
+    // targetType is intentionally NOT ignored — allows scope correction via PATCH
     void updateEntityFromRequest(PlantEventUpdateRequest request, @MappingTarget PlantEvent event);
+
+    // ── Tree-building utilities ──────────────────────────────────────────────
+
+    /**
+     * Converts a flat list of responses into a tree where parent events contain
+     * their children. Events with a {@code parentPlantEventId} whose parent is
+     * present in the list are nested; all others remain at the root level.
+     */
+    default List<PlantEventResponse> buildEventTree(List<PlantEventResponse> flatList) {
+        if (flatList == null || flatList.isEmpty()) {
+            return flatList;
+        }
+        Map<String, PlantEventResponse> byId = new LinkedHashMap<>();
+        for (PlantEventResponse r : flatList) {
+            if (r.getChildren() == null) {
+                r.setChildren(new ArrayList<>());
+            }
+            byId.put(r.getId(), r);
+        }
+        List<PlantEventResponse> roots = new ArrayList<>();
+        for (PlantEventResponse r : flatList) {
+            String parentId = r.getParentPlantEventId();
+            if (parentId != null && byId.containsKey(parentId)) {
+                byId.get(parentId).getChildren().add(r);
+            } else {
+                roots.add(r);
+            }
+        }
+        return roots;
+    }
+
+    /**
+     * Maps entities to responses and assembles the parent→child tree.
+     */
+    default List<PlantEventResponse> toNestedResponseList(List<PlantEvent> events) {
+        return buildEventTree(toResponseList(events));
+    }
+
+    /**
+     * Applies tree building to a Page of responses.
+     * Nests child events into their parents for the current page content.
+     */
+    default Page<PlantEventResponse> toNestedResponsePage(Page<PlantEvent> page) {
+        List<PlantEventResponse> flat = page.getContent().stream()
+                .map(this::toResponse)
+                .toList();
+        List<PlantEventResponse> nested = buildEventTree(new ArrayList<>(flat));
+        return new PageImpl<>(nested, page.getPageable(), page.getTotalElements());
+    }
 }

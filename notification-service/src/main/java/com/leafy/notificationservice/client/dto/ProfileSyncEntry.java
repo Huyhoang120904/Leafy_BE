@@ -19,7 +19,7 @@ public class ProfileSyncEntry {
     /** profileId — becomes NotificationUser._id */
     String id;
 
-    /** Auth account UUID — stored as NotificationUser.accountId */
+    /** Auth account UUID — stored as NotificationUser.userId */
     String userId;
 
     String fullName;

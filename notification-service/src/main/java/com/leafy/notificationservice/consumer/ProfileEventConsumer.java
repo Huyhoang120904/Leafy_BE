@@ -41,7 +41,7 @@ public class ProfileEventConsumer {
             containerFactory = "profileEventKafkaListenerContainerFactory"
     )
     public void handleProfileCreated(ProfileEvent event) {
-        log.info("[Kafka] ProfileCreated: profileId={}, accountId={}", event.getProfileId(), event.getUserId());
+        log.info("[Kafka] ProfileCreated: profileId={}, userId={}", event.getProfileId(), event.getUserId());
         upsertNotificationUser(event);
     }
 
@@ -53,7 +53,7 @@ public class ProfileEventConsumer {
             containerFactory = "profileEventKafkaListenerContainerFactory"
     )
     public void handleProfileUpdated(ProfileEvent event) {
-        log.info("[Kafka] ProfileUpdated: profileId={}, accountId={}", event.getProfileId(), event.getUserId());
+        log.info("[Kafka] ProfileUpdated: profileId={}, userId={}", event.getProfileId(), event.getUserId());
         upsertNotificationUser(event);
     }
 
@@ -67,7 +67,7 @@ public class ProfileEventConsumer {
     public void handleProfileDeleted(ProfileEvent event) {
         log.info("[Kafka] ProfileDeleted: profileId={}", event.getProfileId());
         if (event.getProfileId() == null) {
-            log.warn("[Kafka] ProfileDeleted missing profileId — skipping. accountId={}", event.getUserId());
+            log.warn("[Kafka] ProfileDeleted missing profileId — skipping. userId={}", event.getUserId());
             return;
         }
         notificationUserRepository.deleteById(event.getProfileId());
@@ -78,21 +78,23 @@ public class ProfileEventConsumer {
 
     private void upsertNotificationUser(ProfileEvent event) {
         if (event.getProfileId() == null) {
-            log.warn("[Kafka] ProfileEvent missing profileId — cannot upsert NotificationUser. accountId={}", event.getUserId());
+            log.warn("[Kafka] ProfileEvent missing profileId — cannot upsert NotificationUser. userId={}", event.getUserId());
             return;
         }
 
         NotificationUser user = notificationUserRepository.findById(event.getProfileId())
                 .orElse(NotificationUser.builder()
                         .id(event.getProfileId())
-                        .accountId(event.getUserId())
+                        .userId(event.getUserId())
                         .build());
 
         user.setFullName(event.getFullName());
         user.setAvatar(event.getAvatar());
+        // Locale is synced independently via PATCH /notifications/locale so we don't overwrite it here
         user.setLastUpdatedAt(LocalDateTime.now());
 
         notificationUserRepository.save(user);
-        log.info("[Kafka] NotificationUser upserted: profileId={}, accountId={}", event.getProfileId(), event.getUserId());
+        log.info("[Kafka] NotificationUser upserted: profileId={}, userId={}, locale={}",
+                event.getProfileId(), event.getUserId(), user.getLocale());
     }
 }

@@ -56,9 +56,9 @@ public class InAppDeliveryStrategy implements ChannelDeliveryStrategy {
         // recipientAccountId = auth userId used as STOMP principal in socket-service.
         // Falls back to recipientId (profileId) with a warning if the buffer has not yet
         // received the profile.created event for this user.
-        String targetUserId = event.getRecipientAccountId();
+        String targetUserId = event.getRecipientUserId();
         if (targetUserId == null) {
-            log.warn("[IN_APP] recipientAccountId not resolved for profileId={} — socket routing will fail",
+            log.warn("[IN_APP] recipientUserId not resolved for profileId={} — socket routing will fail",
                     event.getRecipientId());
             return;
         }
@@ -81,7 +81,7 @@ public class InAppDeliveryStrategy implements ChannelDeliveryStrategy {
 
         socketEventPublisher.publish(targetUserId, DESTINATION, payload);
 
-        log.info("[IN_APP] Socket event published: accountId={} (profileId={}), notificationId={}, type={}",
+        log.info("[IN_APP] Socket event published: userId={} (profileId={}), notificationId={}, type={}",
                 targetUserId, event.getRecipientId(), event.getNotificationId(), event.getType());
     }
 }

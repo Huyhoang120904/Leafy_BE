@@ -1,6 +1,6 @@
 package com.leafy.plantmanagementservice.dto.response.plan;
 
-import com.leafy.plantmanagementservice.model.enums.PlanStatus;
+import com.leafy.plantmanagementservice.dto.response.plan.EmbeddedPlanEventResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -25,11 +25,6 @@ public class PlanResponse {
     String question;
     String source;
 
-    // ── Plant / Farm scope ────────────────────────────────────────────────────
-    String plantId;
-    String farmPlotId;
-    String farmZoneId;
-
     // ── Diagnosis ─────────────────────────────────────────────────────────────
     String diseaseName;
     Double confidenceScore;
@@ -42,12 +37,15 @@ public class PlanResponse {
     String successIndicators;
     String estimatedCost;
 
-    // ── Generated events ──────────────────────────────────────────────────────
-    List<String> plantEventIds;
+    // ── Template events (embedded) ───────────────────────────────────────────
+    List<EmbeddedPlanEventResponse> events;
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-    PlanStatus status;
-    Integer applyCount;
+    // ── Application summary (computed) ───────────────────────────────────────
+    /** Number of times this plan has been applied (count of PlanApply records). */
+    Long applyCount;
+
+    /** Inline list of applies — populated in detail views. */
+    List<PlanApplyResponse> applies;
 
     // ── Visibility ────────────────────────────────────────────────────────────
     Boolean isPublic;

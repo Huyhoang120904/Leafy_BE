@@ -6,7 +6,7 @@ import com.leafy.common.security.UserPrincipal;
 import com.leafy.plantmanagementservice.dto.response.farmplot.FarmPlotResponse;
 import com.leafy.plantmanagementservice.dto.response.farmzone.FarmZoneResponse;
 import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
-import com.leafy.plantmanagementservice.helper.ConsultingAccessHelper;
+import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
 import com.leafy.plantmanagementservice.service.farmplot.FarmPlotService;
 import com.leafy.plantmanagementservice.service.farmzone.FarmZoneService;
 import com.leafy.plantmanagementservice.dto.request.plant.PlantCreateRequest;

@@ -35,12 +35,15 @@ public class NotificationTemplateSeeder implements CommandLineRunner {
     private static final Set<NotificationChannel> PUSH_AND_IN_APP =
             Set.of(NotificationChannel.FCM, NotificationChannel.IN_APP);
 
+    /** FCM push only — used for chat messages (not surfaced in notification bell). */
+    private static final Set<NotificationChannel> FCM_ONLY =
+            Set.of(NotificationChannel.FCM);
+
     @Override
     public void run(String... args) {
         LocalDateTime now = LocalDateTime.now();
-        String locale = "vi";
 
-        List<SeedEntry> seeds = List.of(
+        List<SeedEntry> viSeeds = List.of(
             // ── Community feed ────────────────────────────────────────────────
             new SeedEntry(
                 NotificationType.POST_COMMENT,
@@ -87,13 +90,96 @@ public class NotificationTemplateSeeder implements CommandLineRunner {
                 "{{actorName}} đã tạo cho bạn một kế hoạch mới{{#planName}} có tên \"{{planName}}\"{{/planName}}{{#diseaseName}} cho bệnh {{diseaseName}}{{/diseaseName}}."
             ),
             new SeedEntry(
+                NotificationType.PLAN_APPLIED,
+                PUSH_AND_IN_APP,
+                "Áp dụng kế hoạch thành công",
+                "Kế hoạch{{#planName}} \"{{planName}}\"{{/planName}} đã được áp dụng thành công với {{eventCount}} sự kiện."
+            ),
+            new SeedEntry(
                 NotificationType.SYSTEM,
                 PUSH_AND_IN_APP,
                 "Thông báo hệ thống",
                 "{{body}}"
+            ),
+            // ── Messaging ──────────────────────────────────────────────────────
+            new SeedEntry(
+                NotificationType.DIRECT_MESSAGE,
+                FCM_ONLY,
+                "{{actorName}}",
+                "{{#messagePreview}}{{messagePreview}}{{/messagePreview}}{{^messagePreview}}đã nhắn tin cho bạn.{{/messagePreview}}"
             )
         );
 
+        List<SeedEntry> enSeeds = List.of(
+            new SeedEntry(
+                NotificationType.POST_COMMENT,
+                PUSH_AND_IN_APP,
+                "New comment",
+                "{{actorName}} commented on your post."
+            ),
+            new SeedEntry(
+                NotificationType.POST_UPVOTE,
+                PUSH_AND_IN_APP,
+                "New vote",
+                "{{actorName}} upvoted your post."
+            ),
+            new SeedEntry(
+                NotificationType.COMMENT_REPLY,
+                PUSH_AND_IN_APP,
+                "New reply",
+                "{{actorName}} replied to your comment."
+            ),
+            new SeedEntry(
+                NotificationType.COMMENT_UPVOTE,
+                PUSH_AND_IN_APP,
+                "New vote",
+                "{{actorName}} upvoted your comment."
+            ),
+            new SeedEntry(
+                NotificationType.USER_FOLLOW,
+                PUSH_AND_IN_APP,
+                "New follower",
+                "{{actorName}} started following you."
+            ),
+            new SeedEntry(
+                NotificationType.CONSULT_REQUEST,
+                PUSH_AND_IN_APP,
+                "Consultation request",
+                "{{actorName}} {{#isRequest}}sent you a consultation request.{{/isRequest}}"
+                + "{{#isAccept}}accepted your consultation request.{{/isAccept}}"
+            ),
+            new SeedEntry(
+                NotificationType.PLAN_CONSULTING_CREATED,
+                PUSH_AND_IN_APP,
+                "New consulting plan",
+                "{{actorName}} created a plan for you{{#planName}} named \"{{planName}}\"{{/planName}}{{#diseaseName}} for {{diseaseName}}{{/diseaseName}}."
+            ),
+            new SeedEntry(
+                NotificationType.PLAN_APPLIED,
+                PUSH_AND_IN_APP,
+                "Plan applied successfully",
+                "Plan{{#planName}} \"{{planName}}\"{{/planName}} has been applied successfully with {{eventCount}} events."
+            ),
+            new SeedEntry(
+                NotificationType.SYSTEM,
+                PUSH_AND_IN_APP,
+                "System notification",
+                "{{body}}"
+            ),
+            // ── Messaging ──────────────────────────────────────────────────────
+            new SeedEntry(
+                NotificationType.DIRECT_MESSAGE,
+                FCM_ONLY,
+                "{{actorName}}",
+                "{{#messagePreview}}{{messagePreview}}{{/messagePreview}}{{^messagePreview}}sent you a message.{{/messagePreview}}"
+            )
+        );
+
+        seedLocale("vi", viSeeds, now);
+        seedLocale("en", enSeeds, now);
+    }
+
+    private void seedLocale(String locale, List<SeedEntry> seeds, LocalDateTime now) {
         for (SeedEntry seed : seeds) {
             templateRepository
                     .findByTypeAndLocaleAndActiveTrue(seed.type, locale)

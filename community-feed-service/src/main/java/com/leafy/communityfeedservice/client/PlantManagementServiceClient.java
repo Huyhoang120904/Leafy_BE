@@ -5,6 +5,7 @@ import com.leafy.communityfeedservice.client.dto.PagedResponse;
 import com.leafy.communityfeedservice.client.dto.PlanSummaryResponse;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestParam;
 
 /**
@@ -31,5 +32,16 @@ public interface PlantManagementServiceClient {
      */
     @GetMapping("/plans/{planId}")
     ExternalApiResponse<PlanSummaryResponse> getPlanById(
-            @org.springframework.web.bind.annotation.PathVariable("planId") String planId);
+            @PathVariable("planId") String planId);
+
+    /**
+     * Fetches a page of publicly visible plans via the dedicated public endpoint.
+     * Does NOT require admin role — available to any authenticated user.
+     */
+    @GetMapping("/plans/public")
+    ExternalApiResponse<PagedResponse<PlanSummaryResponse>> getPublicPlans(
+            @RequestParam("page") int page,
+            @RequestParam("size") int size,
+            @RequestParam("sortBy") String sortBy,
+            @RequestParam("sortDir") String sortDir);
 }

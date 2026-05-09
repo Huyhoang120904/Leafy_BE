@@ -1,6 +1,6 @@
 package com.leafy.plantmanagementservice.dto.request.plan;
 
-import com.leafy.plantmanagementservice.dto.request.plantevent.PlantEventCreateRequest;
+import com.leafy.plantmanagementservice.dto.request.plan.EmbeddedPlanEventRequest;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -59,11 +59,11 @@ public class PlanCreateRequest {
     // ── Schedule ──────────────────────────────────────────────────────────────
 
     /**
-     * Ordered list of events to bulk-create as {@link com.leafy.plantmanagementservice.model.PlantEvent}
-     * documents. Each item maps directly to {@link PlantEventCreateRequest}.
+     * Ordered list of template events to embed in the plan document.
+     * Scope (plantId, farmPlotId, farmZoneId) is omitted here — it is resolved at apply time.
      */
     @Valid
-    List<PlantEventCreateRequest> schedule;
+    List<EmbeddedPlanEventRequest> schedule;
 
     // ── Visibility ────────────────────────────────────────────────────────────
 

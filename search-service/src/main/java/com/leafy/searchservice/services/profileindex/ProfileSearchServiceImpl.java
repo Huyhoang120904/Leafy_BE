@@ -60,8 +60,8 @@ public class ProfileSearchServiceImpl implements ProfileSearchService {
                         b.should(s -> s.multiMatch(mm ->
                                 mm.fields("fullName", "fullName.fuzzy")
                                         .query(searchQuery)
-                                        .fuzziness("1")
-                                        .prefixLength(0)
+                                        .fuzziness("AUTO")
+                                        .prefixLength(1)
                                         .maxExpansions(50)
                                         .type(TextQueryType.BestFields)
                                         .boost(1.5f)

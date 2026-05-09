@@ -43,11 +43,11 @@ public class ReadyToDeliverEvent {
     String recipientId;
 
     /**
-     * Auth-service account UUID of the recipient — used as the STOMP routing key
+     * Auth-service userId of the recipient — used as the STOMP routing key
      * in socket-service. Resolved from the local {@code notification_users} buffer
      * (populated via Kafka profile events) so no synchronous Feign call is needed.
      */
-    String recipientAccountId;
+    String recipientUserId;
 
     /**
      * E-mail address of the notification recipient.

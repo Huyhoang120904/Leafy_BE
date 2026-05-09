@@ -93,9 +93,12 @@ public class ProfileEventConsumer {
         ChatUser chatUser = chatUserRepository.findById(event.getProfileId())
                 .orElse(ChatUser.builder()
                         .id(event.getProfileId())
-                        .accountId(event.getUserId())
                         .build());
 
+        // Always sync userId — existing docs may have been created before this field existed
+        if (event.getUserId() != null && !event.getUserId().isBlank()) {
+            chatUser.setUserId(event.getUserId());
+        }
         chatUser.setFullName(event.getFullName());
         chatUser.setAvatar(event.getAvatar());
         chatUser.setLastUpdatedAt(LocalDateTime.now());

@@ -56,20 +56,35 @@ public class PostSearchServiceImpl implements PostSearchService {
             : "#" + normalizedQuery;
 
         Query query = Query.of(q -> q.bool(b -> {
+            // Vietnamese-aware main text match (edge-ngram + ICU analyzers)
             b.should(s -> s.multiMatch(mm -> mm
                     .fields(
                             "title^3",
                             "caption^2",
-                    "authorName^2"
+                            "authorName^2"
                     )
                     .query(searchQuery)
-                    .fuzziness("1")
+                    .boost(0.5f)
+            ));
+
+            // Fuzzy fallback via .fuzzy subfields
+            b.should(s -> s.multiMatch(mm -> mm
+                    .fields(
+                            "title.fuzzy^3",
+                            "caption.fuzzy^2",
+                            "authorName.fuzzy^2"
+                    )
+                    .query(searchQuery)
+                    .fuzziness("AUTO")
+                    .prefixLength(1)
                     .maxExpansions(50)
                     .type(TextQueryType.BestFields)
+                    .boost(1.5f)
             ));
 
             b.should(s -> s.term(t -> t.field("id").value(searchQuery)));
-            b.should(s -> s.term(t -> t.field("authorName.keyword").value(searchQuery)));
+            b.should(s -> s.term(t -> t.field("authorName.keyword").value(normalizedQuery)));
+            b.should(s -> s.term(t -> t.field("title.keyword").value(normalizedQuery)));
             b.should(s -> s.term(t -> t.field("hashtags").value(searchQuery)));
 
             if (!normalizedHashtag.equals(searchQuery)) {

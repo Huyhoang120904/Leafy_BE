@@ -3,17 +3,21 @@ package com.leafy.plantmanagementservice.repository;
 import com.leafy.plantmanagementservice.model.PlantEvent;
 import com.leafy.plantmanagementservice.model.enums.EventType;
 import lombok.RequiredArgsConstructor;
+import org.bson.Document;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
+import org.springframework.data.mongodb.core.aggregation.Aggregation;
+import org.springframework.data.mongodb.core.aggregation.AggregationResults;
 import org.springframework.data.mongodb.core.query.Criteria;
 import org.springframework.data.mongodb.core.query.Query;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.time.LocalDate;
+import java.util.*;
 
 @Repository
 @RequiredArgsConstructor
@@ -192,5 +196,101 @@ public class PlantEventRepositoryCustomImpl implements PlantEventRepositoryCusto
                 Criteria.where("sourcePlanId").is(sourcePlanId)
         );
         return mongoTemplate.find(new Query(criteria), PlantEvent.class);
+    }
+
+    @Override
+    public List<PlantEvent> findByPlanApplyIdAndDateRange(
+            String planApplyId,
+            java.time.LocalDate startDate,
+            java.time.LocalDate endDate
+    ) {
+        Criteria criteria = new Criteria().andOperator(
+                buildDateOverlapCriteria(startDate, endDate),
+                Criteria.where("planApplyId").is(planApplyId)
+        );
+        return mongoTemplate.find(new Query(criteria), PlantEvent.class);
+    }
+
+    // ── Stats aggregation methods ─────────────────────────────────────────────
+
+    /**
+     * Build the ownership-scope criteria: event belongs to user if its farmPlotId, farmZoneId,
+     * or plantId matches one of the user's IDs.
+     */
+    private Criteria buildProfileScopeCriteria(
+            List<String> farmPlotIds, List<String> farmZoneIds, List<String> plantIds) {
+        List<Criteria> orCriterias = new ArrayList<>();
+        if (farmPlotIds != null && !farmPlotIds.isEmpty()) {
+            orCriterias.add(Criteria.where("farmPlotId").in(farmPlotIds));
+        }
+        if (farmZoneIds != null && !farmZoneIds.isEmpty()) {
+            orCriterias.add(Criteria.where("farmZoneId").in(farmZoneIds));
+        }
+        if (plantIds != null && !plantIds.isEmpty()) {
+            orCriterias.add(Criteria.where("plantId").in(plantIds));
+        }
+        if (orCriterias.isEmpty()) {
+            // match nothing
+            return Criteria.where("_id").is(null);
+        }
+        return new Criteria().orOperator(orCriterias.toArray(new Criteria[0]));
+    }
+
+    @Override
+    public Map<String, Long> countByEventTypeForProfile(
+            List<String> farmPlotIds, List<String> farmZoneIds, List<String> plantIds) {
+        Criteria scopeCriteria = buildProfileScopeCriteria(farmPlotIds, farmZoneIds, plantIds);
+
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(scopeCriteria),
+                Aggregation.group("eventType").count().as("count")
+        );
+
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+                aggregation, "plant_events", Document.class);
+
+        Map<String, Long> breakdown = new LinkedHashMap<>();
+        for (Document doc : results.getMappedResults()) {
+            String type = doc.getString("_id");
+            Long count = doc.get("count", Number.class).longValue();
+            if (type != null) {
+                breakdown.put(type, count);
+            }
+        }
+        return breakdown;
+    }
+
+    @Override
+    public long countProfileEventsFiltered(
+            List<String> farmPlotIds, List<String> farmZoneIds, List<String> plantIds,
+            LocalDate startDate, LocalDate endDate, Boolean completed, boolean overdue) {
+        List<Criteria> criteriaList = new ArrayList<>();
+        criteriaList.add(buildProfileScopeCriteria(farmPlotIds, farmZoneIds, plantIds));
+
+        if (overdue) {
+            // Overdue: calculatedEndDate < today AND completed = false
+            criteriaList.add(Criteria.where("calculatedEndDate").lt(LocalDate.now()));
+            criteriaList.add(Criteria.where("completed").is(false));
+        } else {
+            if (startDate != null && endDate != null) {
+                criteriaList.add(buildDateOverlapCriteria(startDate, endDate));
+            }
+            if (completed != null) {
+                criteriaList.add(Criteria.where("completed").is(completed));
+            }
+        }
+
+        Query query = new Query(new Criteria().andOperator(criteriaList.toArray(new Criteria[0])));
+        return mongoTemplate.count(query, PlantEvent.class);
+    }
+
+    @Override
+    public List<PlantEvent> findRecentProfileEvents(
+            List<String> farmPlotIds, List<String> farmZoneIds, List<String> plantIds, int limit) {
+        Criteria scopeCriteria = buildProfileScopeCriteria(farmPlotIds, farmZoneIds, plantIds);
+        Query query = new Query(scopeCriteria)
+                .with(Sort.by(Sort.Direction.DESC, "createdAt"))
+                .limit(limit);
+        return mongoTemplate.find(query, PlantEvent.class);
     }
 }

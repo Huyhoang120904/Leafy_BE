@@ -191,7 +191,6 @@ public class PostServiceImpl implements PostService {
                 .diseaseName(src.getDiseaseName())
                 .severityLevel(src.getSeverityLevel())
                 .urgency(src.getUrgency())
-                .status(src.getStatus())
                 .estimatedCost(src.getEstimatedCost())
                 .confidenceScore(src.getConfidenceScore())
                 .requiredInputs(src.getRequiredInputs())

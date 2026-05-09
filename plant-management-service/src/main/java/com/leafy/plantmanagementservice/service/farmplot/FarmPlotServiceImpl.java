@@ -6,7 +6,7 @@ import com.leafy.plantmanagementservice.dto.request.farmplot.CreateFarmPlotReque
 import com.leafy.plantmanagementservice.dto.request.farmplot.UpdateFarmPlotRequest;
 import com.leafy.plantmanagementservice.dto.response.farmplot.ConsultingFarmerSummaryResponse;
 import com.leafy.plantmanagementservice.dto.response.farmplot.FarmPlotResponse;
-import com.leafy.plantmanagementservice.helper.ConsultingAccessHelper;
+import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
 import com.leafy.plantmanagementservice.mapper.FarmPlotMapper;
 import com.leafy.plantmanagementservice.model.FarmPlot;
 import com.leafy.plantmanagementservice.model.enums.FarmPlotStatus;

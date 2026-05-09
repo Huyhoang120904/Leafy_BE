@@ -40,6 +40,10 @@ class PlantManagementClient:
     ) -> Optional[str]:
         """POST /api/plans to plant-management-service.
 
+        The schedule items are sent as ``EmbeddedPlanEventRequest`` objects
+        and will be stored as an embedded array inside the Plan document
+        (no separate PlantEvent collection documents are created at this stage).
+
         Returns the plant-management plan ID on success, or None on failure.
         Errors are logged but never propagated — plan creation in the RAG
         service's own MongoDB has already succeeded at this point.
@@ -125,13 +129,23 @@ class PlantManagementClient:
 
     @staticmethod
     def _normalise_schedule(schedule: Any) -> Optional[List[Dict[str, Any]]]:
-        """Ensure schedule items are plain dicts for JSON serialisation.
+        """Normalise schedule items to plain dicts for JSON serialisation.
 
-        ``sourcePlanId`` is intentionally stripped from every item — the RAG
-        service only knows its own internal UUID, not the plant-management-
-        service Plan._id that will be assigned upon creation.  The service is
-        responsible for back-filling the correct Plan._id after saving.
+        Strips all runtime and scope fields that are not part of
+        ``EmbeddedPlanEventRequest`` — the backend resolves these at apply time:
+
+        * ``sourcePlanId`` / ``planApplyId`` — set by the service after persistence
+        * ``isPlanned`` — determined by the service based on daysFromNow
+        * ``farmPlotId`` / ``farmZoneId`` / ``plantId`` — injected from the apply request
+        * ``calculatedStartDate`` / ``calculatedEndDate`` — computed at apply time
         """
+        # Fields that must NOT reach EmbeddedPlanEventRequest
+        _STRIP_FIELDS = {
+            "sourcePlanId", "planApplyId",
+            "isPlanned",
+            "farmPlotId", "farmZoneId", "plantId",
+            "calculatedStartDate", "calculatedEndDate",
+        }
         if not isinstance(schedule, list):
             return None
         result = []
@@ -142,7 +156,8 @@ class PlantManagementClient:
                 d = dict(item)
             else:
                 continue
-            d.pop("sourcePlanId", None)
+            for field in _STRIP_FIELDS:
+                d.pop(field, None)
             result.append(d)
         return result or None
 

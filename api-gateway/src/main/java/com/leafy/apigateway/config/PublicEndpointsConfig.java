@@ -28,6 +28,7 @@ public class PublicEndpointsConfig {
 
             // WebSocket / SockJS endpoints (JWT validated inside socket-service on STOMP CONNECT)
             "/ws/**",
+            "/ws-native/**",
 
             // Swagger/OpenAPI endpoints
             "/swagger-ui/**",

@@ -277,24 +277,24 @@ public class ConversationHelper {
                     room, partner, viewerId, userCache, baseUrl, viewerCanSee, null, pendingJoinRequestCount
             );
 
-            // Use accountId as SocketEvent targetUserId — the socket-service registers
-            // WebSocket connections under accountId (JWT sub), not profileId.
-            String targetAccountId = resolveAccountId(viewerId, userCache);
+            // Use userId as SocketEvent targetUserId — the socket-service registers
+            // WebSocket connections under userId (JWT sub), not profileId.
+            String targetUserId = resolveUserId(viewerId, userCache);
             kafkaTemplate.send(kafkaTopicProperties.getSocketEvents().getSocketEvents(),
-                    targetAccountId,
-                    new SocketEvent(SocketEventType.CONVERSATION, targetAccountId, "/queue/conversations", payload));
+                    targetUserId,
+                    new SocketEvent(SocketEventType.CONVERSATION, targetUserId, "/queue/conversations", payload));
         }
     }
 
     /**
-     * Resolve the accountId for a given profileId using the userCache.
-     * Falls back to the profileId itself if the ChatUser record is absent or has no accountId.
-     * This is required because the socket-service routes WebSocket messages by accountId (JWT sub).
+     * Resolve the userId for a given profileId using the userCache.
+     * Falls back to the profileId itself if the ChatUser record is absent or has no userId.
+     * This is required because the socket-service routes WebSocket messages by userId (JWT sub).
      */
-    public String resolveAccountId(String profileId, Map<String, ChatUser> userCache) {
+    public String resolveUserId(String profileId, Map<String, ChatUser> userCache) {
         ChatUser user = userCache.get(profileId);
-        if (user != null && user.getAccountId() != null && !user.getAccountId().isBlank()) {
-            return user.getAccountId();
+        if (user != null && user.getUserId() != null && !user.getUserId().isBlank()) {
+            return user.getUserId();
         }
         return profileId; // fallback – should not happen in healthy data
     }

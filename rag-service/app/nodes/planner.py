@@ -12,7 +12,6 @@ calendar / event scheduler.
 
 import logging
 import re
-from datetime import date, timedelta
 
 from langchain_core.messages import AIMessage
 
@@ -100,11 +99,11 @@ def planner(state: GraphState) -> dict:
     Generate a structured Plan from retrieved agronomic documents.
 
     Uses Gemini Pro with structured output (via Pydantic) to produce a
-    chronological list of PlantEvent objects that map directly to the
-    PlantEvents table in the database.
+    chronological list of EmbeddedPlanEvent objects that are stored as
+    an embedded array inside the Plan document in plant-management-service.
 
-    Post-processing calculates absolute ISO dates for each event based on
-    `days_from_now` so the frontend can render a calendar immediately.
+    Post-processing sorts events by daysFromNow; actual ISO dates are
+    computed at apply time by the plant-management-service consumer.
 
     Args:
         state: Current graph state. Reads `question`, `documents`,
@@ -112,7 +111,7 @@ def planner(state: GraphState) -> dict:
 
     Returns:
         Updated state with:
-          - `generated_plan`: dict (serialized Plan incl. calculated dates)
+          - `generated_plan`: dict (serialized Plan incl. embedded schedule)
           - `plant_id`: str extracted by the LLM from the question
     """
     question = state["question"]
@@ -237,8 +236,6 @@ Rules:
 - TREATMENT plans should include DISEASE_DETECTED and HEALTH_RECOVERY when disease/pest context is explicit.
 - MIXED plans may combine routine care with treatment and pruning/denoting actions.
 - Do not include DISEASE_DETECTED or HEALTH_RECOVERY if there is no disease/pest context.
-- Immediate actions today -> isPlanned: false
-- All future scheduled actions -> isPlanned: true
 - Calculate `daysFromNow` to distribute events EVENLY across the full horizon.
   For a 30-day plan use offsets like 0, 7, 14, 21, 28 for weekly events;
   for bi-weekly events use 0, 14, 28; never cluster all events at the beginning.
@@ -322,7 +319,6 @@ IMPORTANT: The entire output, including plan descriptions, notes, and ALL events
         logger.error("[GENERAL PLANNER] Structured output failed: %s", e, exc_info=True)
         return {"generated_plan": None, "plant_id": None}
 
-    today = date.today()
     final_plan = plan.dict()
 
     schedule = final_plan.get("schedule") or []
@@ -330,11 +326,10 @@ IMPORTANT: The entire output, including plan descriptions, notes, and ALL events
         logger.warning("[GENERAL PLANNER] Empty schedule generated - skipping plan")
         return {"generated_plan": None, "plant_id": None}
 
-    for event in schedule:
-        start = today + timedelta(days=event["daysFromNow"])
-        end = start + timedelta(days=max(0, event["durationDays"] - 1))
-        event["calculatedStartDate"] = start.isoformat()
-        event["calculatedEndDate"] = end.isoformat()
+    # Sort by daysFromNow so the schedule is chronological.
+    # Absolute dates (calculatedStartDate/calculatedEndDate) are computed
+    # at apply time by the plant-management-service consumer.
+    schedule.sort(key=lambda e: e["daysFromNow"])
 
     if web_results:
         final_plan["source"] = "websearch"
@@ -351,8 +346,6 @@ IMPORTANT: The entire output, including plan descriptions, notes, and ALL events
     # Never trust an LLM-hallucinated value — set to None if nothing was passed.
     request_plant_id = state.get("plant_id") or None
     final_plan["plantId"] = request_plant_id
-
-    schedule.sort(key=lambda e: e["daysFromNow"])
 
     generation_lines = [
         f"[{ev['eventType']}] {ev['note']}: {ev['description']}"

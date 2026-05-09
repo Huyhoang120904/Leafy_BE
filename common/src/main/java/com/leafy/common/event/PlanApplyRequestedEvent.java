@@ -16,6 +16,9 @@ public class PlanApplyRequestedEvent {
 
     private String planId;
 
+    /** The MongoDB ID of the PlanApply document tracking this application. */
+    private String applyId;
+
     /** The reference start date for computing calculatedStartDate of each event. */
     private LocalDate startDate;
 

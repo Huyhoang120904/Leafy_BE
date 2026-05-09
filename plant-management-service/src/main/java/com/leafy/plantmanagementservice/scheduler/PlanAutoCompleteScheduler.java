@@ -1,9 +1,9 @@
 package com.leafy.plantmanagementservice.scheduler;
 
-import com.leafy.plantmanagementservice.model.Plan;
+import com.leafy.plantmanagementservice.model.PlanApply;
 import com.leafy.plantmanagementservice.model.PlantEvent;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
-import com.leafy.plantmanagementservice.repository.PlanRepository;
+import com.leafy.plantmanagementservice.repository.PlanApplyRepository;
 import com.leafy.plantmanagementservice.repository.PlantEventRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -14,8 +14,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Scheduled job that automatically marks ACTIVE treatment plans as COMPLETED
- * when every applied event (identified by {@code sourcePlanId = plan.id})
+ * Scheduled job that automatically marks ACTIVE plan applies as COMPLETED
+ * when every applied event (stored in {@link PlanApply#getPlantEventIds()})
  * has an end date (or start date when no end date) that is before today.
  *
  * <p>Runs daily at 01:00.
@@ -25,21 +25,24 @@ import java.util.List;
 @Slf4j
 public class PlanAutoCompleteScheduler {
 
-    private final PlanRepository planRepository;
+    private final PlanApplyRepository planApplyRepository;
     private final PlantEventRepository plantEventRepository;
 
     @Scheduled(cron = "0 0 1 * * *")
-    public void autoCompletePlans() {
+    public void autoCompletePlanApplies() {
         LocalDate today = LocalDate.now();
-        List<Plan> activePlans = planRepository.findByStatus(PlanStatus.ACTIVE);
-        log.info("PlanAutoCompleteScheduler: checking {} ACTIVE plans against date {}", activePlans.size(), today);
+        List<PlanApply> activeApplies = planApplyRepository.findByStatus(PlanStatus.ACTIVE);
+        log.info("PlanAutoCompleteScheduler: checking {} ACTIVE applies against date {}", activeApplies.size(), today);
 
         int completed = 0;
-        for (Plan plan : activePlans) {
+        for (PlanApply apply : activeApplies) {
             try {
-                List<PlantEvent> appliedEvents = plantEventRepository.findBySourcePlanId(plan.getId());
+                if (apply.getPlantEventIds() == null || apply.getPlantEventIds().isEmpty()) {
+                    continue;
+                }
+
+                List<PlantEvent> appliedEvents = (List<PlantEvent>) plantEventRepository.findAllById(apply.getPlantEventIds());
                 if (appliedEvents.isEmpty()) {
-                    // No events have been applied to this plan yet — skip
                     continue;
                 }
 
@@ -52,15 +55,16 @@ public class PlanAutoCompleteScheduler {
                 });
 
                 if (allPast) {
-                    plan.setStatus(PlanStatus.COMPLETED);
-                    planRepository.save(plan);
+                    apply.setStatus(PlanStatus.COMPLETED);
+                    planApplyRepository.save(apply);
                     completed++;
-                    log.info("Plan id={} auto-completed ({} events all past)", plan.getId(), appliedEvents.size());
+                    log.info("PlanApply id={} (planId={}) auto-completed ({} events all past)",
+                            apply.getId(), apply.getPlanId(), appliedEvents.size());
                 }
             } catch (Exception e) {
-                log.warn("Error auto-completing plan id={}: {}", plan.getId(), e.getMessage());
+                log.warn("Error auto-completing apply id={}: {}", apply.getId(), e.getMessage());
             }
         }
-        log.info("PlanAutoCompleteScheduler: completed {} plans", completed);
+        log.info("PlanAutoCompleteScheduler: completed {} applies", completed);
     }
 }

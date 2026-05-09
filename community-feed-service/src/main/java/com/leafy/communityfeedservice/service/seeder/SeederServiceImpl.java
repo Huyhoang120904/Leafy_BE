@@ -209,13 +209,15 @@ public class SeederServiceImpl implements SeederService {
         for (int page = 0; page < seederProperties.getPlanMaxPages(); page++) {
             ExternalApiResponse<PagedResponse<PlanSummaryResponse>> response;
             try {
-                response = client.getAllPlans(
+                // Use the dedicated public endpoint — no admin privilege required,
+                // and it only returns plans where isPublic=true.
+                response = client.getPublicPlans(
                         page,
                         seederProperties.getPlanPageSize(),
                         "createdAt",
                         "DESC");
             } catch (Exception ex) {
-                log.warn("Failed to fetch plans from plant-management-service (page {}): {}", page, ex.getMessage());
+                log.warn("Failed to fetch public plans from plant-management-service (page {}): {}", page, ex.getMessage());
                 break;
             }
 
@@ -226,7 +228,7 @@ public class SeederServiceImpl implements SeederService {
             }
 
             response.getData().getContent().stream()
-                    .filter(p -> p.getId() != null && !p.getId().isBlank() && p.isPublic())
+                    .filter(p -> p.getId() != null && !p.getId().isBlank())
                     .map(PlanSummaryResponse::getId)
                     .forEach(planIds::add);
 
@@ -235,8 +237,10 @@ public class SeederServiceImpl implements SeederService {
             }
         }
 
+        log.info("Fetched {} public plan IDs via /plans/public for community seeding", planIds.size());
         return planIds;
     }
+
 
     private List<Post> seedPosts(List<String> profileIds, List<String> planIds, Random random, LocalDateTime now, int postCount) {
         List<Post> posts = new ArrayList<>(postCount);

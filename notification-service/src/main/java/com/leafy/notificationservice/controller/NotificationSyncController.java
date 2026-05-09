@@ -37,7 +37,7 @@ public class NotificationSyncController {
      *
      * <p>Iterates all profiles via cursor-based pagination (batch size 500) and
      * upserts each one into the local {@code notification_users} collection keyed
-     * by {@code profileId}. This resolves the {@code profileId → accountId} mapping
+     * by {@code profileId}. This resolves the {@code profileId → userId} mapping
      * required for WebSocket (STOMP) routing.
      */
     @PostMapping("/sync-notification-users")

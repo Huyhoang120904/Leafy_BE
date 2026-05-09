@@ -28,13 +28,12 @@ public class PlanInfo {
     String diseaseName;
     String severityLevel;
     String urgency;
-    String status;
     String estimatedCost;
     Double confidenceScore;
     List<String> requiredInputs;
     List<String> safetyWarnings;
     String successIndicators;
-    Integer applyCount;
+    Long applyCount;
     Integer eventCount;
     boolean isPublic;
     LocalDateTime createdAt;

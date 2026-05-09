@@ -1,6 +1,7 @@
 package com.leafy.plantmanagementservice.dto.request.plantevent;
 
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.TargetType;
 import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -29,6 +30,12 @@ public class PlantEventCreateRequest {
     @NotNull(message = "Event type is required")
     EventType eventType;
 
+    /**
+     * Explicit scope override. If omitted, the service derives it automatically:
+     * plantId → PLANT, farmZoneId → FARM_ZONE, farmPlotId → FARM.
+     */
+    TargetType targetType;
+
     @NotBlank(message = "Note is required")
     String note;
 
@@ -55,6 +62,12 @@ public class PlantEventCreateRequest {
      * Optional: link to the RAG-generated Plan that produced this event.
      */
     String sourcePlanId;
+
+    /** Optional: link to the PlanApply instance that produced this event. */
+    String planApplyId;
+
+    /** Optional parent event ID for hierarchical plan-apply events. */
+    String parentPlantEventId;
 
     /** Optional sub-tasks for this event. */
     @Valid
