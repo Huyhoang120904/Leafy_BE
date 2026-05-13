@@ -34,6 +34,9 @@ public class TemplateEngine {
     private static final Pattern CONDITIONAL_PATTERN =
             Pattern.compile("\\{\\{#(.+?)}}(.*?)\\{\\{/\\1}}", Pattern.DOTALL);
 
+    private static final Pattern INVERTED_CONDITIONAL_PATTERN =
+            Pattern.compile("\\{\\{\\^(.+?)}}(.*?)\\{\\{/\\1}}", Pattern.DOTALL);
+
     public String render(String template, Map<String, Object> payload) {
         if (template == null) return "";
         if (payload == null) payload = Collections.emptyMap();
@@ -51,7 +54,20 @@ public class TemplateEngine {
         matcher.appendTail(sb);
         String result = sb.toString();
 
-        // Step 2: substitute simple variables
+        // Step 2: evaluate inverted conditional blocks
+        Matcher invMatcher = INVERTED_CONDITIONAL_PATTERN.matcher(result);
+        StringBuilder invSb = new StringBuilder();
+        while (invMatcher.find()) {
+            String key = invMatcher.group(1).trim();
+            String content = invMatcher.group(2);
+            Object value = payload.get(key);
+            boolean show = !isTruthy(value);
+            invMatcher.appendReplacement(invSb, show ? Matcher.quoteReplacement(content) : "");
+        }
+        invMatcher.appendTail(invSb);
+        result = invSb.toString();
+
+        // Step 3: substitute simple variables
         for (Map.Entry<String, Object> entry : payload.entrySet()) {
             result = result.replace(
                     "{{" + entry.getKey() + "}}",
@@ -59,12 +75,16 @@ public class TemplateEngine {
             );
         }
 
+        // Clean up any remaining unresolved simple variables
+        result = result.replaceAll("\\{\\{.*?}}", "");
+
         return result;
     }
 
     private boolean isTruthy(Object value) {
         if (value == null) return false;
         if (value instanceof Boolean) return (Boolean) value;
+        if (value instanceof String) return !((String) value).trim().isEmpty() && !((String) value).equalsIgnoreCase("false");
         if (value instanceof Number) return ((Number) value).longValue() > 0;
         return true;
     }

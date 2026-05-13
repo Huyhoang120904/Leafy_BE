@@ -60,6 +60,10 @@ public class Post extends BaseModel {
 
     Visibility visibility;
 
+    /** ID of the treatment plan shared in this post. Only set when postType is PLAN_SHARE. */
+    @Indexed
+    String planId;
+
     PostStats stats;
 
     LocalDateTime uploadedAt;

@@ -14,6 +14,7 @@ import java.util.List;
 @Mapper(componentModel = "spring", nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
 public interface PlantMapper {
 
+    @Mapping(target = "ownerProfileId", ignore = true)
     Plant toEntity(PlantCreateRequest request);
 
     PlantResponse toResponse(Plant plant);

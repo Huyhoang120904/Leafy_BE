@@ -27,13 +27,13 @@ public class UserConnection extends BaseModel {
     String id;
 
     /**
-     * User ID of the user who follows or requests consultation
+     * Profile ID of the user who follows or requests consultation
      */
     @Indexed
     String followerId;
 
     /**
-     * User ID of the target user being followed or consulted
+     * Profile ID of the target user being followed or consulted
      */
     @Indexed
     String followingId;

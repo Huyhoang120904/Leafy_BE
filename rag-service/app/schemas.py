@@ -134,11 +134,45 @@ EventTypeEnum = Literal[
 PlanSourceEnum = Literal["websearch", "documents"]
 
 
-class PlantEvent(BaseModel):
-    """A single scheduled action in the treatment plan.
+class EventTask(BaseModel):
+    """A sub-task embedded inside a PlantEvent.
 
-    Field names are camelCase to match plant-management-service
-    PlantEventCreateRequest DTO exactly.
+    Field names match EventTaskRequest DTO in plant-management-service.
+    """
+
+    title: str = Field(
+        ...,
+        description="Short label describing what needs to be done, e.g. 'Mix fungicide solution'.",
+    )
+    description: Optional[str] = Field(
+        default=None,
+        description="Optional longer explanation, dosage instructions, or notes for this specific task.",
+    )
+    order: Optional[int] = Field(
+        default=None,
+        description="Display order within the parent event's task list (0-based). Assign sequentially.",
+    )
+    estimatedCost: Optional[str] = Field(
+        default=None,
+        description="Cost or resource estimate for this individual task, e.g. '50,000 VND'. Leave null if not applicable.",
+    )
+    completed: bool = Field(
+        default=False,
+        description="Always false at generation time — tasks are not yet completed.",
+    )
+
+
+class PlantEvent(BaseModel):
+    """
+    A single template event in a treatment plan schedule.
+
+    Field names are camelCase to match the plant-management-service
+    ``EmbeddedPlanEventRequest`` DTO exactly.
+
+    Scope fields (plantId, farmPlotId, farmZoneId) and runtime fields
+    (sourcePlanId, planApplyId, calculatedStartDate, calculatedEndDate,
+    isPlanned) are intentionally absent — they are resolved at apply time
+    by the plant-management-service and must NOT be set by the LLM.
     """
 
     eventType: EventTypeEnum = Field(
@@ -162,7 +196,7 @@ class PlantEvent(BaseModel):
     daysFromNow: int = Field(
         ...,
         description=(
-            "Offset in days from today: 0 = today, 1 = tomorrow, 14 = two weeks, etc. "
+            "Offset in days from the plan's start date: 0 = day 1, 7 = one week in, etc. "
             "Calculate gaps from the protocol timing "
             "(e.g. 'repeat in 2 weeks' → second event has daysFromNow = first + 14)."
         ),
@@ -183,10 +217,6 @@ class PlantEvent(BaseModel):
             "Wear PPE. Ensure full leaf coverage. Avoid spraying in direct sunlight.'"
         ),
     )
-    isPlanned: bool = Field(
-        ...,
-        description="True if this is a future scheduled event. False if it should happen immediately (today).",
-    )
     # ── Chemical application safety fields (TREATMENT_APPLICATION only) ───────
     phiDays: Optional[int] = Field(
         default=None,
@@ -194,7 +224,7 @@ class PlantEvent(BaseModel):
             "Pre-Harvest Interval in days (Thời gian cách ly). "
             "REQUIRED for TREATMENT_APPLICATION events — the minimum number of days "
             "that must pass between the last spray and harvest "
-            "(e.g. 7, 14, 21). Leave null for non-chemical events."
+            "(e.g. 7, 14, 21). Leave null for all other event types."
         ),
     )
     ppeRequired: Optional[str] = Field(
@@ -204,7 +234,7 @@ class PlantEvent(BaseModel):
             "REQUIRED for TREATMENT_APPLICATION events. "
             "List all mandatory PPE, e.g. "
             "'Respirator/mask, chemical-resistant gloves, rubber boots, protective coveralls'. "
-            "Leave null for non-chemical events."
+            "Leave null for all other event types."
         ),
     )
     mrlNote: Optional[str] = Field(
@@ -215,7 +245,7 @@ class PlantEvent(BaseModel):
             "export or premium retail channels. "
             "State the relevant MRL standard, e.g. "
             "'Comply with EU MRL for this active ingredient. Strict PHI adherence is mandatory.' "
-            "Leave null for non-chemical events."
+            "Leave null for all other event types."
         ),
     )
     estimatedCost: Optional[str] = Field(
@@ -225,19 +255,15 @@ class PlantEvent(BaseModel):
             "e.g. '200,000 VND' or '$5–$10'. Leave null if unknown."
         ),
     )
-    # ── Scope fields (set by caller, not by LLM) ─────────────────────────────
-    farmPlotId: Optional[str] = Field(
+    # ── Sub-tasks (optional step-by-step breakdown of this event) ──────────────
+    tasks: Optional[List["EventTask"]] = Field(
         default=None,
-        description="Farm plot ID this event belongs to. Populated by the caller from plant context.",
-    )
-    farmZoneId: Optional[str] = Field(
-        default=None,
-        description="Farm zone ID this event belongs to. Populated by the caller from plant context.",
-    )
-    # ── Source tracking (filled after plan is persisted to MongoDB) ───────────
-    sourcePlanId: Optional[str] = Field(
-        default=None,
-        description="ID of the Plan MongoDB document that generated this event.",
+        description=(
+            "Optional ordered list of sub-tasks that break this event into smaller steps. "
+            "Include tasks when the event has multiple distinct actions "
+            "(e.g. mixing, applying, cleaning equipment). "
+            "Leave null for simple single-step events."
+        ),
     )
 
 
@@ -249,9 +275,17 @@ class Plan(BaseModel):
     """
 
     # --- Identity ---
-    plantId: str = Field(
+    plantId: Optional[str] = Field(
+        None,
+        description="Leave as null. The plant ID is injected from the caller's request context, not extracted from the query.",
+    )
+    planName: str = Field(
         ...,
-        description="The ID of the plant extracted from the user query.",
+        description=(
+            "Short, descriptive title for this plan. "
+            "e.g. 'Coffee Leaf Rust Treatment — Week 1' or 'Post-Harvest Pruning & Fertilisation Plan'. "
+            "Should clearly convey the primary objective and timeframe."
+        ),
     )
     diseaseName: str = Field(
         ...,

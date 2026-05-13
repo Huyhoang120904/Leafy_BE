@@ -3,9 +3,12 @@ package com.leafy.plantmanagementservice.service.plant;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.common.security.UserPrincipal;
-import com.leafy.plantmanagementservice.client.FarmServiceClient;
-import com.leafy.plantmanagementservice.client.dto.ExternalApiResponse;
-import com.leafy.plantmanagementservice.client.dto.FarmPlotSummary;
+import com.leafy.plantmanagementservice.dto.response.farmplot.FarmPlotResponse;
+import com.leafy.plantmanagementservice.dto.response.farmzone.FarmZoneResponse;
+import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
+import com.leafy.plantmanagementservice.service.farmplot.FarmPlotService;
+import com.leafy.plantmanagementservice.service.farmzone.FarmZoneService;
 import com.leafy.plantmanagementservice.dto.request.plant.PlantCreateRequest;
 import com.leafy.plantmanagementservice.dto.request.plant.PlantUpdateRequest;
 import com.leafy.plantmanagementservice.dto.response.plant.PlantResponse;
@@ -22,6 +25,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.UUID;
@@ -33,13 +37,17 @@ public class PlantServiceImpl implements PlantService {
 
     private final PlantRepository plantRepository;
     private final PlantMapper plantMapper;
-    private final FarmServiceClient farmServiceClient;
+    private final FarmPlotService farmPlotService;
+    private final FarmZoneService farmZoneService;
+    private final ConsultingAccessHelper consultingAccessHelper;
 
     @Override
     @Transactional
     public PlantResponse createPlant(PlantCreateRequest request) {
         Plant plant = plantMapper.toEntity(request);
         plant.setPlantNumber(generatePlantNumber());
+        FarmPlotResponse farmPlot = farmPlotService.getById(request.getFarmPlotId());
+        plant.setOwnerProfileId(farmPlot.getOwnerProfileId());
         log.info("Creating new plant with auto-generated number: {}", plant.getPlantNumber());
         Plant savedPlant = plantRepository.save(plant);
         return plantMapper.toResponse(savedPlant);
@@ -100,14 +108,10 @@ public class PlantServiceImpl implements PlantService {
         // ── Resolve the user's farm plots ─────────────────────────────────────
         List<String> userFarmPlotIds = Collections.emptyList();
         try {
-            ExternalApiResponse<List<FarmPlotSummary>> response =
-                    farmServiceClient.getPlotsByOwner(profileId);
-            if (response != null && response.getData() != null) {
-                userFarmPlotIds = response.getData().stream()
-                        .filter(p -> p.getId() != null && !p.getId().isBlank())
-                        .map(FarmPlotSummary::getId)
-                        .toList();
-            }
+            userFarmPlotIds = farmPlotService.getByOwner(profileId).stream()
+                    .filter(p -> p.getId() != null && !p.getId().isBlank())
+                    .map(FarmPlotResponse::getId)
+                    .toList();
         } catch (Exception e) {
             log.warn("Could not resolve farm plots for user={}: {}", userId, e.getMessage());
         }
@@ -116,14 +120,10 @@ public class PlantServiceImpl implements PlantService {
         List<String> userFarmZoneIds = new java.util.ArrayList<>();
         for (String plotId : userFarmPlotIds) {
             try {
-                ExternalApiResponse<List<com.leafy.plantmanagementservice.client.dto.FarmZoneSummary>> zoneResponse =
-                        farmServiceClient.getZonesByPlot(plotId);
-                if (zoneResponse != null && zoneResponse.getData() != null) {
-                    zoneResponse.getData().stream()
-                            .filter(z -> z.getId() != null && !z.getId().isBlank())
-                            .map(com.leafy.plantmanagementservice.client.dto.FarmZoneSummary::getId)
-                            .forEach(userFarmZoneIds::add);
-                }
+                farmZoneService.getByFarmPlot(plotId).stream()
+                        .filter(z -> z.getId() != null && !z.getId().isBlank())
+                        .map(FarmZoneResponse::getId)
+                        .forEach(userFarmZoneIds::add);
             } catch (Exception e) {
                 log.warn("Could not resolve zones for plot={}: {}", plotId, e.getMessage());
             }
@@ -153,6 +153,22 @@ public class PlantServiceImpl implements PlantService {
     }
 
     @Override
+    public Page<PlantResponse> getConsultingPlants(String expertProfileId, String farmerProfileId, Pageable pageable) {
+        log.info("Expert {} fetching consulting plants for farmer {}", expertProfileId, farmerProfileId);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId);
+        return plantRepository.findByOwnerProfileId(farmerProfileId, pageable)
+                .map(plantMapper::toResponse);
+    }
+
+    @Override
+    public PlantResponse getConsultingPlantById(String plantId, String expertProfileId) {
+        log.info("Expert {} fetching consulting plant {}", expertProfileId, plantId);
+        Plant plant = getPlantEntityById(plantId);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, plant.getOwnerProfileId());
+        return plantMapper.toResponse(plant);
+    }
+
+    @Override
     @Transactional
     public void deletePlant(String plantId) {
         log.info("Deleting plant: {}", plantId);
@@ -160,5 +176,73 @@ public class PlantServiceImpl implements PlantService {
             throw new AppException(ErrorCode.PLANT_NOT_FOUND);
         }
         plantRepository.deleteById(plantId);
+    }
+
+    @Override
+    @Transactional
+    public BulkOperationResult bulkUpdateStatus(List<String> plantIds, PlantStatus status) {
+        String currentProfileId = com.leafy.common.utils.ServiceSecurityUtils.getCurrentProfileId();
+        log.info("Bulk status update: profileId={}, count={}, status={}", currentProfileId, plantIds.size(), status);
+
+        List<String> failedIds = new ArrayList<>();
+        int successCount = 0;
+
+        for (String plantId : plantIds) {
+            try {
+                Plant plant = plantRepository.findById(plantId).orElse(null);
+                if (plant == null) {
+                    log.warn("bulkUpdateStatus: plant not found plantId={}", plantId);
+                    failedIds.add(plantId);
+                    continue;
+                }
+                if (!currentProfileId.equals(plant.getOwnerProfileId())) {
+                    log.warn("bulkUpdateStatus: ownership mismatch plantId={}, owner={}, requester={}", plantId, plant.getOwnerProfileId(), currentProfileId);
+                    failedIds.add(plantId);
+                    continue;
+                }
+                plant.setPlantStatus(status);
+                plantRepository.save(plant);
+                successCount++;
+            } catch (Exception e) {
+                log.warn("bulkUpdateStatus: error processing plantId={}: {}", plantId, e.getMessage());
+                failedIds.add(plantId);
+            }
+        }
+
+        return BulkOperationResult.builder()
+                .successCount(successCount)
+                .failedCount(failedIds.size())
+                .failedIds(failedIds)
+                .build();
+    }
+
+    @Override
+    @Transactional
+    public BulkOperationResult bulkDelete(List<String> plantIds) {
+        log.info("Bulk delete: count={}", plantIds.size());
+
+        List<String> failedIds = new ArrayList<>();
+        int successCount = 0;
+
+        for (String plantId : plantIds) {
+            try {
+                if (!plantRepository.existsById(plantId)) {
+                    log.warn("bulkDelete: plant not found plantId={}", plantId);
+                    failedIds.add(plantId);
+                    continue;
+                }
+                plantRepository.deleteById(plantId);
+                successCount++;
+            } catch (Exception e) {
+                log.warn("bulkDelete: error deleting plantId={}: {}", plantId, e.getMessage());
+                failedIds.add(plantId);
+            }
+        }
+
+        return BulkOperationResult.builder()
+                .successCount(successCount)
+                .failedCount(failedIds.size())
+                .failedIds(failedIds)
+                .build();
     }
 }

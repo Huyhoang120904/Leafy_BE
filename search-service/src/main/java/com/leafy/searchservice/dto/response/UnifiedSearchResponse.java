@@ -22,8 +22,11 @@ public class UnifiedSearchResponse {
     String searchTerm;
     List<PostSearchResponse> posts;
     List<ProfileResponse> profiles;
+    List<PlanSearchResponse> plans;
     long totalPosts;
     long totalProfiles;
+    long totalPlans;
     int postSize;
     int profileSize;
+    int planSize;
 }

@@ -21,6 +21,10 @@ public interface PlantEventRepository extends MongoRepository<PlantEvent, String
 
     Page<PlantEvent> findBySourcePlanId(String sourcePlanId, Pageable pageable);
 
+    List<PlantEvent> findBySourcePlanId(String sourcePlanId);
+
+    Page<PlantEvent> findByPlanApplyId(String planApplyId, Pageable pageable);
+
     Page<PlantEvent> findByFarmPlotId(String farmPlotId, Pageable pageable);
 
     Page<PlantEvent> findByFarmZoneId(String farmZoneId, Pageable pageable);
@@ -38,4 +42,6 @@ public interface PlantEventRepository extends MongoRepository<PlantEvent, String
 
     List<PlantEvent> findByFarmPlotIdInAndCalculatedStartDateLessThanEqualAndCalculatedEndDateGreaterThanEqual(
             List<String> farmPlotIds, LocalDate rangeEnd, LocalDate rangeStart);
+
+    List<PlantEvent> findByParentPlantEventId(String parentPlantEventId);
 }

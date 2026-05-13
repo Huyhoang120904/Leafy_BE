@@ -20,7 +20,7 @@ import java.util.List;
 @Builder
 @FieldDefaults(level = AccessLevel.PRIVATE)
 @Document(indexName = "posts")
-@Setting(shards = 3, replicas = 1)
+@Setting(settingPath = "elasticsearch/es-setting.json")
 public class PostIndex {
 
     @Id
@@ -29,10 +29,26 @@ public class PostIndex {
     @Field(type = FieldType.Keyword)
     String authorId;
 
-        @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "standard"),
-            otherFields = @InnerField(suffix = "keyword", type = FieldType.Keyword)
-        )
+    @MultiField(
+            mainField = @Field(
+                    type = FieldType.Text,
+                    analyzer = "fullname_index_analyzer",
+                    searchAnalyzer = "fullname_search_analyzer"
+            ),
+            otherFields = {
+                    @InnerField(
+                            suffix = "fuzzy",
+                            type = FieldType.Text,
+                            analyzer = "fullname_fuzzy_analyzer",
+                            searchAnalyzer = "fullname_fuzzy_analyzer"
+                    ),
+                    @InnerField(
+                            suffix = "keyword",
+                            type = FieldType.Keyword,
+                            normalizer = "lowercase_normalizer"
+                    )
+            }
+    )
     String authorName;
 
         @Field(type = FieldType.Keyword, index = false)
@@ -45,12 +61,47 @@ public class PostIndex {
     Boolean authorVerified;
 
     @MultiField(
-            mainField = @Field(type = FieldType.Text, analyzer = "english"),
-            otherFields = @InnerField(suffix = "keyword", type = FieldType.Keyword)
+            mainField = @Field(
+                    type = FieldType.Text,
+                    analyzer = "fullname_index_analyzer",
+                    searchAnalyzer = "fullname_search_analyzer"
+            ),
+            otherFields = {
+                    @InnerField(
+                            suffix = "fuzzy",
+                            type = FieldType.Text,
+                            analyzer = "fullname_fuzzy_analyzer",
+                            searchAnalyzer = "fullname_fuzzy_analyzer"
+                    ),
+                    @InnerField(
+                            suffix = "keyword",
+                            type = FieldType.Keyword,
+                            normalizer = "lowercase_normalizer"
+                    )
+            }
     )
     String title;
 
-    @Field(type = FieldType.Text, analyzer = "english")
+    @MultiField(
+            mainField = @Field(
+                    type = FieldType.Text,
+                    analyzer = "fullname_index_analyzer",
+                    searchAnalyzer = "fullname_search_analyzer"
+            ),
+            otherFields = {
+                    @InnerField(
+                            suffix = "fuzzy",
+                            type = FieldType.Text,
+                            analyzer = "fullname_fuzzy_analyzer",
+                            searchAnalyzer = "fullname_fuzzy_analyzer"
+                    ),
+                    @InnerField(
+                            suffix = "keyword",
+                            type = FieldType.Keyword,
+                            normalizer = "lowercase_normalizer"
+                    )
+            }
+    )
     String caption;
 
     @Field(type = FieldType.Keyword)

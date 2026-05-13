@@ -21,7 +21,7 @@ import org.springframework.stereotype.Service;
  * the target user is connected HERE before pushing — preventing "ghost messages".
  *
  * <h3>Routing key</h3>
- * {@code SocketEvent.targetUserId} is the auth-service {@code accountId} (STOMP principal),
+ * {@code SocketEvent.targetUserId} is the auth-service {@code userId} (STOMP principal),
  * resolved upstream by {@code notification-service}'s {@code InAppDeliveryStrategy} using
  * the local {@code notification_users} buffer. No profileId resolution is needed here.
  *

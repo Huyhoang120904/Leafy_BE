@@ -4,6 +4,7 @@ import com.leafy.common.model.BaseModel;
 import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
+import org.springframework.data.mongodb.core.index.Indexed;
 import org.springframework.data.mongodb.core.mapping.Document;
 import org.springframework.data.mongodb.core.mapping.FieldType;
 import org.springframework.data.mongodb.core.mapping.MongoId;
@@ -36,4 +37,7 @@ public class Plant extends BaseModel {
     String speciesId;
     String farmPlotId;
     String farmZoneId;
+
+    @Indexed
+    String ownerProfileId;
 }

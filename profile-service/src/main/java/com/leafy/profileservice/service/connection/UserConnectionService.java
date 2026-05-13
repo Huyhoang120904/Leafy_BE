@@ -1,7 +1,6 @@
 package com.leafy.profileservice.service.connection;
 
-import com.leafy.profileservice.model.UserConnection;
-
+import com.leafy.profileservice.dto.response.profile.UserConnectionResponse;
 import com.leafy.profileservice.dto.response.profile.ConsultationRequestResponse;
 import com.leafy.profileservice.dto.response.profile.ProfileResponse;
 import org.springframework.data.domain.Page;
@@ -11,15 +10,15 @@ import java.util.List;
 
 public interface UserConnectionService {
 
-    UserConnection followUser(String followerId, String followingId);
+    UserConnectionResponse followUser(String followerId, String followingId);
 
     void unfollowUser(String followerId, String followingId);
 
-    UserConnection requestConsultation(String farmerId, String expertId);
+    UserConnectionResponse requestConsultation(String farmerId, String expertId);
 
     void cancelConsultationRequest(String farmerId, String expertId);
 
-    UserConnection respondToConsultationRequest(String expertId, String farmerId, boolean accept);
+    UserConnectionResponse respondToConsultationRequest(String expertId, String farmerId, boolean accept);
 
     List<String> getFollowingUsers(String followerId);
 
@@ -30,4 +29,8 @@ public interface UserConnectionService {
     Page<ConsultationRequestResponse> getAcceptedConsultations(String expertId, Pageable pageable);
 
     Page<ProfileResponse> getUserFollowerProfiles(String followingId, Pageable pageable);
+
+    boolean isActiveConsultation(String expertProfileId, String farmerProfileId);
+
+    List<String> getConsultingFarmerIds(String expertProfileId);
 }

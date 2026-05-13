@@ -8,11 +8,11 @@ import org.springframework.data.mongodb.core.mapping.Document;
 import java.time.LocalDateTime;
 
 /**
- * Local profile-summary buffer — keeps a profileId → accountId (auth userId) mapping
+ * Local profile-summary buffer — keeps a profileId → userId (auth userId) mapping
  * in sync with profile-service via Kafka profile events.
  *
  * <p>The {@code _id} is the {@code profileId} (MongoDB ObjectId from profile-service).
- * {@code accountId} is the auth-service UUID used as the STOMP principal name in
+ * {@code userId} is the auth-service UUID used as the STOMP principal name in
  * socket-service, enabling {@link com.leafy.notificationservice.service.delivery.channel.InAppDeliveryStrategy}
  * to pass the correct routing key in the {@code SocketEvent} without a synchronous
  * Feign call.
@@ -32,10 +32,14 @@ public class NotificationUser {
     String id;
 
     /** Auth-service userId — STOMP routing principal in socket-service. */
-    String accountId;
+    String userId;
 
     String fullName;
     String avatar;
+
+    /** Preferred notification locale ("vi" | "en"). Defaults to "vi". */
+    @Builder.Default
+    String locale = "vi";
 
     LocalDateTime lastUpdatedAt;
 }

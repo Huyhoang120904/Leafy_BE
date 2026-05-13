@@ -1,10 +1,10 @@
 package com.leafy.plantmanagementservice.repository;
 
 import com.leafy.plantmanagementservice.model.Plan;
-import com.leafy.plantmanagementservice.model.enums.TreatmentStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
+import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.Optional;
@@ -14,15 +14,29 @@ public interface PlanRepository extends MongoRepository<Plan, String> {
 
     Page<Plan> findByUserId(String userId, Pageable pageable);
 
-    Page<Plan> findByPlantId(String plantId, Pageable pageable);
+    Page<Plan> findByOwnerId(String ownerId, Pageable pageable);
 
-    Page<Plan> findByFarmPlotId(String farmPlotId, Pageable pageable);
+    Page<Plan> findByCreatorId(String creatorId, Pageable pageable);
 
-    Page<Plan> findByFarmZoneId(String farmZoneId, Pageable pageable);
-
-    Page<Plan> findByUserIdAndStatus(String userId, TreatmentStatus status, Pageable pageable);
-
-    Page<Plan> findByStatus(TreatmentStatus status, Pageable pageable);
+    Page<Plan> findByOwnerIdOrCreatorId(String ownerId, String creatorId, Pageable pageable);
 
     Optional<Plan> findByRagPlanId(String ragPlanId);
+
+    // ── Public plan queries ───────────────────────────────────────────────────
+
+    Page<Plan> findByIsPublicTrue(Pageable pageable);
+
+    /**
+     * Public plans whose diseaseName or planName contains the search term (case-insensitive).
+     */
+    @Query("{isPublic: true, $or: [{diseaseName: {$regex: ?0, $options: 'i'}}, {planName: {$regex: ?0, $options: 'i'}}]}")
+    Page<Plan> findPublicBySearch(String search, Pageable pageable);
+
+    /**
+     * My plans (owner or creator) filtered by diseaseName/planName search.
+     */
+    @Query("{$or: [{ownerId: ?0}, {creatorId: ?0}], $or: [{diseaseName: {$regex: ?1, $options: 'i'}}, {planName: {$regex: ?1, $options: 'i'}}]}")
+    Page<Plan> findByOwnerOrCreatorAndSearch(String profileId, String search, Pageable pageable);
+
+    long countByOwnerIdAndActiveTrue(String ownerId);
 }

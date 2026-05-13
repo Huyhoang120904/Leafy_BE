@@ -40,9 +40,15 @@ public class MailDeliveryStrategy implements ChannelDeliveryStrategy {
     /**
      * Sends a transactional notification e-mail to the recipient.
      *
-     * <p>Delivery is silently skipped when {@code event.getRecipientEmail()} is
-     * {@code null} or blank — this is the normal case for social-feed events
-     * that are only interested in FCM / in-app channels.
+     * <p>Delivery is silently skipped when:
+     * <ul>
+     *   <li>{@code event.getRecipientEmail()} is {@code null} or blank — the
+     *       normal case for social-feed events that only care about FCM /
+     *       in-app channels.</li>
+     *   <li>The notification is an aggregated batch ({@code actorCount > 1}).
+     *       Aggregated rows would generate a flood of duplicate-looking e-mails;
+     *       only the single-actor (first) notification triggers a mail.</li>
+     * </ul>
      */
     @Override
     public void deliver(ReadyToDeliverEvent event) {
@@ -50,6 +56,11 @@ public class MailDeliveryStrategy implements ChannelDeliveryStrategy {
         if (email == null || email.isBlank()) {
             log.debug("[EMAIL] No recipient e-mail on event — skipping: notificationId={}, type={}",
                     event.getNotificationId(), event.getType());
+            return;
+        }
+        if (event.getActorCount() > 1) {
+            log.debug("[EMAIL] Skipping aggregated notification: notificationId={}, type={}, actorCount={}",
+                    event.getNotificationId(), event.getType(), event.getActorCount());
             return;
         }
 

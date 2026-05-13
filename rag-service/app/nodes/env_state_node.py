@@ -10,7 +10,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, Iterable, Optional
 
 from app.agents.rag_state import GraphState
-from app.services.env_gateway_client import get_env_gateway_client
+from app.services.env_gateway_client import EnvGatewayClient, get_env_gateway_client
 
 logger = logging.getLogger(__name__)
 
@@ -119,11 +119,22 @@ def _map_overview_to_env_state(zone_context: Dict[str, Any], overview: Dict[str,
 
     env_state = {
         "gps": {
-            "latitude": None,
-            "longitude": None,
+            "latitude": zone_context.get("plot_latitude"),
+            "longitude": zone_context.get("plot_longitude"),
             "farm_plot_id": zone_context.get("farm_plot_id"),
             "farm_zone_id": zone_context.get("zone_id"),
             "altitude_m": zone_context.get("altitude_m"),
+        },
+        "farm_info": {
+            "plot_name": zone_context.get("plot_name"),
+            "plot_code": zone_context.get("plot_code"),
+            "plot_area_m2": zone_context.get("plot_area_m2"),
+            "plot_address": zone_context.get("plot_address"),
+            "zone_name": zone_context.get("zone_name"),
+            "zone_code": zone_context.get("zone_code"),
+            "zone_area_m2": zone_context.get("zone_area_m2"),
+            "soil_type": zone_context.get("soil_type"),
+            "crop_type": zone_context.get("crop_type"),
         },
         "soil": {
             "moisture_pct": _pick_value(reading_index, _SOIL_MOISTURE_CODES),
@@ -150,25 +161,62 @@ def _map_overview_to_env_state(zone_context: Dict[str, Any], overview: Dict[str,
 def fetch_env_state(state: GraphState) -> dict:
     """Fetch real environmental context from IoT metrics via API Gateway.
 
-    If the plant/zone cannot be resolved or IoT data is unavailable, this node
-    returns no env context for the turn and allows the graph to continue.
-    """
-    plant_id = _extract_plant_id(state)
-    if not plant_id:
-        logger.info("[ENV STATE] No plant id found in state/question; skipping env context")
-        return {"env_state": None}
+    Resolution priority:
+    1. plant_id (extracted from state or question) → plant → farm plot → zone
+    2. farm_zone_id (passed explicitly in the chat request) → zone directly
+    3. farm_plot_id (passed explicitly in the chat request) → first zone in plot
 
+    If none of the above resolve to a zone, or IoT data is unavailable,
+    this node returns no env context for the turn and allows the graph to continue.
+    """
     auth_header = state.get("authorization")
     if not isinstance(auth_header, str) or not auth_header.strip():
         logger.info("[ENV STATE] Missing Authorization header; skipping env context")
         return {"env_state": None}
 
     client = get_env_gateway_client()
-    zone_context = client.resolve_zone_context(plant_id=plant_id, auth_header=auth_header)
-    if zone_context is None:
-        logger.info("[ENV STATE] Unable to resolve deterministic zone for plant_id=%s", plant_id)
-        return {"env_state": None}
 
+    # --- Priority 1: resolve via plant_id ---
+    plant_id = _extract_plant_id(state)
+    if plant_id:
+        zone_context = client.resolve_zone_context(plant_id=plant_id, auth_header=auth_header)
+        if zone_context is not None:
+            return _fetch_and_build(client, zone_context, auth_header)
+        logger.info("[ENV STATE] plant_id=%s did not resolve to a zone; trying fallbacks", plant_id)
+
+    # --- Priority 2: use caller-supplied farm_zone_id directly ---
+    farm_zone_id = state.get("farm_zone_id")
+    if isinstance(farm_zone_id, str) and farm_zone_id.strip():
+        zone_context = client.resolve_zone_context_from_zone(
+            farm_zone_id=farm_zone_id,
+            auth_header=auth_header,
+            farm_plot_id=state.get("farm_plot_id"),
+            plant_id=plant_id,
+        )
+        return _fetch_and_build(client, zone_context, auth_header)
+
+    # --- Priority 3: resolve via caller-supplied farm_plot_id ---
+    farm_plot_id = state.get("farm_plot_id")
+    if isinstance(farm_plot_id, str) and farm_plot_id.strip():
+        zone_context = client.resolve_zone_context_from_plot(
+            farm_plot_id=farm_plot_id,
+            auth_header=auth_header,
+            plant_id=plant_id,
+        )
+        if zone_context is not None:
+            return _fetch_and_build(client, zone_context, auth_header)
+        logger.info("[ENV STATE] farm_plot_id=%s did not resolve to a zone", farm_plot_id)
+
+    logger.info("[ENV STATE] No plant_id, farm_zone_id, or farm_plot_id available; skipping env context")
+    return {"env_state": None}
+
+
+def _fetch_and_build(
+    client: "EnvGatewayClient",
+    zone_context: Dict[str, Any],
+    auth_header: str,
+) -> dict:
+    """Fetch the IoT zone overview and map it to an env_state dict."""
     zone_id = zone_context["zone_id"]
     overview = client.get_zone_overview(zone_id=zone_id, auth_header=auth_header)
     if overview is None:

@@ -16,6 +16,8 @@ class ConversationResponseMeta(BaseModel):
     webResultsCount: int = 0
     savedPlanId: Optional[str] = None
     plan: Optional[Dict[str, Any]] = None
+    documents: Optional[List[Dict[str, Any]]] = None
+    webResults: Optional[List[Dict[str, Any]]] = None
 
 
 class ConversationMessageDoc(BaseModel):

@@ -44,7 +44,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> {
                     // WebSocket handshake – JWT validated inside STOMP ChannelInterceptor
-                    auth.requestMatchers("/ws/**").permitAll();
+                    auth.requestMatchers("/ws/**", "/ws-native/**").permitAll();
                     auth.requestMatchers("/", "/error", "/actuator/**").permitAll();
                     auth.requestMatchers("/v3/api-docs/**", "/swagger-ui/**", "/swagger-ui.html").permitAll();
                     auth.requestMatchers("/internal/**").permitAll();

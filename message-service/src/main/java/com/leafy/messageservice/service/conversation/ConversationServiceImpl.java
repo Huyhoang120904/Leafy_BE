@@ -340,16 +340,17 @@ public class ConversationServiceImpl implements ConversationService {
 
         if (otherMembers.isEmpty()) return;
 
-        // Resolve accountIds for WS routing (socket-service registers connections by accountId / JWT sub)
+        // Resolve userIds for WS routing (socket-service registers connections by userId / JWT sub)
         Set<String> memberProfileIds = otherMembers.stream()
                 .map(ConversationMember::getProfileId).collect(Collectors.toSet());
         Map<String, ChatUser> receiptCache = helper.getChatUserRepository().findAllById(memberProfileIds).stream()
                 .collect(Collectors.toMap(ChatUser::getId, u -> u));
 
         otherMembers.forEach(m -> {
-            String targetAccountId = helper.resolveAccountId(m.getProfileId(), receiptCache);
+            String targetUserId = helper.resolveUserId(m.getProfileId(), receiptCache);
             helper.getKafkaTemplate().send(helper.getKafkaTopicProperties().getSocketEvents().getSocketEvents(),
-                    new SocketEvent(SocketEventType.MESSAGE, targetAccountId,
+                    targetUserId,   // record key — required by the compacted socket.events topic
+                    new SocketEvent(SocketEventType.MESSAGE, targetUserId,
                             "/queue/read-receipts",
                             ReadReceiptNotification.builder()
                                     .conversationId(room.getId())

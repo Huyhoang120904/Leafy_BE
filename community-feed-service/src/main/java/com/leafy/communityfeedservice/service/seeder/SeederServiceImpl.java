@@ -7,10 +7,12 @@ import com.leafy.common.model.kafka.EventType;
 import com.leafy.common.publisher.OutboxEventPublisher;
 import com.leafy.common.security.UserPrincipal;
 import com.leafy.common.utils.ServiceSecurityUtils;
+import com.leafy.communityfeedservice.client.PlantManagementServiceClient;
 import com.leafy.communityfeedservice.client.ProfileServiceClient;
 import com.leafy.communityfeedservice.client.SearchServiceClient;
 import com.leafy.communityfeedservice.client.dto.ExternalApiResponse;
 import com.leafy.communityfeedservice.client.dto.PagedResponse;
+import com.leafy.communityfeedservice.client.dto.PlanSummaryResponse;
 import com.leafy.communityfeedservice.client.dto.ProfileSummaryResponse;
 import com.leafy.communityfeedservice.config.SeederProperties;
 import com.leafy.communityfeedservice.dto.response.SeederResponse;
@@ -58,6 +60,7 @@ public class SeederServiceImpl implements SeederService {
 
     SeederProperties seederProperties;
     ProfileServiceClient profileServiceClient;
+    Optional<PlantManagementServiceClient> plantManagementServiceClient;
     PostRepository postRepository;
     CommentRepository commentRepository;
     VoteRepository voteRepository;
@@ -79,6 +82,9 @@ public class SeederServiceImpl implements SeederService {
             throw new AppException(ErrorCode.VALIDATION_ERROR);
         }
 
+        List<String> planIds = fetchPublicPlanIds();
+        log.info("Fetched {} public plan IDs from plant-management-service for seeding", planIds.size());
+
         long deletedVoteCount = voteRepository.count();
         long deletedCommentCount = commentRepository.count();
         long deletedPostCount = postRepository.count();
@@ -92,7 +98,7 @@ public class SeederServiceImpl implements SeederService {
         Random random = new Random(seederProperties.getRandomSeed());
         LocalDateTime now = LocalDateTime.now();
 
-        List<Post> posts = seedPosts(profileIds, random, now, resolvedPostCount);
+        List<Post> posts = seedPosts(profileIds, planIds, random, now, resolvedPostCount);
         List<Comment> comments = seedComments(posts, profileIds, random, resolvedCommentCount);
         List<Vote> votes = seedVotes(posts, comments, profileIds, random, resolvedVoteCount);
 
@@ -189,9 +195,59 @@ public class SeederServiceImpl implements SeederService {
         return new ArrayList<>(profileIds);
     }
 
-    private List<Post> seedPosts(List<String> profileIds, Random random, LocalDateTime now, int postCount) {
+    // ── Fetch real plan IDs from plant-management-service ─────────────────────
+
+    private List<String> fetchPublicPlanIds() {
+        if (plantManagementServiceClient.isEmpty()) {
+            log.warn("PlantManagementServiceClient unavailable — no PLAN_SHARE posts will be seeded");
+            return List.of();
+        }
+
+        List<String> planIds = new ArrayList<>();
+        PlantManagementServiceClient client = plantManagementServiceClient.get();
+
+        for (int page = 0; page < seederProperties.getPlanMaxPages(); page++) {
+            ExternalApiResponse<PagedResponse<PlanSummaryResponse>> response;
+            try {
+                // Use the dedicated public endpoint — no admin privilege required,
+                // and it only returns plans where isPublic=true.
+                response = client.getPublicPlans(
+                        page,
+                        seederProperties.getPlanPageSize(),
+                        "createdAt",
+                        "DESC");
+            } catch (Exception ex) {
+                log.warn("Failed to fetch public plans from plant-management-service (page {}): {}", page, ex.getMessage());
+                break;
+            }
+
+            if (response == null || response.getData() == null
+                    || response.getData().getContent() == null
+                    || response.getData().getContent().isEmpty()) {
+                break;
+            }
+
+            response.getData().getContent().stream()
+                    .filter(p -> p.getId() != null && !p.getId().isBlank())
+                    .map(PlanSummaryResponse::getId)
+                    .forEach(planIds::add);
+
+            if (page + 1 >= response.getData().getTotalPages()) {
+                break;
+            }
+        }
+
+        log.info("Fetched {} public plan IDs via /plans/public for community seeding", planIds.size());
+        return planIds;
+    }
+
+
+    private List<Post> seedPosts(List<String> profileIds, List<String> planIds, Random random, LocalDateTime now, int postCount) {
         List<Post> posts = new ArrayList<>(postCount);
-        for (int i = 0; i < postCount; i++) {
+        int planShareCount = planIds.isEmpty() ? 0 : Math.max(1, postCount / 5);
+        int feedCount = postCount - planShareCount;
+
+        for (int i = 0; i < feedCount; i++) {
             String authorId = pickRandomProfileId(profileIds, random);
             Post post = Post.builder()
                     .authorId(authorId)
@@ -210,6 +266,34 @@ public class SeederServiceImpl implements SeederService {
                     .stats(new PostStats())
                     .uploadedAt(now.minusMinutes(i * 3L))
                     .updatedAt(now.minusMinutes(i * 2L))
+                    .build();
+            post.setActive(true);
+            posts.add(post);
+        }
+
+        // Shuffle plan IDs so each PLAN_SHARE post gets a different real plan
+        List<String> shuffledPlanIds = new ArrayList<>(planIds);
+        java.util.Collections.shuffle(shuffledPlanIds, random);
+
+        for (int i = 0; i < planShareCount; i++) {
+            String authorId = pickRandomProfileId(profileIds, random);
+            // Cycle through available plan IDs
+            String planId = shuffledPlanIds.get(i % shuffledPlanIds.size());
+            Post post = Post.builder()
+                    .authorId(authorId)
+                    .postType(PostType.PLAN_SHARE)
+                    .planId(planId)
+                    .visibility(Visibility.ALL)
+                    .content(PostContent.builder()
+                            .title("Chia sẻ kế hoạch điều trị #" + (i + 1))
+                            .caption("Kế hoạch điều trị hiệu quả tôi đang áp dụng, chia sẻ để cùng tham khảo!")
+                            .description("Auto-generated PLAN_SHARE post for development and QA checks")
+                            .hashtags(List.of("#leafy", "#kehoach", "#benh"))
+                            .build())
+                    .media(List.of())
+                    .stats(new PostStats())
+                    .uploadedAt(now.minusMinutes((feedCount + i) * 3L))
+                    .updatedAt(now.minusMinutes((feedCount + i) * 2L))
                     .build();
             post.setActive(true);
             posts.add(post);

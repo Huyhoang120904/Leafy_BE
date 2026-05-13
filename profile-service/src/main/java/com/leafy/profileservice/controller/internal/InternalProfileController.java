@@ -82,6 +82,12 @@ public class InternalProfileController {
         return ResponseEntity.ok(ApiResponse.success(response));
     }
 
+    @GetMapping("/by-ids")
+    public ResponseEntity<ApiResponse<List<InternalProfileResponse>>> getProfilesByIds(
+            @RequestParam("ids") List<String> ids) {
+        return ResponseEntity.ok(ApiResponse.success(profileService.getProfilesByIds(ids)));
+    }
+
     @GetMapping("/users/{userId}/following-users")
     public ResponseEntity<ApiResponse<List<String>>> getFollowingUsers(@PathVariable String userId) {
         // userId from caller — resolve to profileId since UserConnection now stores profileIds

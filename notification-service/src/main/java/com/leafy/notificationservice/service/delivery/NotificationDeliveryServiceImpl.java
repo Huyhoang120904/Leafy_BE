@@ -1,6 +1,6 @@
 package com.leafy.notificationservice.service.delivery;
 
-import com.leafy.common.event.notification.RawNotificationEvent;
+import com.leafy.common.event.notification.BatchedNotificationEvent;
 import com.leafy.notificationservice.enums.NotificationChannel;
 import com.leafy.notificationservice.event.ReadyToDeliverEvent;
 import com.leafy.notificationservice.model.NotificationTemplate;
@@ -56,18 +56,20 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
     NotificationTemplateService templateService;
 
     @Override
-    public void deliver(RawNotificationEvent event) {
-        log.info("[Delivery] Processing: type={}, recipient={}", event.getType(), event.getRecipientId());
+    public void deliver(BatchedNotificationEvent batched) {
+        log.info("[Delivery] Processing: type={}, recipient={}, actorCount={}, eventCount={}",
+                batched.getType(), batched.getRecipientId(),
+                batched.getActorCount(), batched.getTotalEventCount());
 
-        // 1. Persist (guards + save + unread count)
-        UserNotification persisted = persistenceService.persist(event);
+        // 1. Persist (guards + upsert-merge + unread count)
+        UserNotification persisted = persistenceService.persist(batched);
         if (persisted == null) {
-            log.debug("[Delivery] Skipped (self-notification or duplicate): recipient={}", event.getRecipientId());
+            log.debug("[Delivery] Skipped (self-only batch): recipient={}", batched.getRecipientId());
             return;
         }
 
         // 2. Build internal delivery event (not serialised to Kafka)
-        ReadyToDeliverEvent delivery = toDeliveryEvent(event, persisted);
+        ReadyToDeliverEvent delivery = toDeliveryEvent(batched, persisted);
 
         // 3. Dispatch to each matching channel strategy
         Set<NotificationChannel> channels = delivery.getChannels();
@@ -81,12 +83,12 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
                 strategy.deliver(delivery);
             } catch (Exception e) {
                 log.warn("[Delivery] Strategy {} failed (non-critical): recipient={}, error={}",
-                        strategy.getClass().getSimpleName(), event.getRecipientId(), e.getMessage());
+                        strategy.getClass().getSimpleName(), batched.getRecipientId(), e.getMessage());
             }
         }
 
         log.info("[Delivery] Complete: id={}, type={}, recipient={}",
-                persisted.getId(), event.getType(), event.getRecipientId());
+                persisted.getId(), batched.getType(), batched.getRecipientId());
     }
 
     // ── Private helpers ───────────────────────────────────────────────────────
@@ -107,9 +109,10 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
      * declaration —
      * because e-mail is opt-in per event, not per template.
      */
-    private ReadyToDeliverEvent toDeliveryEvent(RawNotificationEvent event, UserNotification persisted) {
-        // Resolve channels from template; fall back to FCM + IN_APP
-        NotificationTemplate template = templateService.find(event.getType(), "vi");
+    private ReadyToDeliverEvent toDeliveryEvent(BatchedNotificationEvent batched, UserNotification persisted) {
+        // Resolve channels from template using recipient's locale; fall back to IN_APP
+        String locale = resolveLocale(batched.getRecipientId());
+        NotificationTemplate template = templateService.find(batched.getType(), locale);
         Set<NotificationChannel> channels;
         if (template != null
                 && template.getChannels() != null
@@ -119,41 +122,57 @@ public class NotificationDeliveryServiceImpl implements NotificationDeliveryServ
             channels = EnumSet.of(NotificationChannel.IN_APP);
         }
 
-        // EMAIL is opt-in via the raw event — not driven by the template
-        if (event.getRecipientEmail() != null && !event.getRecipientEmail().isBlank()) {
+        // EMAIL is opt-in via the originating raw event (propagated through the batch)
+        if (batched.getRecipientEmail() != null && !batched.getRecipientEmail().isBlank()) {
             channels.add(NotificationChannel.EMAIL);
         }
 
-        // Resolve profileId → auth accountId from the local notification_users buffer
-        String recipientAccountId = notificationUserRepository.findById(event.getRecipientId())
-                .map(u -> u.getAccountId())
+        // Resolve profileId → auth userId from the local notification_users buffer
+        String recipientUserId = notificationUserRepository.findById(batched.getRecipientId())
+                .map(u -> u.getUserId())
                 .orElse(null);
-        if (recipientAccountId == null) {
+        if (recipientUserId == null) {
             log.warn("[Delivery] No NotificationUser found for profileId={} — IN_APP routing may fail",
-                    event.getRecipientId());
+                    batched.getRecipientId());
         }
 
         return ReadyToDeliverEvent.builder()
                 .notificationId(persisted.getId())
-                .recipientId(event.getRecipientId())
-                .recipientAccountId(recipientAccountId)
-                .recipientEmail(event.getRecipientEmail())
+                .recipientId(batched.getRecipientId())
+                .recipientUserId(recipientUserId)
+                .recipientEmail(batched.getRecipientEmail())
                 .title(persisted.getTitle())
                 .body(persisted.getBody())
-                .type(event.getType())
-                .referenceId(event.getReferenceId())
-                .actorId(event.getActorId())
-                .fcmData(buildFcmData(event))
+                .type(batched.getType())
+                .referenceId(batched.getReferenceId())
+                .actorId(batched.getLastActorId())
+                .actorIds(persisted.getActorIds())
+                .actorCount(persisted.getActorCount())
+                .othersCount(persisted.getOthersCount())
+                .totalEventCount(persisted.getTotalEventCount())
+                .secondActorName(batched.getSecondActorName())
+                .fcmData(buildFcmData(batched, persisted))
                 .occurredAt(persisted.getOccurredAt())
                 .channels(channels)
                 .build();
     }
 
-    private Map<String, String> buildFcmData(RawNotificationEvent event) {
+    private Map<String, String> buildFcmData(BatchedNotificationEvent batched, UserNotification persisted) {
         Map<String, String> data = new HashMap<>();
-        data.put("type", event.getType() != null ? event.getType().name() : "UNKNOWN");
-        data.put("referenceId", event.getReferenceId() != null ? event.getReferenceId() : "");
-        data.put("actorId", event.getActorId() != null ? event.getActorId() : "");
+        data.put("type", batched.getType() != null ? batched.getType().name() : "UNKNOWN");
+        data.put("referenceId", batched.getReferenceId() != null ? batched.getReferenceId() : "");
+        data.put("actorId", batched.getLastActorId() != null ? batched.getLastActorId() : "");
+        data.put("actorCount", String.valueOf(persisted.getActorCount()));
+        data.put("othersCount", String.valueOf(persisted.getOthersCount()));
+        data.put("totalEventCount", String.valueOf(persisted.getTotalEventCount()));
         return data;
+    }
+
+    /** Resolves the preferred notification locale for a given recipient profile ID. */
+    private String resolveLocale(String profileId) {
+        if (profileId == null) return "vi";
+        return notificationUserRepository.findById(profileId)
+                .map(u -> u.getLocale() != null && !u.getLocale().isBlank() ? u.getLocale() : "vi")
+                .orElse("vi");
     }
 }

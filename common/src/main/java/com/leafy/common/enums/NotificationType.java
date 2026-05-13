@@ -17,6 +17,11 @@ public enum NotificationType {
     // ── Social / Profile ───────────────────────────────────
     USER_FOLLOW,        // Someone followed you
     CONSULT_REQUEST,    // Someone sent you a consultation request (or accepted yours)
+    PLAN_CONSULTING_CREATED, // An expert created a treatment plan for you via consulting
+    PLAN_APPLIED,            // A treatment plan was successfully applied to your target
+
+    // ── Messaging ──────────────────────────────────────────
+    DIRECT_MESSAGE,     // Someone sent you a direct/group chat message (FCM push only)
 
     // ── System ─────────────────────────────────────────────
     SYSTEM              // Generic system notification (admin broadcast, etc.)

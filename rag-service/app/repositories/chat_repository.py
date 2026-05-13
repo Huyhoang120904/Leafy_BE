@@ -4,6 +4,7 @@ from typing import Any, Dict, List, Optional
 from app.models.plan_doc import PlanDoc
 from app.repositories.conversation_repository import get_conversation_repository
 from app.repositories.plan_repository import get_plan_repository
+from app.services.plant_management_client import get_plant_management_client
 
 logger = logging.getLogger(__name__)
 
@@ -68,6 +69,7 @@ class ChatRepository:
         *,
         user_id: str,
         question: str,
+        auth_header: Optional[str] = None,
     ) -> Optional[str]:
         """Persist generated treatment plan (if present); never raises to callers."""
         generated_plan: Optional[Dict[str, Any]] = final_state.get("generated_plan")
@@ -100,16 +102,30 @@ class ChatRepository:
                 web_search_results=web_search_results or None,
             )
             repo = get_plan_repository()
-            saved_plan_id = repo.save_plan(doc.model_dump(mode="json"))
+            mongo_plan_id = repo.save_plan(doc.model_dump(mode="json"))
             logger.info(
-                "Plan persisted - planId=%s, userId=%s, source=%s, docs=%d, web=%d",
-                saved_plan_id,
+                "Plan persisted to MongoDB - planId=%s, userId=%s, source=%s, docs=%d, web=%d",
+                mongo_plan_id,
                 user_id,
                 plan_source,
                 len(source_documents),
                 len(web_search_results),
             )
-            return saved_plan_id
+
+            # Sync to plant-management-service so the plan is owned by the user's profileId
+            pm_plan_id: Optional[str] = None
+            if auth_header:
+                pm_client = get_plant_management_client()
+                pm_plan_id = pm_client.create_plan(
+                    rag_plan_id=mongo_plan_id,
+                    question=question,
+                    generated_plan=generated_plan,
+                    plan_source=plan_source,
+                    auth_header=auth_header,
+                )
+
+            # Prefer the plant-management ID for navigation; fall back to MongoDB ID
+            return pm_plan_id or mongo_plan_id
         except Exception as e:
             # Save errors are logged but NEVER propagate to the caller
             logger.error("Failed to persist Plan: %s", e, exc_info=True)
@@ -140,11 +156,18 @@ class ChatRepository:
         documents = final_state.get("documents") or []
         web_results = final_state.get("web_search_results") or []
         generated_plan = final_state.get("generated_plan")
+        serialised_docs = self.serialize_documents(documents)
+        serialised_web = [
+            w if isinstance(w, dict) else (w.model_dump() if hasattr(w, "model_dump") else dict(w))
+            for w in web_results
+        ]
         return {
-            "documentsCount": len(documents),
-            "webResultsCount": len(web_results),
+            "documentsCount": len(serialised_docs),
+            "webResultsCount": len(serialised_web),
             "savedPlanId": saved_plan_id,
             "plan": generated_plan if isinstance(generated_plan, dict) else None,
+            "documents": serialised_docs or None,
+            "webResults": serialised_web or None,
         }
 
     def persist_conversation_turn(

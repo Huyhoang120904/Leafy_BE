@@ -1,6 +1,6 @@
 package com.leafy.plantmanagementservice.dto.response.plan;
 
-import com.leafy.plantmanagementservice.model.enums.TreatmentStatus;
+import com.leafy.plantmanagementservice.dto.response.plan.EmbeddedPlanEventResponse;
 import lombok.*;
 import lombok.experimental.FieldDefaults;
 
@@ -18,16 +18,12 @@ public class PlanResponse {
     String id;
 
     // ── Source tracking ───────────────────────────────────────────────────────
-    String userId;
+    String creatorId;
+    String ownerId;
     String ragPlanId;
     String planName;
     String question;
     String source;
-
-    // ── Plant / Farm scope ────────────────────────────────────────────────────
-    String plantId;
-    String farmPlotId;
-    String farmZoneId;
 
     // ── Diagnosis ─────────────────────────────────────────────────────────────
     String diseaseName;
@@ -41,12 +37,25 @@ public class PlanResponse {
     String successIndicators;
     String estimatedCost;
 
-    // ── Generated events ──────────────────────────────────────────────────────
-    List<String> plantEventIds;
+    // ── Template events (embedded) ───────────────────────────────────────────
+    List<EmbeddedPlanEventResponse> events;
 
-    // ── Lifecycle ─────────────────────────────────────────────────────────────
-    TreatmentStatus status;
-    Integer applyCount;
+    // ── Application summary (computed) ───────────────────────────────────────
+    /** Number of times this plan has been applied (count of PlanApply records). */
+    Long applyCount;
+
+    /** Inline list of applies — populated in detail views. */
+    List<PlanApplyResponse> applies;
+
+    // ── Visibility ────────────────────────────────────────────────────────────
+    Boolean isPublic;
+
+    // ── Consulting ───────────────────────────────────────────────────────────
+    Boolean isConsulted;
+
+    // ── Author info (enriched from profile-service) ───────────────────────────
+    AuthorInfo ownerInfo;
+    AuthorInfo creatorInfo;
 
     // ── Audit fields (BaseModel) ──────────────────────────────────────────────
     LocalDateTime createdAt;

@@ -5,14 +5,16 @@ import com.leafy.common.event.profile.ProfileEvent;
 import com.leafy.common.model.kafka.EventType;
 import com.leafy.common.publisher.OutboxEventPublisher;
 import com.leafy.profileservice.model.Profile;
+import com.leafy.profileservice.model.UserConnection;
+import com.leafy.profileservice.model.enums.ConsultationStatus;
 import com.leafy.profileservice.repository.ProfileRepository;
+import com.leafy.profileservice.repository.UserConnectionRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -20,6 +22,7 @@ import java.util.UUID;
 public class ExpertSeederServiceImpl implements ExpertSeederService {
 
     private final ProfileRepository profileRepository;
+    private final UserConnectionRepository userConnectionRepository;
     private final OutboxEventPublisher outboxEventPublisher;
 
     @Override
@@ -38,33 +41,17 @@ public class ExpertSeederServiceImpl implements ExpertSeederService {
         }
 
         String[] specialties = {"Trồng trọt", "Chăn nuôi", "Phân bón", "Bảo vệ thực vật", "Nông nghiệp hữu cơ", "Tưới tiêu"};
-        String[] avatars = {
-                "https://i.pravatar.cc/150?img=11",
-                "https://i.pravatar.cc/150?img=12",
-                "https://i.pravatar.cc/150?img=13",
-                "https://i.pravatar.cc/150?img=14",
-                "https://i.pravatar.cc/150?img=15",
-                "https://i.pravatar.cc/150?img=32",
-                "https://i.pravatar.cc/150?img=33",
-                "https://i.pravatar.cc/150?img=50"
-        };
 
         for (int i = 0; i < existingProfiles.size(); i++) {
             Profile profile = existingProfiles.get(i);
-            
+
             // Append suffix if not already present
             if (profile.getFullName() != null && !profile.getFullName().contains("- Chuyên gia")) {
                 profile.setFullName(profile.getFullName() + " - Chuyên gia");
             }
-            
+
             profile.setRole(ProfileRole.EXPERT);
             profile.setSpecialty(specialties[i % specialties.length]);
-            
-            // Only update avatar if they don't have one
-            if (profile.getProfilePicture() == null || profile.getProfilePicture().isBlank()) {
-                profile.setProfilePicture(avatars[i % avatars.length]);
-            }
-            
             profile.setIsVerified(true);
             profile.setBio("Tôi là chuyên gia có nhiều năm kinh nghiệm tư vấn và thực hành trong lĩnh vực " + specialties[i % specialties.length] + ".");
         }
@@ -84,6 +71,31 @@ public class ExpertSeederServiceImpl implements ExpertSeederService {
             outboxEventPublisher.saveAndPublish(profile.getId(), "PROFILE", EventType.PROFILE_UPDATED, event);
         }
         
+        // Create accepted consulting UserConnections between each expert and farmer profiles
+        List<String> expertIds = savedProfiles.stream().map(Profile::getId).toList();
+        List<Profile> farmerProfiles = profileRepository.findByActiveTrueAndIdNotIn(
+                expertIds, PageRequest.of(0, count * 3)
+        );
+
+        for (Profile expert : savedProfiles) {
+            for (Profile farmer : farmerProfiles) {
+                boolean exists = userConnectionRepository
+                        .findByFollowerIdAndFollowingId(farmer.getId(), expert.getId())
+                        .isPresent();
+                if (!exists) {
+                    UserConnection connection = UserConnection.builder()
+                            .followerId(farmer.getId())
+                            .followingId(expert.getId())
+                            .isFollowing(true)
+                            .consultationStatus(ConsultationStatus.ACCEPTED)
+                            .build();
+                    userConnectionRepository.save(connection);
+                }
+            }
+        }
+        log.info("Created consulting connections between {} experts and {} farmers",
+                savedProfiles.size(), farmerProfiles.size());
+
         log.info("Successfully updated {} existing profiles to experts", savedProfiles.size());
         return savedProfiles.size();
     }

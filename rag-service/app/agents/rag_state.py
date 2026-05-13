@@ -69,6 +69,18 @@ class GraphState(TypedDict, total=False):
     # "agriculture_query" → full RAG pipeline
     intent: Optional[str]
 
+    # Phase 1.6: Clarification Check
+    # True when the question is too vague to answer usefully.
+    # The pipeline short-circuits to clarification_response → END.
+    needs_clarification: Optional[bool]
+    # The follow-up question sent back to the user (empty string when not needed).
+    clarification_question: Optional[str]
+    # Set True by check_clarification when the original vague question contained
+    # planning/scheduling intent. The router reads this on the NEXT turn (after the
+    # user provides the missing crop/context) to force the planning path even though
+    # the user's reply alone has no planning keywords (e.g. just "cây cà phê").
+    pending_planning_intent: Optional[bool]
+
     # Phase 3: Routing
     path_type: Optional[str]
     confidence_score: Optional[float]
@@ -88,3 +100,6 @@ class GraphState(TypedDict, total=False):
 
     # Phase 0: Environment State (IoT sensors)
     env_state: Optional[Dict[str, Any]]  # Soil, GPS, weather readings
+    # Caller-supplied context to seed env resolution without requiring plant_id in question
+    farm_plot_id: Optional[str]
+    farm_zone_id: Optional[str]

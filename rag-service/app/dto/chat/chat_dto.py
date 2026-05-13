@@ -24,6 +24,24 @@ class ChatRequest(BaseModel):
         ),
         examples=["user-42-session-abc123"],
     )
+    farm_plot_id: Optional[str] = Field(
+        None,
+        description=(
+            "Farm plot ID to use for IoT environmental context. "
+            "When provided, the pipeline resolves the zone and fetches sensor readings "
+            "even if no plant ID is mentioned in the question."
+        ),
+        examples=["abc123def456abc123def456"],
+    )
+    farm_zone_id: Optional[str] = Field(
+        None,
+        description=(
+            "Farm zone ID to use for IoT environmental context. "
+            "Takes priority over farm_plot_id when both are provided. "
+            "Directly fetches sensor readings for the given zone."
+        ),
+        examples=["abc123def456abc123def456"],
+    )
 
     model_config = {
         "json_schema_extra": {
@@ -31,6 +49,8 @@ class ChatRequest(BaseModel):
                 "question": "What are the common diseases affecting corn crops?",
                 "language": "English",
                 "thread_id": "user-42-session-abc123",
+                "farm_plot_id": "abc123def456abc123def456",
+                "farm_zone_id": None,
             }
         }
     }

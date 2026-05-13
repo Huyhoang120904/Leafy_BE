@@ -13,6 +13,7 @@ import org.springframework.data.mongodb.repository.config.EnableMongoRepositorie
         "com.leafy.common.repository" })
 @EnableMongoAuditing
 @EnableFeignClients
+@org.springframework.scheduling.annotation.EnableScheduling
 public class PlantManagementServiceApplication {
 
     public static void main(String[] args) {

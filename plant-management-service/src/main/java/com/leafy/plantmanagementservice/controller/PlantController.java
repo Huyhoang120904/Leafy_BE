@@ -1,8 +1,12 @@
 package com.leafy.plantmanagementservice.controller;
 
 import com.leafy.common.dto.ApiResponse;
+import com.leafy.common.utils.ServiceSecurityUtils;
+import com.leafy.plantmanagementservice.dto.request.plant.BulkPlantDeleteRequest;
+import com.leafy.plantmanagementservice.dto.request.plant.BulkPlantStatusUpdateRequest;
 import com.leafy.plantmanagementservice.dto.request.plant.PlantCreateRequest;
 import com.leafy.plantmanagementservice.dto.request.plant.PlantUpdateRequest;
+import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
 import com.leafy.plantmanagementservice.dto.response.plant.PlantResponse;
 import com.leafy.plantmanagementservice.service.plant.PlantService;
 import jakarta.validation.Valid;
@@ -136,5 +140,50 @@ public class PlantController {
         log.info("DELETE /plants/{} - Deleting plant", plantId);
         plantService.deletePlant(plantId);
         return ResponseEntity.ok(ApiResponse.successWithoutData());
+    }
+
+    // ── Bulk operations ──────────────────────────────────────────────────────
+
+    @PatchMapping("/bulk/status")
+    public ResponseEntity<ApiResponse<BulkOperationResult>> bulkUpdateStatus(
+            @Valid @RequestBody BulkPlantStatusUpdateRequest request) {
+        log.info("PATCH /plants/bulk/status - count={}, status={}", request.getPlantIds().size(), request.getStatus());
+        BulkOperationResult result = plantService.bulkUpdateStatus(request.getPlantIds(), request.getStatus());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    @DeleteMapping("/bulk")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ApiResponse<BulkOperationResult>> bulkDeletePlants(
+            @Valid @RequestBody BulkPlantDeleteRequest request) {
+        log.info("DELETE /plants/bulk - count={}", request.getPlantIds().size());
+        BulkOperationResult result = plantService.bulkDelete(request.getPlantIds());
+        return ResponseEntity.ok(ApiResponse.success(result));
+    }
+
+    // ── Consulting (Expert read access) ─────────────────────────────────────
+
+    @GetMapping("/consulting")
+    public ResponseEntity<ApiResponse<Page<PlantResponse>>> getConsultingPlants(
+            @RequestParam String farmerProfileId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "createdAt") String sortBy,
+            @RequestParam(defaultValue = "DESC") String sortDir) {
+        log.info("GET /plants/consulting - farmerProfileId={}", farmerProfileId);
+        String expertProfileId = ServiceSecurityUtils.getCurrentProfileId();
+        Sort sort = sortDir.equalsIgnoreCase("ASC") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
+        Pageable pageable = PageRequest.of(page, size, sort);
+        return ResponseEntity.ok(ApiResponse.success(
+                plantService.getConsultingPlants(expertProfileId, farmerProfileId, pageable)));
+    }
+
+    @GetMapping("/consulting/{plantId}")
+    public ResponseEntity<ApiResponse<PlantResponse>> getConsultingPlantById(
+            @PathVariable String plantId) {
+        log.info("GET /plants/consulting/{} - Getting consulting plant by ID", plantId);
+        String expertProfileId = ServiceSecurityUtils.getCurrentProfileId();
+        return ResponseEntity.ok(ApiResponse.success(
+                plantService.getConsultingPlantById(plantId, expertProfileId)));
     }
 }

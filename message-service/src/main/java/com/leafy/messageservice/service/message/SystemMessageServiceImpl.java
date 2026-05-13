@@ -141,7 +141,7 @@ public class SystemMessageServiceImpl implements SystemMessageService {
         if (room != null) {
             String baseUrl = s3UtilV2.getS3BaseUrl();
 
-            // Batch-resolve accountIds for all relevant members (socket-service routes by accountId)
+            // Batch-resolve userIds for all relevant members (socket-service routes by userId / JWT sub)
             Set<String> sysProfileIds = room.getMembers().stream()
                     .filter(m -> recipientUserIds == null || recipientUserIds.contains(m.getProfileId()))
                     .map(com.leafy.messageservice.model.ConversationMember::getProfileId)
@@ -161,10 +161,10 @@ public class SystemMessageServiceImpl implements SystemMessageService {
                 ChatNotification notification = messageMapper.mapToChatNotification(savedMessage, baseUrl, currentUnread);
                 notification = notification.toBuilder().isFromMe(isFromMe).build();
 
-                String targetAccountId = conversationHelper.resolveAccountId(member.getProfileId(), sysCache);
+                String targetUserId = conversationHelper.resolveUserId(member.getProfileId(), sysCache);
                 kafkaTemplate.send(kafkaTopicProperties.getSocketEvents().getSocketEvents(),
-                        targetAccountId,
-                        new SocketEvent(SocketEventType.MESSAGE, targetAccountId,
+                        targetUserId,
+                        new SocketEvent(SocketEventType.MESSAGE, targetUserId,
                                 "/queue/messages", notification));
             });
         }

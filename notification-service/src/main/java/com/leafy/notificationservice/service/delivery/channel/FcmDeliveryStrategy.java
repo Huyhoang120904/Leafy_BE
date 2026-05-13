@@ -71,25 +71,30 @@ public class FcmDeliveryStrategy implements ChannelDeliveryStrategy {
      */
     @Override
     public void deliver(ReadyToDeliverEvent event) {
-        List<TokenDevice> tokens = pushTokenRepository.findByUserIdAndActiveTrue(event.getRecipientId());
+        String userId = event.getRecipientUserId();
+        if (userId == null || userId.isBlank()) {
+            log.warn("[FCM] Cannot deliver — recipientUserId not resolved for profileId={}", event.getRecipientId());
+            return;
+        }
+        List<TokenDevice> tokens = pushTokenRepository.findByUserIdAndActiveTrue(userId);
         if (tokens.isEmpty()) {
-            log.debug("[FCM] No active push tokens for recipient={}", event.getRecipientId());
+            log.debug("[FCM] No active push tokens for userId={} (profileId={})", userId, event.getRecipientId());
             return;
         }
 
         for (TokenDevice token : tokens) {
             try {
                 String messageId = sendToToken(token.getFcmToken(), event.getTitle(), event.getBody(), event.getFcmData());
-                log.debug("[FCM] Push sent: recipient={}, tokenId={}, messageId={}",
-                        event.getRecipientId(), token.getId(), messageId);
+                log.debug("[FCM] Push sent: userId={}, profileId={}, tokenId={}, messageId={}",
+                        userId, event.getRecipientId(), token.getId(), messageId);
             } catch (AppException ex) {
                 String errorCode = ex.getDetail();
                 if (isStaleTokenError(errorCode)) {
                     pushTokenService.deactivateToken(token.getFcmToken());
                     log.warn("[FCM] Deactivated stale push token: tokenId={}, code={}", token.getId(), errorCode);
                 } else {
-                    log.warn("[FCM] Push failed (non-critical): recipient={}, tokenId={}, code={}",
-                            event.getRecipientId(), token.getId(), errorCode);
+                    log.warn("[FCM] Push failed (non-critical): userId={}, profileId={}, tokenId={}, code={}",
+                            userId, event.getRecipientId(), token.getId(), errorCode);
                 }
             }
         }

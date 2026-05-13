@@ -25,6 +25,7 @@ public class UnifiedSearchController {
 
     private static final int DEFAULT_POST_SIZE    = 5;
     private static final int DEFAULT_PROFILE_SIZE = 5;
+    private static final int DEFAULT_PLAN_SIZE    = 5;
     private static final int MAX_SIZE             = 20;
 
     private final UnifiedSearchService unifiedSearchService;
@@ -33,16 +34,19 @@ public class UnifiedSearchController {
     public ResponseEntity<ApiResponse<UnifiedSearchResponse>> unifiedSearch(
             @RequestParam("searchTerm") String searchTerm,
             @RequestParam(value = "postSize",    defaultValue = "5")  int postSize,
-            @RequestParam(value = "profileSize", defaultValue = "5")  int profileSize) {
+            @RequestParam(value = "profileSize", defaultValue = "5")  int profileSize,
+            @RequestParam(value = "planSize",    defaultValue = "5")  int planSize) {
 
-        log.info("GET /search - term: '{}', postSize: {}, profileSize: {}", searchTerm, postSize, profileSize);
+        log.info("GET /search - term: '{}', postSize: {}, profileSize: {}, planSize: {}",
+                searchTerm, postSize, profileSize, planSize);
 
         // Clamp sizes
         int clampedPostSize    = Math.min(Math.max(postSize,    1), MAX_SIZE);
         int clampedProfileSize = Math.min(Math.max(profileSize, 1), MAX_SIZE);
+        int clampedPlanSize    = Math.min(Math.max(planSize,    1), MAX_SIZE);
 
         UnifiedSearchResponse response = unifiedSearchService.search(
-                searchTerm, clampedPostSize, clampedProfileSize);
+                searchTerm, clampedPostSize, clampedProfileSize, clampedPlanSize);
 
         return ResponseEntity.ok(ApiResponse.success(response));
     }

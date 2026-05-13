@@ -5,6 +5,7 @@ import com.leafy.common.enums.ProfileRole;
 import com.leafy.common.event.notification.RawNotificationEvent;
 import com.leafy.common.event.profile.UserConnectionEvent;
 import com.leafy.common.publisher.RawNotificationEventPublisher;
+import com.leafy.profileservice.dto.response.profile.UserConnectionResponse;
 import com.leafy.profileservice.model.Profile;
 import com.leafy.profileservice.model.UserConnection;
 import com.leafy.profileservice.model.enums.ConsultationStatus;
@@ -39,7 +40,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     // ── Follow / Unfollow ────────────────────────────────────────────────────
 
     @Override
-    public UserConnection followUser(String followerProfileId, String followingProfileId) {
+    public UserConnectionResponse followUser(String followerProfileId, String followingProfileId) {
         if (followerProfileId.equals(followingProfileId)) {
             throw new IllegalArgumentException("Cannot follow yourself");
         }
@@ -71,7 +72,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
             publishFollowNotification(followerProfileId, followingProfileId);
         }
 
-        return connection;
+        return toResponse(connection);
     }
 
     @Override
@@ -95,7 +96,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     // ── Consultation ─────────────────────────────────────────────────────────
 
     @Override
-    public UserConnection requestConsultation(String farmerProfileId, String expertProfileId) {
+    public UserConnectionResponse requestConsultation(String farmerProfileId, String expertProfileId) {
         if (farmerProfileId.equals(expertProfileId)) {
             throw new IllegalArgumentException("Cannot consult yourself");
         }
@@ -124,7 +125,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
         // Notify expert: farmer sent a consultation request
         publishConsultNotification(farmerProfileId, expertProfileId, "REQUESTED");
 
-        return connection;
+        return toResponse(connection);
     }
 
     @Override
@@ -139,7 +140,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
     }
 
     @Override
-    public UserConnection respondToConsultationRequest(String expertProfileId, String farmerProfileId, boolean accept) {
+    public UserConnectionResponse respondToConsultationRequest(String expertProfileId, String farmerProfileId, boolean accept) {
         UserConnection connection = userConnectionRepository
                 .findByFollowerIdAndFollowingId(farmerProfileId, expertProfileId)
                 .orElseThrow(() -> new IllegalArgumentException("Consultation request not found"));
@@ -156,7 +157,7 @@ public class UserConnectionServiceImpl implements UserConnectionService {
             publishConsultNotification(expertProfileId, farmerProfileId, "ACCEPTED");
         }
 
-        return connection;
+        return toResponse(connection);
     }
 
     // ── Query methods ────────────────────────────────────────────────────────
@@ -210,7 +211,38 @@ public class UserConnectionServiceImpl implements UserConnectionService {
                 });
     }
 
+    @Override
+    public boolean isActiveConsultation(String expertProfileId, String farmerProfileId) {
+        Profile expertProfile = profileRepository.findById(expertProfileId).orElse(null);
+        if (expertProfile == null || expertProfile.getRole() != ProfileRole.EXPERT) {
+            return false;
+        }
+        return userConnectionRepository.findByFollowerIdAndFollowingId(farmerProfileId, expertProfileId)
+                .map(conn -> conn.getConsultationStatus() == ConsultationStatus.ACCEPTED)
+                .orElse(false);
+    }
+
+    @Override
+    public List<String> getConsultingFarmerIds(String expertProfileId) {
+        return userConnectionRepository
+                .findByFollowingIdAndConsultationStatus(expertProfileId, ConsultationStatus.ACCEPTED)
+                .stream()
+                .map(UserConnection::getFollowerId)
+                .collect(Collectors.toList());
+    }
+
     // ── Private helpers ──────────────────────────────────────────────────────
+
+    private UserConnectionResponse toResponse(UserConnection connection) {
+        return UserConnectionResponse.builder()
+                .id(connection.getId())
+                .followerId(connection.getFollowerId())
+                .followingId(connection.getFollowingId())
+                .isFollowing(connection.getIsFollowing())
+                .consultationStatus(connection.getConsultationStatus())
+                .createdAt(connection.getCreatedAt())
+                .build();
+    }
 
     private ConsultationRequestResponse buildConsultationResponse(UserConnection connection, Profile followerProfile) {
         return ConsultationRequestResponse.builder()

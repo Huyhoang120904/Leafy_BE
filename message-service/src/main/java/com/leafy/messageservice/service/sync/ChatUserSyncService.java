@@ -109,7 +109,7 @@ public class ChatUserSyncService {
                             .build());
 
             // Always overwrite these fields from the authoritative source
-            chatUser.setAccountId(entry.getUserId());
+            chatUser.setUserId(entry.getUserId());
             chatUser.setFullName(entry.getFullName());
             chatUser.setAvatar(entry.getAvatar());
             chatUser.setLastUpdatedAt(now);

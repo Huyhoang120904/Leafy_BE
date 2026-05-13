@@ -1,7 +1,7 @@
 package com.leafy.profileservice.controller;
 
 import com.leafy.common.dto.ApiResponse;
-import com.leafy.profileservice.model.UserConnection;
+import com.leafy.profileservice.dto.response.profile.UserConnectionResponse;
 import com.leafy.profileservice.service.connection.UserConnectionService;
 import com.leafy.profileservice.service.profile.ProfileService;
 import lombok.RequiredArgsConstructor;
@@ -29,12 +29,12 @@ public class UserConnectionController {
 
     @PostMapping("/users/{followingProfileId}/follow")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<UserConnection>> followUser(
+    public ResponseEntity<ApiResponse<UserConnectionResponse>> followUser(
             @RequestHeader("X-User-Id") String followerUserId,
             @PathVariable String followingProfileId) {
         log.info("POST /profiles/users/{}/follow by userId: {}", followingProfileId, followerUserId);
         String followerProfileId = profileService.getProfileIdByUserId(followerUserId);
-        UserConnection connection = userConnectionService.followUser(followerProfileId, followingProfileId);
+        UserConnectionResponse connection = userConnectionService.followUser(followerProfileId, followingProfileId);
         return ResponseEntity.ok(ApiResponse.success(connection));
     }
 
@@ -53,12 +53,12 @@ public class UserConnectionController {
 
     @PostMapping("/experts/{expertProfileId}/consult/request")
     @PreAuthorize("isAuthenticated()")
-    public ResponseEntity<ApiResponse<UserConnection>> requestConsultation(
+    public ResponseEntity<ApiResponse<UserConnectionResponse>> requestConsultation(
             @RequestHeader("X-User-Id") String farmerUserId,
             @PathVariable String expertProfileId) {
         log.info("POST /profiles/experts/{}/consult/request by userId: {}", expertProfileId, farmerUserId);
         String farmerProfileId = profileService.getProfileIdByUserId(farmerUserId);
-        UserConnection connection = userConnectionService.requestConsultation(farmerProfileId, expertProfileId);
+        UserConnectionResponse connection = userConnectionService.requestConsultation(farmerProfileId, expertProfileId);
         return ResponseEntity.ok(ApiResponse.success(connection));
     }
 
@@ -75,13 +75,13 @@ public class UserConnectionController {
 
     @PostMapping("/experts/consult/respond")
     @PreAuthorize("@profileSecurityService.isExpert()")
-    public ResponseEntity<ApiResponse<UserConnection>> respondToConsultation(
+    public ResponseEntity<ApiResponse<UserConnectionResponse>> respondToConsultation(
             @RequestHeader("X-User-Id") String expertUserId,
             @RequestParam String farmerProfileId,
             @RequestParam boolean accept) {
         log.info("POST /profiles/experts/consult/respond userId: {}, farmer: {}, accept: {}", expertUserId, farmerProfileId, accept);
         String expertProfileId = profileService.getProfileIdByUserId(expertUserId);
-        UserConnection connection = userConnectionService.respondToConsultationRequest(expertProfileId, farmerProfileId, accept);
+        UserConnectionResponse connection = userConnectionService.respondToConsultationRequest(expertProfileId, farmerProfileId, accept);
         return ResponseEntity.ok(ApiResponse.success(connection));
     }
 

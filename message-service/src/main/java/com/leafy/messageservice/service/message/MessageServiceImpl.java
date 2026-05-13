@@ -26,7 +26,9 @@ import com.leafy.messageservice.dto.request.MessageSendRequest;
 
 import com.leafy.common.config.kafka.KafkaTopicProperties;
 import com.leafy.common.dto.client.socketservice.SocketEvent;
+import com.leafy.common.enums.NotificationType;
 import com.leafy.common.enums.SocketEventType;
+import com.leafy.common.event.notification.RawNotificationEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Page;
@@ -390,7 +392,7 @@ public class MessageServiceImpl implements MessageService {
         String baseUrl = s3UtilV2.getS3BaseUrl();
         Conversation finalRoom = updatedRoom != null ? updatedRoom : room;
 
-        // Build userCache for accountId resolution
+        // Build userCache for userId resolution
         Set<String> memberProfileIds = finalRoom.getMembers().stream()
                 .filter(this::isActiveMember)
                 .map(ConversationMember::getProfileId)
@@ -416,10 +418,10 @@ public class MessageServiceImpl implements MessageService {
                     .unreadCount(unreadCount)
                     .build();
 
-            String targetAccountId = conversationHelper.resolveAccountId(member.getProfileId(), memberCache);
+            String targetUserId = conversationHelper.resolveUserId(member.getProfileId(), memberCache);
             kafkaTemplate.send(kafkaTopicProperties.getSocketEvents().getSocketEvents(),
-                    targetAccountId,
-                    new SocketEvent(SocketEventType.MESSAGE, targetAccountId,
+                    targetUserId,
+                    new SocketEvent(SocketEventType.MESSAGE, targetUserId,
                             "/queue/messages", personalNotif));
                 });
 
@@ -429,6 +431,46 @@ public class MessageServiceImpl implements MessageService {
             log.info("[Chat] New direct conversation {} – broadcasting conversation update to all members.", finalRoom.getId());
             conversationHelper.broadcastConversationUpdate(finalRoom);
         }
+
+        // 8. Gửi FCM push notification qua notification-service cho từng thành viên (trừ sender)
+        //    notification-service sẽ tự bỏ qua nếu user không có push token đăng ký
+        String senderName = sender != null ? sender.getFullName() : "Ai đó";
+        String senderAvatar = sender != null ? sender.getAvatar() : null;
+        String messagePreview = buildPreviewContent(message);
+        String conversationName = finalRoom.isGroup() && finalRoom.getName() != null
+                ? finalRoom.getName() : null;
+
+        finalRoom.getMembers().stream()
+                .filter(this::isActiveMember)
+                .filter(m -> !m.getProfileId().equals(currentUserId))
+                .forEach(member -> {
+                    try {
+                        RawNotificationEvent pushEvent = RawNotificationEvent.builder()
+                                .recipientId(member.getProfileId())
+                                .actorId(currentUserId)
+                                .actorName(senderName)
+                                .actorAvatar(senderAvatar)
+                                .type(NotificationType.DIRECT_MESSAGE)
+                                .referenceId(finalRoom.getId())
+                                .payload(java.util.Map.of(
+                                        "conversationId", finalRoom.getId(),
+                                        "messagePreview", messagePreview != null ? messagePreview : "",
+                                        "conversationName", conversationName != null ? conversationName : senderName,
+                                        "isGroup", String.valueOf(finalRoom.isGroup())
+                                ))
+                                .occurredAt(message.getCreatedAt())
+                                .build();
+                        kafkaTemplate.send(
+                                kafkaTopicProperties.getNotificationEvents().getRaw(),
+                                member.getProfileId(),
+                                pushEvent);
+                        log.debug("[Chat] FCM push event published: conversationId={}, recipient={}",
+                                finalRoom.getId(), member.getProfileId());
+                    } catch (Exception e) {
+                        log.warn("[Chat] Failed to publish FCM push event for recipient={}: {}",
+                                member.getProfileId(), e.getMessage());
+                    }
+                });
     }
 
     // ─────────────────────────── Thu hồi / Xóa ───────────────────────────
@@ -510,10 +552,10 @@ public class MessageServiceImpl implements MessageService {
                 payload.put("messageId", messageId);
                 payload.put("content", request.content());
 
-                String targetAccountId = conversationHelper.resolveAccountId(member.getProfileId(), editCache);
+                String targetUserId = conversationHelper.resolveUserId(member.getProfileId(), editCache);
                 kafkaTemplate.send(kafkaTopicProperties.getSocketEvents().getSocketEvents(),
-                        targetAccountId,
-                        new SocketEvent(SocketEventType.MESSAGE, targetAccountId,
+                        targetUserId,
+                        new SocketEvent(SocketEventType.MESSAGE, targetUserId,
                                 "/queue/status-updates", payload));
             }
         }
@@ -738,10 +780,10 @@ public class MessageServiceImpl implements MessageService {
                 payload.put("deletedByAdminId", deletedByAdminId);
             }
 
-            String targetAccountId = conversationHelper.resolveAccountId(member.getProfileId(), statusCache);
+            String targetUserId = conversationHelper.resolveUserId(member.getProfileId(), statusCache);
             kafkaTemplate.send(kafkaTopicProperties.getSocketEvents().getSocketEvents(),
-                    targetAccountId,
-                    new SocketEvent(SocketEventType.MESSAGE, targetAccountId,
+                    targetUserId,
+                    new SocketEvent(SocketEventType.MESSAGE, targetUserId,
                             "/queue/status-updates", payload));
         }
     }

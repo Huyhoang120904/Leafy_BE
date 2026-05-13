@@ -45,9 +45,14 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
+        // Web clients (Leafy_FE) use SockJS transport
         registry.addEndpoint("/ws")
                 .setAllowedOriginPatterns("*")
                 .withSockJS();
+
+        // Native mobile clients (Leafy_APP) use plain WebSocket — no SockJS
+        registry.addEndpoint("/ws-native")
+                .setAllowedOriginPatterns("*");
     }
 
     @Override

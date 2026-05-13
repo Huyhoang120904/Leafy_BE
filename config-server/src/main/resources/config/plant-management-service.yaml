@@ -22,3 +22,11 @@ plant-management:
     plant-count: 30
     events-per-plant: 5
     random-seed: 20260324
+
+farm:
+  seeder:
+    plots-per-profile: 2
+    zones-per-plot: 3
+    random-seed: 20260324
+    profile-page-size: 200
+    profile-max-pages: 3

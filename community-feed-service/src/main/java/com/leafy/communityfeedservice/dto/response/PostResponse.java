@@ -35,9 +35,13 @@ public class PostResponse {
     String rootPostId;
     LocationInfo location;
     Visibility visibility;
+    String planId;
+    /** Embedded plan snapshot — populated for PLAN_SHARE posts. */
+    PlanInfo planInfo;
     PostStats stats;
     VoteType currentUserVoteType;
     LocalDateTime uploadedAt;
     LocalDateTime updatedAt;
     boolean isEdited;
 }
+

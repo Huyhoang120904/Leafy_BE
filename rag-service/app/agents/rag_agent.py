@@ -43,17 +43,29 @@ from app.nodes.summarization_node import maybe_summarize
 from app.nodes.intent_classifier_node import classify_query_intent
 from app.nodes.direct_node import direct_response
 
+# Phase 1.6: Clarification check
+from app.nodes.clarification_node import check_clarification, clarification_response
+
 
 # === Conditional Edge Functions ===
 
 def route_by_intent(state: GraphState) -> str:
-    """Short-circuit direct messages; send agricultural queries through full pipeline."""
+    """Short-circuit direct messages; send agricultural queries through clarification check."""
     intent = state.get("intent", "agriculture_query")
     if intent == "direct":
         logger.info("[GRAPH] Direct intent detected → DIRECT path (skip RAG)")
         return "direct"
-    logger.info("[GRAPH] Agricultural query → full RAG pipeline")
+    logger.info("[GRAPH] Agricultural query → clarification check")
     return "agriculture_query"
+
+
+def route_by_clarification(state: GraphState) -> str:
+    """Short-circuit vague questions to ask the user for more detail."""
+    if state.get("needs_clarification"):
+        logger.info("[GRAPH] Question too vague → CLARIFICATION path")
+        return "needs_clarification"
+    logger.info("[GRAPH] Question sufficient → full RAG pipeline")
+    return "proceed"
 
 
 def route_by_confidence(state: GraphState) -> str:
@@ -128,6 +140,10 @@ def build_graph(checkpointer=None):
     workflow.add_node("classify_intent", classify_query_intent)
     workflow.add_node("direct", direct_response)
 
+    # === Phase 1.6: Clarification Check ===
+    workflow.add_node("clarification_check", check_clarification)
+    workflow.add_node("clarification", clarification_response)
+
     # === Phase 0: Environment State ===
     workflow.add_node("env_state", fetch_env_state)
 
@@ -160,11 +176,22 @@ def build_graph(checkpointer=None):
         "classify_intent",
         route_by_intent,
         {
-            "direct": "direct",                   # direct fast path → END
-            "agriculture_query": "env_state",     # full RAG pipeline
+            "direct": "direct",                        # direct fast path → END
+            "agriculture_query": "clarification_check", # check detail sufficiency first
         }
     )
     workflow.add_edge("direct", END)
+
+    # === Phase 1.6: Clarification routing ===
+    workflow.add_conditional_edges(
+        "clarification_check",
+        route_by_clarification,
+        {
+            "needs_clarification": "clarification",  # ask user for more info → END
+            "proceed": "env_state",                   # full RAG pipeline
+        }
+    )
+    workflow.add_edge("clarification", END)
 
     # === Phase 0 → Phase 2 ===
     workflow.add_edge("env_state", "hybrid_search")

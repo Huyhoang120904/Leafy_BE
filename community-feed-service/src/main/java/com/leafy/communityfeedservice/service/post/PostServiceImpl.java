@@ -3,8 +3,12 @@ package com.leafy.communityfeedservice.service.post;
 import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.common.utils.ServiceSecurityUtils;
+import com.leafy.communityfeedservice.client.PlantManagementServiceClient;
+import com.leafy.communityfeedservice.client.dto.ExternalApiResponse;
+import com.leafy.communityfeedservice.client.dto.PlanSummaryResponse;
 import com.leafy.communityfeedservice.dto.request.PostCreateRequest;
 import com.leafy.communityfeedservice.dto.request.PostUpdateRequest;
+import com.leafy.communityfeedservice.dto.response.PlanInfo;
 import com.leafy.communityfeedservice.dto.response.PostResponse;
 import com.leafy.communityfeedservice.mapper.PostMapper;
 import com.leafy.communityfeedservice.model.Post;
@@ -30,18 +34,21 @@ import java.util.*;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+
 @Slf4j
 @Service
 @RequiredArgsConstructor
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class PostServiceImpl implements PostService {
 
-    private static final List<PostType> FEED_AND_SHARED_TYPES = List.of(PostType.FEED, PostType.SHARE);
+    private static final List<PostType> FEED_AND_SHARED_TYPES = List.of(PostType.FEED, PostType.SHARE, PostType.PLAN_SHARE);
 
     PostRepository postRepository;
     PostMapper postMapper;
     ProfileSummaryRepository profileSummaryRepository;
     VoteRepository voteRepository;
+    Optional<PlantManagementServiceClient> plantManagementServiceClient;
+
 
     @Override
     @Transactional
@@ -64,6 +71,11 @@ public class PostServiceImpl implements PostService {
                 throw new AppException(ErrorCode.INVALID_POST_TYPE_CONSTRAINT);
             }
             if (request.originalAuthorId() == null || request.originalAuthorId().isBlank()) {
+                throw new AppException(ErrorCode.INVALID_POST_TYPE_CONSTRAINT);
+            }
+        }
+        if (request.postType() == PostType.PLAN_SHARE) {
+            if (request.planId() == null || request.planId().isBlank()) {
                 throw new AppException(ErrorCode.INVALID_POST_TYPE_CONSTRAINT);
             }
         }
@@ -148,7 +160,47 @@ public class PostServiceImpl implements PostService {
                     .ifPresent(vote -> response.setCurrentUserVoteType(vote.getType()));
         }
 
+        // Embed plan snapshot for PLAN_SHARE posts
+        if (PostType.PLAN_SHARE.equals(response.getPostType()) && response.getPlanId() != null) {
+            PlanInfo planInfo = fetchPlanInfo(response.getPlanId());
+            response.setPlanInfo(planInfo);
+        }
+
         return response;
+    }
+
+    /** Fetch a single plan from plant-management-service and map to PlanInfo. Returns null on failure. */
+    private PlanInfo fetchPlanInfo(String planId) {
+        if (plantManagementServiceClient.isEmpty() || planId == null) return null;
+        try {
+            ExternalApiResponse<PlanSummaryResponse> resp =
+                    plantManagementServiceClient.get().getPlanById(planId);
+            if (resp == null || resp.getData() == null) return null;
+            return toPlanInfo(resp.getData());
+        } catch (Exception ex) {
+            log.warn("Could not fetch planInfo for planId={}: {}", planId, ex.getMessage());
+            return null;
+        }
+    }
+
+    private PlanInfo toPlanInfo(PlanSummaryResponse src) {
+        if (src == null) return null;
+        return PlanInfo.builder()
+                .id(src.getId())
+                .planName(src.getPlanName())
+                .diseaseName(src.getDiseaseName())
+                .severityLevel(src.getSeverityLevel())
+                .urgency(src.getUrgency())
+                .estimatedCost(src.getEstimatedCost())
+                .confidenceScore(src.getConfidenceScore())
+                .requiredInputs(src.getRequiredInputs())
+                .safetyWarnings(src.getSafetyWarnings())
+                .successIndicators(src.getSuccessIndicators())
+                .applyCount(src.getApplyCount())
+                .eventCount(src.getPlantEventIds() != null ? src.getPlantEventIds().size() : 0)
+                .isPublic(src.isPublic())
+                .createdAt(src.getCreatedAt())
+                .build();
     }
 
     private void enrichPostResponses(List<PostResponse> responses) {
@@ -213,6 +265,12 @@ public class PostServiceImpl implements PostService {
             if (vote != null) {
                 r.setCurrentUserVoteType(vote.getType());
             }
+
+            // Embed plan snapshot for PLAN_SHARE posts
+            if (PostType.PLAN_SHARE.equals(r.getPostType()) && r.getPlanId() != null) {
+                r.setPlanInfo(fetchPlanInfo(r.getPlanId()));
+            }
         }
     }
 }
+

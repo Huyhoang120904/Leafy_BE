@@ -45,9 +45,9 @@ class Config(BaseConfig):
 
     # MongoDB settings (read from backend/.env)
     MONGODB_HOST: str = "localhost"
-    MONGODB_PORT: int = 27018
-    MONGODB_USERNAME: str = "root"
-    MONGODB_PASSWORD: str = "rootpassword123"
+    MONGODB_PORT: int = 27017
+    MONGODB_USERNAME: str = "admin"
+    MONGODB_PASSWORD: str = "admin123"
     MONGODB_DATABASE_DISEASE: str = "leafy_disease"
 
     @property

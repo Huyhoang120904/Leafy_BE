@@ -4,6 +4,5 @@ public enum ConsultationStatus {
     NONE,
     PENDING,
     ACCEPTED,
-    REJECTED,
-    COMPLETED
+    REJECTED
 }

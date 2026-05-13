@@ -13,6 +13,7 @@ public class ElasticSearchProperties {
     private IndexConfig index = new IndexConfig();
     private String profileAlias = "profiles";
     private String postAlias = "posts";
+    private String planAlias = "plans";
     private MonitoringConfig monitoring = new MonitoringConfig();
 
     @Data

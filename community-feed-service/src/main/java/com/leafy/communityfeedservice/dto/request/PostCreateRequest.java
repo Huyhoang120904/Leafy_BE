@@ -22,5 +22,6 @@ public record PostCreateRequest(
         String rootPostId,
         LocationInfo location,
         @NotNull
-        Visibility visibility
+        Visibility visibility,
+        String planId
 ) {}

@@ -19,7 +19,7 @@ import java.util.List;
 public class ChatUser {
     @Id
     String id;
-    String accountId;
+    String userId;
     String fullName;
     String email;
     Status status;
