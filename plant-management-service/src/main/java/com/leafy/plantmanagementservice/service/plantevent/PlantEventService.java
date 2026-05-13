@@ -29,6 +29,8 @@ public interface PlantEventService {
 
     Page<PlantEventResponse> getEventsBySourcePlanId(String sourcePlanId, Pageable pageable);
 
+    Page<PlantEventResponse> getEventsByPlanApplyId(String planApplyId, Pageable pageable);
+
     Page<PlantEventResponse> getEventsByFarmPlotId(String farmPlotId, Pageable pageable);
 
     Page<PlantEventResponse> getEventsByFarmZoneId(String farmZoneId, Pageable pageable);

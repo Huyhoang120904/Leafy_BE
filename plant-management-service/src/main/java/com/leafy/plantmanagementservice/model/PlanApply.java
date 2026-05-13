@@ -58,6 +58,12 @@ public class PlanApply extends BaseModel {
 
     // ── Application parameters ───────────────────────────────────────────────
 
+    String planName;
+
+    String diseaseName;
+
+    String targetName;
+
     /** The reference start date for computing event dates. */
     LocalDate startDate;
 

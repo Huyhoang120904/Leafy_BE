@@ -139,6 +139,11 @@ public class PlanServiceIndexingDecorator implements PlanService {
     }
 
     @Override
+    public PlanApplyResponse getApplyById(String applyId) {
+        return delegate.getApplyById(applyId);
+    }
+
+    @Override
     public PlanApplyResponse updateApplyStatus(String applyId, PlanStatus newStatus) {
         return delegate.updateApplyStatus(applyId, newStatus);
     }

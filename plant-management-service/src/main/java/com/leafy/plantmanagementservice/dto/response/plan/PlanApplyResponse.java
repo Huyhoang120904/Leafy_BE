@@ -21,6 +21,8 @@ public class PlanApplyResponse {
 
     // ── Link to parent Plan ──────────────────────────────────────────────────
     String planId;
+    String planName;
+    String diseaseName;
 
     // ── Who applied ──────────────────────────────────────────────────────────
     String appliedById;
@@ -29,6 +31,7 @@ public class PlanApplyResponse {
     String plantId;
     String farmPlotId;
     String farmZoneId;
+    String targetName;
 
     // ── Application parameters ───────────────────────────────────────────────
     LocalDate startDate;

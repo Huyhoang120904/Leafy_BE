@@ -105,8 +105,8 @@ public class NotificationTemplateSeeder implements CommandLineRunner {
             new SeedEntry(
                 NotificationType.DIRECT_MESSAGE,
                 FCM_ONLY,
-                "{{actorName}}",
-                "{{#messagePreview}}{{messagePreview}}{{/messagePreview}}{{^messagePreview}}đã nhắn tin cho bạn.{{/messagePreview}}"
+                "{{#isGroup}}{{conversationName}}{{/isGroup}}{{^isGroup}}{{actorName}}{{/isGroup}}",
+                "{{#isGroup}}{{actorName}}: {{/isGroup}}{{#messagePreview}}{{messagePreview}}{{/messagePreview}}{{^messagePreview}}đã nhắn tin cho bạn.{{/messagePreview}}"
             )
         );
 
@@ -170,8 +170,8 @@ public class NotificationTemplateSeeder implements CommandLineRunner {
             new SeedEntry(
                 NotificationType.DIRECT_MESSAGE,
                 FCM_ONLY,
-                "{{actorName}}",
-                "{{#messagePreview}}{{messagePreview}}{{/messagePreview}}{{^messagePreview}}sent you a message.{{/messagePreview}}"
+                "{{#isGroup}}{{conversationName}}{{/isGroup}}{{^isGroup}}{{actorName}}{{/isGroup}}",
+                "{{#isGroup}}{{actorName}}: {{/isGroup}}{{#messagePreview}}{{messagePreview}}{{/messagePreview}}{{^messagePreview}}sent you a message.{{/messagePreview}}"
             )
         );
 

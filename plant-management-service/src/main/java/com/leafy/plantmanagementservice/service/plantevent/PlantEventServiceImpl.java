@@ -152,6 +152,12 @@ public class PlantEventServiceImpl implements PlantEventService {
     }
 
     @Override
+    public Page<PlantEventResponse> getEventsByPlanApplyId(String planApplyId, Pageable pageable) {
+        log.info("Fetching PlantEvents for planApplyId={}", planApplyId);
+        return plantEventMapper.toNestedResponsePage(plantEventRepository.findByPlanApplyId(planApplyId, pageable));
+    }
+
+    @Override
     public Page<PlantEventResponse> getEventsByFarmPlotId(String farmPlotId, Pageable pageable) {
         log.info("Fetching PlantEvents for farmPlotId={}", farmPlotId);
         return plantEventMapper.toNestedResponsePage(plantEventRepository.findByFarmPlotId(farmPlotId, pageable));

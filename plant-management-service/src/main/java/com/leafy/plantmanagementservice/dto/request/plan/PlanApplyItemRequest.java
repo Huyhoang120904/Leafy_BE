@@ -30,6 +30,7 @@ public class PlanApplyItemRequest {
     String plantId;
     String farmPlotId;
     String farmZoneId;
+    String targetName;
 
     TrackingGranularity trackingGranularity;
 

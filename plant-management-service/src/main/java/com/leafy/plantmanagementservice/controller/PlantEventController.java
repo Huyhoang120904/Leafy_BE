@@ -158,6 +158,19 @@ public class PlantEventController {
                 plantEventService.getEventsBySourcePlanId(sourcePlanId, pageable)));
     }
 
+    @GetMapping("/plan-apply/{planApplyId}")
+    public ResponseEntity<ApiResponse<Page<PlantEventResponse>>> getEventsByPlanApplyId(
+            @PathVariable String planApplyId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "20") int size,
+            @RequestParam(defaultValue = "calculatedStartDate") String sortBy,
+            @RequestParam(defaultValue = "ASC") String sortDir) {
+        log.info("GET /plant-events/plan-apply/{} - Getting events by plan apply", planApplyId);
+        Pageable pageable = buildPageable(page, size, sortBy, sortDir);
+        return ResponseEntity.ok(ApiResponse.success(
+                plantEventService.getEventsByPlanApplyId(planApplyId, pageable)));
+    }
+
     @GetMapping("/farm-plot/{farmPlotId}")
     public ResponseEntity<ApiResponse<Page<PlantEventResponse>>> getEventsByFarmPlotId(
             @PathVariable String farmPlotId,

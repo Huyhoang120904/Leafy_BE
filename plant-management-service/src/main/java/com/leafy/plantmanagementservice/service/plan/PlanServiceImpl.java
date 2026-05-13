@@ -100,6 +100,9 @@ public class PlanServiceImpl implements PlanService {
                 .plantId(request.getPlantId())
                 .farmPlotId(request.getFarmPlotId())
                 .farmZoneId(request.getFarmZoneId())
+                .targetName(request.getTargetName())
+                .planName(plan.getPlanName())
+                .diseaseName(plan.getDiseaseName())
                 .startDate(request.getStartDate())
                 .trackingGranularity(request.getTrackingGranularity())
                 .excludedPlantIds(request.getExcludedPlantIds())
@@ -383,6 +386,14 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
+    public PlanApplyResponse getApplyById(String applyId) {
+        log.info("Fetching PlanApply id={}", applyId);
+        PlanApply apply = planApplyRepository.findById(applyId)
+                .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
+        return planApplyMapper.toResponse(apply);
+    }
+
+    @Override
     @Transactional
     public PlanApplyResponse updateApplyStatus(String applyId, PlanStatus newStatus) {
         log.info("Updating PlanApply id={} status → {}", applyId, newStatus);
@@ -431,6 +442,7 @@ public class PlanServiceImpl implements PlanService {
                         .plantId(item.getPlantId())
                         .farmPlotId(item.getFarmPlotId())
                         .farmZoneId(item.getFarmZoneId())
+                        .targetName(item.getTargetName())
                         .trackingGranularity(item.getTrackingGranularity())
                         .excludedPlantIds(item.getExcludedPlantIds())
                         .excludedFarmZoneIds(item.getExcludedFarmZoneIds())

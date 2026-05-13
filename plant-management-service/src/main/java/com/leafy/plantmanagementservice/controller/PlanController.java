@@ -131,6 +131,13 @@ public class PlanController {
         return ResponseEntity.ok(ApiResponse.success(planService.getAppliesByPlan(planId, pageable)));
     }
 
+    @GetMapping("/applies/{applyId}")
+    public ResponseEntity<ApiResponse<PlanApplyResponse>> getApplyById(
+            @PathVariable String applyId) {
+        log.info("GET /plans/applies/{}", applyId);
+        return ResponseEntity.ok(ApiResponse.success(planService.getApplyById(applyId)));
+    }
+
     @PatchMapping("/applies/{applyId}/status")
     public ResponseEntity<ApiResponse<PlanApplyResponse>> updateApplyStatus(
             @PathVariable String applyId,

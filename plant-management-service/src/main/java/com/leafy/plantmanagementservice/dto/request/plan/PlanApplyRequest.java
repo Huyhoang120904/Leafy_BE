@@ -25,6 +25,8 @@ public class PlanApplyRequest {
     
     String farmZoneId;
 
+    String targetName;
+
     /** Required for FARM/ZONE scope; ignored for PLANT scope. */
     TrackingGranularity trackingGranularity;
 

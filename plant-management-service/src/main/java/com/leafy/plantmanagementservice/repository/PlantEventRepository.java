@@ -23,6 +23,8 @@ public interface PlantEventRepository extends MongoRepository<PlantEvent, String
 
     List<PlantEvent> findBySourcePlanId(String sourcePlanId);
 
+    Page<PlantEvent> findByPlanApplyId(String planApplyId, Pageable pageable);
+
     Page<PlantEvent> findByFarmPlotId(String farmPlotId, Pageable pageable);
 
     Page<PlantEvent> findByFarmZoneId(String farmZoneId, Pageable pageable);

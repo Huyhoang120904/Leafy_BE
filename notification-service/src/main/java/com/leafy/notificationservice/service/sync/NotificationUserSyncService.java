@@ -113,7 +113,7 @@ public class NotificationUserSyncService {
                             .build());
 
             // Always overwrite these fields from the authoritative source
-            user.setAccountId(entry.getUserId());
+            user.setUserId(entry.getUserId());
             user.setFullName(entry.getFullName());
             user.setAvatar(entry.getAvatar());
             user.setLastUpdatedAt(now);

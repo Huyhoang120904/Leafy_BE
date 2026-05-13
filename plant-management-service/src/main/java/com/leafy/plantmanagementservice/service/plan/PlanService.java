@@ -72,6 +72,9 @@ public interface PlanService {
     /** List all applies belonging to the current authenticated user. */
     Page<PlanApplyResponse> getMyApplies(PlanStatus status, Pageable pageable);
 
+    /** Get detail of a specific PlanApply. */
+    PlanApplyResponse getApplyById(String applyId);
+
     /** Update the status of a specific PlanApply. */
     PlanApplyResponse updateApplyStatus(String applyId, PlanStatus newStatus);
 
