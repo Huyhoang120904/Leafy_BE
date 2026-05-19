@@ -7,6 +7,7 @@ import com.leafy.plantmanagementservice.dto.request.plan.PlanUpdateRequest;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanApplyResponse;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
 import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.model.enums.PlanSourceType;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -21,6 +22,8 @@ public interface PlanService {
      */
     PlanResponse createPlan(PlanCreateRequest request);
 
+    PlanResponse getPlanById(String planId);
+
     /**
      * Updates an existing plan's metadata.
      * Only the owner or creator may update the plan.
@@ -29,18 +32,14 @@ public interface PlanService {
 
     /**
      * Applies an existing treatment plan to a target (plant, farmZone, or farmPlot).
-     * Creates a new {@link com.leafy.plantmanagementservice.model.PlanApply} record.
+     * Creates a new PlanApply record.
      */
     PlanApplyResponse applyPlan(String planId, PlanApplyRequest request);
 
-    PlanResponse getPlanById(String planId);
-
-    Page<PlanResponse> getPlansByCurrentUser(Pageable pageable);
-
     /**
-     * My plans with optional search (diseaseName/planName) filtering.
+     * My plans (owner or creator) with optional search and sourceType filtering.
      */
-    Page<PlanResponse> getMyPlans(String search, Pageable pageable);
+    Page<PlanResponse> getMyPlans(String search, PlanSourceType sourceType, Pageable pageable);
 
     Page<PlanResponse> getAllPlans(Pageable pageable);
 
@@ -60,9 +59,9 @@ public interface PlanService {
 
     /**
      * Returns all publicly visible plans, optionally filtered by a search term
-     * (matches diseaseName or planName, case-insensitive substring).
+     * (matches diseaseName or planName, case-insensitive substring) and sourceType.
      */
-    Page<PlanResponse> getPublicPlans(String search, Pageable pageable);
+    Page<PlanResponse> getPublicPlans(String search, PlanSourceType sourceType, Pageable pageable);
 
     // ── PlanApply operations ──────────────────────────────────────────────────
 
@@ -78,6 +77,16 @@ public interface PlanService {
     /** Update the status of a specific PlanApply. */
     PlanApplyResponse updateApplyStatus(String applyId, PlanStatus newStatus);
 
+    /**
+     * Cancel an active PlanApply.
+     * - Deletes all incomplete events (completed = false) belonging to this apply,
+     *   including their child events in the hierarchy.
+     * - Preserves completed events.
+     * - Marks the PlanApply status as CANCELLED and sets canCancel = false.
+     * Only applies with status = ACTIVE and canCancel = true can be cancelled.
+     */
+    PlanApplyResponse cancelApply(String applyId);
+
     /** Bulk update the status of multiple PlanApply records. */
     BulkOperationResult bulkUpdateApplyStatus(List<String> applyIds, PlanStatus status);
 
@@ -86,4 +95,11 @@ public interface PlanService {
      * Returns a BulkOperationResult summarising successes and failures.
      */
     BulkOperationResult bulkApplyCustom(List<PlanApplyItemRequest> items);
+
+    /**
+     * Mark a PlanApply as COMPLETED with the user's explicit success/failure decision.
+     * Called when the user completes the last remaining event of an apply.
+     * Also updates the linked Incident outcome.
+     */
+    PlanApplyResponse completeApply(String applyId, Boolean success);
 }

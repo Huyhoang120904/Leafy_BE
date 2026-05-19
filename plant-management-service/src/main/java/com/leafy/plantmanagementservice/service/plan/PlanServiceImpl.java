@@ -15,12 +15,17 @@ import com.leafy.plantmanagementservice.dto.response.plan.AuthorInfo;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanApplyResponse;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
 import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.service.incident.IncidentService;
 import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
 import com.leafy.plantmanagementservice.mapper.PlanApplyMapper;
 import com.leafy.plantmanagementservice.mapper.PlanMapper;
 import com.leafy.plantmanagementservice.model.Plan;
 import com.leafy.plantmanagementservice.model.PlanApply;
+import com.leafy.plantmanagementservice.model.enums.ConsultingDataType;
+import com.leafy.plantmanagementservice.model.enums.IncidentStatus;
+import com.leafy.plantmanagementservice.model.enums.PlanSourceType;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
+import com.leafy.plantmanagementservice.repository.IncidentRepository;
 import com.leafy.plantmanagementservice.repository.PlanApplyRepository;
 import com.leafy.plantmanagementservice.repository.PlanRepository;
 import lombok.AccessLevel;
@@ -47,6 +52,8 @@ public class PlanServiceImpl implements PlanService {
 
     PlanRepository planRepository;
     PlanApplyRepository planApplyRepository;
+    IncidentRepository incidentRepository;
+    IncidentService incidentService;
     PlanMapper planMapper;
     PlanApplyMapper planApplyMapper;
     KafkaTemplate<String, Object> kafkaTemplate;
@@ -54,6 +61,7 @@ public class PlanServiceImpl implements PlanService {
     ConsultingAccessHelper consultingAccessHelper;
     ProfileServiceClient profileServiceClient;
     RawNotificationEventPublisher notificationPublisher;
+    com.leafy.plantmanagementservice.service.plantevent.PlantEventService plantEventService;
 
     @Override
     @Transactional
@@ -64,10 +72,15 @@ public class PlanServiceImpl implements PlanService {
         // 1. Build entity
         String profileId = ServiceSecurityUtils.getCurrentProfileId();
         Plan plan = planMapper.toEntity(request);
-        plan.setUserId(userId);
         plan.setCreatorId(profileId);
         plan.setOwnerId(profileId);
         plan.setPublic(request.getIsPublic() != null && request.getIsPublic());
+
+        if (request.getSourceType() != null) {
+            plan.setSourceType(request.getSourceType());
+        } else {
+            plan.setSourceType(PlanSourceType.USER_CREATED);
+        }
 
         // 2. Embed template events directly — no separate PlantEvent documents created here
         if (!CollectionUtils.isEmpty(request.getSchedule())) {
@@ -108,6 +121,7 @@ public class PlanServiceImpl implements PlanService {
                 .excludedPlantIds(request.getExcludedPlantIds())
                 .excludedFarmZoneIds(request.getExcludedFarmZoneIds())
                 .status(PlanStatus.APPLYING)
+                .canCancel(true)
                 .build();
         apply = planApplyRepository.save(apply);
 
@@ -133,41 +147,49 @@ public class PlanServiceImpl implements PlanService {
     @Override
     public PlanResponse getPlanById(String planId) {
         Plan plan = getPlanEntity(planId);
+        String profileId = ServiceSecurityUtils.getCurrentProfileId();
+        boolean isOwner = profileId != null && profileId.equals(plan.getOwnerId());
+        boolean isCreator = profileId != null && profileId.equals(plan.getCreatorId());
+
         // Allow access if plan is public, or the requester is the owner/creator
         if (!plan.isPublic()) {
-            String profileId = ServiceSecurityUtils.getCurrentProfileId();
-            String userId = ServiceSecurityUtils.getCurrentAccountId();
-            boolean isOwner = profileId != null && profileId.equals(plan.getOwnerId());
-            boolean isCreator = profileId != null && profileId.equals(plan.getCreatorId());
-            // Legacy plans (created before ownerId/creatorId fields existed) only have userId
-            boolean isUserMatch = userId != null && userId.equals(plan.getUserId());
-            if (!isOwner && !isCreator && !isUserMatch) {
+            if (!isOwner && !isCreator) {
                 throw new AppException(ErrorCode.AUTH_UNAUTHORIZED);
             }
         }
         PlanResponse response = enrich(planMapper.toResponse(plan));
         // Populate applies list for detail view
-        List<PlanApply> applies = planApplyRepository.findByPlanId(planId);
-        response.setApplies(planApplyMapper.toResponseList(applies));
-        response.setApplyCount((long) applies.size());
+        // If the requester is not the owner or creator, they should only see their own applies
+        List<PlanApply> visibleApplies;
+        if (isOwner || isCreator) {
+            visibleApplies = planApplyRepository.findByPlanId(planId);
+        } else {
+            String currentProfileId = ServiceSecurityUtils.getCurrentProfileId();
+            if (currentProfileId != null) {
+                visibleApplies = planApplyRepository.findByPlanIdAndAppliedById(planId, currentProfileId);
+            } else {
+                visibleApplies = List.of();
+            }
+        }
+        
+        response.setApplies(planApplyMapper.toResponseList(visibleApplies));
+        response.setApplyCount(planApplyRepository.countByPlanId(planId));
         return response;
     }
 
     @Override
-    public Page<PlanResponse> getPlansByCurrentUser(Pageable pageable) {
-        String profileId = ServiceSecurityUtils.getCurrentProfileId();
-        return enrichPage(planRepository.findByOwnerIdOrCreatorId(profileId, profileId, pageable)
-                .map(planMapper::toResponse));
-    }
-
-    @Override
-    public Page<PlanResponse> getMyPlans(String search, Pageable pageable) {
+    public Page<PlanResponse> getMyPlans(String search, PlanSourceType sourceType, Pageable pageable) {
         String profileId = ServiceSecurityUtils.getCurrentProfileId();
         boolean hasSearch = search != null && !search.isBlank();
+        boolean hasSourceType = sourceType != null;
 
         Page<Plan> page;
-        if (hasSearch) {
+        if (hasSearch && hasSourceType) {
+            page = planRepository.findByOwnerOrCreatorAndSearchAndSourceType(profileId, sourceType, search, pageable);
+        } else if (hasSearch) {
             page = planRepository.findByOwnerOrCreatorAndSearch(profileId, search, pageable);
+        } else if (hasSourceType) {
+            page = planRepository.findByOwnerIdOrCreatorIdAndSourceType(profileId, profileId, sourceType, pageable);
         } else {
             page = planRepository.findByOwnerIdOrCreatorId(profileId, profileId, pageable);
         }
@@ -175,12 +197,17 @@ public class PlanServiceImpl implements PlanService {
     }
 
     @Override
-    public Page<PlanResponse> getPublicPlans(String search, Pageable pageable) {
+    public Page<PlanResponse> getPublicPlans(String search, PlanSourceType sourceType, Pageable pageable) {
         boolean hasSearch = search != null && !search.isBlank();
+        boolean hasSourceType = sourceType != null;
 
         Page<Plan> page;
-        if (hasSearch) {
+        if (hasSearch && hasSourceType) {
+            page = planRepository.findPublicBySearchAndSourceType(sourceType, search, pageable);
+        } else if (hasSearch) {
             page = planRepository.findPublicBySearch(search, pageable);
+        } else if (hasSourceType) {
+            page = planRepository.findByIsPublicTrueAndSourceType(sourceType, pageable);
         } else {
             page = planRepository.findByIsPublicTrue(pageable);
         }
@@ -203,7 +230,6 @@ public class PlanServiceImpl implements PlanService {
         if (request.getDiseaseName() != null)        plan.setDiseaseName(request.getDiseaseName());
         if (request.getConfidenceScore() != null)    plan.setConfidenceScore(request.getConfidenceScore());
         if (request.getSeverityLevel() != null)      plan.setSeverityLevel(request.getSeverityLevel());
-        if (request.getUrgency() != null)            plan.setUrgency(request.getUrgency());
         if (request.getRequiredInputs() != null)     plan.setRequiredInputs(request.getRequiredInputs());
         if (request.getSafetyWarnings() != null)     plan.setSafetyWarnings(request.getSafetyWarnings());
         if (request.getSuccessIndicators() != null)  plan.setSuccessIndicators(request.getSuccessIndicators());
@@ -225,7 +251,7 @@ public class PlanServiceImpl implements PlanService {
     @Override
     public Page<PlanResponse> getConsultingPlans(String expertProfileId, String farmerProfileId, Pageable pageable) {
         log.info("Expert {} fetching consulting plans for farmer {}", expertProfileId, farmerProfileId);
-        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId, ConsultingDataType.PLANS);
         return enrichPage(planRepository.findByOwnerId(farmerProfileId, pageable)
                 .map(planMapper::toResponse));
     }
@@ -236,13 +262,11 @@ public class PlanServiceImpl implements PlanService {
         log.info("Expert {} creating consulting plan for farmer {}", expertProfileId, farmerProfileId);
         consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId);
 
-        String userId = ServiceSecurityUtils.getCurrentAccountId();
         Plan plan = planMapper.toEntity(request);
-        plan.setUserId(userId);
         plan.setCreatorId(expertProfileId);
         plan.setOwnerId(farmerProfileId);  // owner is the farmer, not the expert
         plan.setPublic(request.getIsPublic() != null && request.getIsPublic());
-        plan.setConsulted(true);
+        plan.setSourceType(PlanSourceType.CONSULTED);
 
         // Embed template events directly — same pattern as createPlan()
         if (!CollectionUtils.isEmpty(request.getSchedule())) {
@@ -369,8 +393,25 @@ public class PlanServiceImpl implements PlanService {
 
     @Override
     public Page<PlanApplyResponse> getAppliesByPlan(String planId, Pageable pageable) {
-        return planApplyRepository.findByPlanId(planId, pageable)
-                .map(planApplyMapper::toResponse);
+        Plan plan = getPlanEntity(planId);
+        String profileId = ServiceSecurityUtils.getCurrentProfileId();
+        boolean isOwner = profileId != null && profileId.equals(plan.getOwnerId());
+        boolean isCreator = profileId != null && profileId.equals(plan.getCreatorId());
+
+        if (isOwner || isCreator) {
+            return planApplyRepository.findByPlanId(planId, pageable)
+                    .map(planApplyMapper::toResponse);
+        } else {
+            // For public plans (or if authorized via other means), only return their own applies
+            if (!plan.isPublic()) {
+                throw new AppException(ErrorCode.AUTH_UNAUTHORIZED);
+            }
+            if (profileId == null) {
+                return org.springframework.data.domain.Page.empty();
+            }
+            return planApplyRepository.findByPlanIdAndAppliedById(planId, profileId, pageable)
+                    .map(planApplyMapper::toResponse);
+        }
     }
 
     @Override
@@ -400,7 +441,40 @@ public class PlanServiceImpl implements PlanService {
         PlanApply apply = planApplyRepository.findById(applyId)
                 .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
         apply.setStatus(newStatus);
+        // Prevent further cancellation once in a terminal state
+        if (newStatus == PlanStatus.COMPLETED || newStatus == PlanStatus.CANCELLED) {
+            apply.setCanCancel(false);
+        }
         return planApplyMapper.toResponse(planApplyRepository.save(apply));
+    }
+
+    @Override
+    @Transactional
+    public PlanApplyResponse cancelApply(String applyId) {
+        log.info("Cancelling PlanApply id={}", applyId);
+        PlanApply apply = planApplyRepository.findById(applyId)
+                .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
+
+        // Validate: only ACTIVE applies with canCancel=true can be cancelled
+        if (apply.getStatus() != PlanStatus.ACTIVE) {
+            log.warn("Cannot cancel PlanApply id={}: status is {} (expected ACTIVE)", applyId, apply.getStatus());
+            throw new AppException(ErrorCode.PLAN_NOT_FOUND);
+        }
+        if (!Boolean.TRUE.equals(apply.getCanCancel())) {
+            log.warn("Cannot cancel PlanApply id={}: canCancel is false", applyId);
+            throw new AppException(ErrorCode.PLAN_NOT_FOUND);
+        }
+
+        // 1. Delete all incomplete events (cascade to children) — completed events are preserved
+        plantEventService.deleteIncompleteEventsByPlanApplyId(applyId);
+
+        // 2. Mark the apply as cancelled and prevent re-cancellation
+        apply.setStatus(PlanStatus.CANCELLED);
+        apply.setCanCancel(false);
+        PlanApply saved = planApplyRepository.save(apply);
+        log.info("PlanApply id={} is now CANCELLED", applyId);
+
+        return planApplyMapper.toResponse(saved);
     }
 
     @Override
@@ -460,6 +534,34 @@ public class PlanServiceImpl implements PlanService {
                 .failedCount(failedIds.size())
                 .failedIds(failedIds)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public PlanApplyResponse completeApply(String applyId, Boolean success) {
+        log.info("Completing PlanApply id={} with success={}", applyId, success);
+        PlanApply apply = planApplyRepository.findById(applyId)
+                .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
+
+        if (apply.getStatus() == PlanStatus.COMPLETED || apply.getStatus() == PlanStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot complete an already terminal PlanApply: " + apply.getStatus());
+        }
+
+        apply.setStatus(PlanStatus.COMPLETED);
+        apply.setSuccess(success);
+        apply.setCanCancel(false);
+
+        // Update the linked Incident's outcome
+        incidentRepository.findByPlanApplyId(applyId).ifPresent(incident -> {
+            incident.setSuccess(success);
+            incident.setOutcome(success ? IncidentStatus.RESOLVED : IncidentStatus.FAILED);
+            incidentRepository.save(incident);
+            log.info("Updated Incident id={} outcome={} success={}", incident.getId(), incident.getOutcome(), success);
+        });
+
+        PlanApply saved = planApplyRepository.save(apply);
+        log.info("PlanApply id={} is now COMPLETED, success={}", applyId, success);
+        return planApplyMapper.toResponse(saved);
     }
 
     // ── Author enrichment ─────────────────────────────────────────────────────

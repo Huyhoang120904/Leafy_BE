@@ -14,11 +14,16 @@ import com.leafy.plantmanagementservice.model.Species;
 import com.leafy.plantmanagementservice.model.Plan;
 import com.leafy.plantmanagementservice.model.PlanApply;
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.PlanSourceType;
 import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import com.leafy.plantmanagementservice.model.enums.TargetType;
 import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
+import com.leafy.plantmanagementservice.model.enums.SeverityLevel;
+import com.leafy.plantmanagementservice.model.enums.IncidentStatus;
+import com.leafy.plantmanagementservice.model.Incident;
 import com.leafy.plantmanagementservice.repository.EventProgressRepository;
+import com.leafy.plantmanagementservice.repository.IncidentRepository;
 import com.leafy.plantmanagementservice.repository.PlantEventRepository;
 import com.leafy.plantmanagementservice.repository.PlantRepository;
 import com.leafy.plantmanagementservice.repository.SpeciesRepository;
@@ -46,6 +51,9 @@ import org.springframework.transaction.annotation.Transactional;
 @FieldDefaults(level = AccessLevel.PRIVATE, makeFinal = true)
 public class SeederServiceImpl implements SeederService {
 
+    /** Carries the two collections produced by {@link #seedPlansFromEvents}. */
+    private record PlanSeedResult(List<Plan> plans, List<PlanApply> applies) {}
+
     SpeciesRepository speciesRepository;
     PlantRepository plantRepository;
     PlantEventRepository plantEventRepository;
@@ -53,6 +61,7 @@ public class SeederServiceImpl implements SeederService {
     EventProgressService eventProgressService;
     PlanRepository planRepository;
     PlanApplyRepository planApplyRepository;
+    IncidentRepository incidentRepository;
     FarmPlotService farmPlotService;
     FarmZoneService farmZoneService;
     SeederProperties seederProperties;
@@ -63,28 +72,22 @@ public class SeederServiceImpl implements SeederService {
     // [commonName, cultivarName|null, lightRequirements, plantingSeason, plantingWindow,
     //  waterFreqDays, daysToMaturity, spacing, expectedYieldKg|null, diseaseIds|null]
     private static final Object[][] SPECIES_DATA = {
-        {"Coffee Arabica",    "Caturra",      "partial_shade",   "Spring",         "Spring-Summer", 3, 730,  1.5,  2.5, new String[]{"DIS-LEAF-RUST", "DIS-CBD"}},
-        {"Coffee Robusta",    "Conillon",     "full_sun",        "Summer",         "Year-round",    2, 365,  2.0,  3.5, new String[]{"DIS-WILT"}},
-        {"Coffee Liberica",   null,           "partial_shade",   "Spring-Summer",  "Spring",        3, 900,  2.5,  2.0, null},
-        {"Tomato",            null,           "full_sun",        "Spring-Summer",  "Spring",        2, 70,   0.5,  5.0, new String[]{"DIS-BLIGHT", "DIS-MOSAIC"}},
-        {"Cherry Tomato",     "Sweet 100",    "full_sun",        "Spring",         "Spring",        2, 65,   0.4,  3.0, null},
-        {"Bell Pepper",       null,           "full_sun",        "Spring-Summer",  "Spring",        2, 80,   0.5,  4.0, null},
-        {"Chili Pepper",      "Thai Hot",     "full_sun",        "Summer",         "Spring-Summer", 3, 75,   0.45, 2.5, new String[]{"DIS-ANTHRACNOSE"}},
-        {"Basil",             "Genovese",     "full_sun",        "Spring",         "Spring-Summer", 1, 25,   0.25, 0.5, null},
-        {"Lettuce",           null,           "partial_shade",   "Autumn",         "Spring-Autumn", 1, 30,   0.2,  1.0, null},
-        {"Spinach",           null,           "partial_shade",   "Winter",         "Autumn-Winter", 1, 40,   0.15, 1.5, null},
-        {"Cucumber",          null,           "full_sun",        "Summer",         "Spring-Summer", 2, 55,   0.6,  8.0, null},
-        {"Pumpkin",           "Sugar Pie",    "full_sun",        "Spring",         "Spring",        5, 100,  1.0,  10.0, null},
-        {"Green Bean",        null,           "full_sun",        "Summer",         "Spring-Summer", 2, 55,   0.2,  3.0, null},
-        {"Lemongrass",        null,           "full_sun",        "Spring",         "Spring",        3, 90,   0.5,  4.0, null},
-        {"Mint",              "Spearmint",    "indirect_light",  "Spring-Autumn",  "Spring",        1, 30,   0.3,  1.0, null},
+        // Vietnamese commercial coffee varieties
+        // [commonName, cultivarName|null, lightRequirements, plantingSeason, plantingWindow,
+        //  waterFreqDays, daysToMaturity, spacing, expectedYieldKg|null, diseaseIds|null]
+        {"Cà Phê Arabica - Catimor",  "Catimor",      "partial_shade", "Spring",         "Spring",         3, 730,  1.5,  2.5, new String[]{"DIS-LEAF-RUST", "DIS-CBD"}},
+        {"Cà Phê Arabica - Bourbon",  "Bourbon",      "partial_shade", "Spring",         "Spring",         4, 180,  1.5,  1.5, new String[]{"DIS-LEAF-RUST"}},
+        {"Cà Phê Arabica - Typica",  null,           "partial_shade", "Spring",         "Spring",         4, 210,  1.5,  1.5, new String[]{"DIS-LEAF-RUST"}},
+        {"Cà Phê Robusta - TR4",     "Vietnam TR4",  "full_sun",      "Summer",         "Year-round",     2, 365,  2.5,  4.0, new String[]{"DIS-WILT", "DIS-CBD"}},
+        {"Cà Phê Robusta - Culi",    "Peaberry",     "full_sun",      "Summer",         "Year-round",     2, 365,  2.0,  3.0, new String[]{"DIS-WILT"}},
+        {"Cà Phê Liberica",          "Cà Phê Vối",  "partial_shade", "Spring",         "Spring",         4, 270,  3.0,  2.5, null},
+        {"Cà Phê Moka",               "Moka",         "partial_shade", "Spring",         "Spring",         3, 200,  1.5,  1.2, new String[]{"DIS-LEAF-RUST", "DIS-ANTHRACNOSE"}},
     };
 
-    // idealEnv data parallel to SPECIES_DATA
-    private static final int[] PERENUAL_IDS = {100, 101, 102, 200, 201, 202, 203, 300, 400, 401, 500, 600, 700, 800, 900};
-    private static final String[] WATERING_LEVELS = {"moderate", "frequent", "moderate", "frequent", "frequent",
-            "moderate", "moderate", "frequent", "frequent", "moderate",
-            "frequent", "moderate", "moderate", "moderate", "frequent"};
+    // idealEnv data parallel to SPECIES_DATA (7 entries)
+    private static final int[] PERENUAL_IDS = {100, 101, 102, 200, 201, 202, 203};
+    private static final String[] WATERING_LEVELS = {
+        "moderate", "average", "average", "frequent", "frequent", "moderate", "moderate"};
 
     // -------------------------------------------------------------------------
     // Plant seed variants
@@ -107,6 +110,7 @@ public class SeederServiceImpl implements SeederService {
         put(EventType.PHENOLOGY,              new String[]{"First flower bud visible — reproductive stage begins", "50% flowering; pollination in progress"});
         put(EventType.REPOT,                  new String[]{"Transplanted to 20L container with fresh compost", "Uprooted and replanted in enriched soil"});
         put(EventType.HARVEST,                new String[]{"Selective harvest of mature fruits", "Full canopy harvest — end of productive cycle"});
+        put(EventType.ALERT_TRIGGERED,       new String[]{"Low soil moisture alert — irrigation required", "High temperature threshold exceeded in zone sensor data"});
     }};
 
     // Per event-type sub-tasks: [title, description, estimatedCost|null]
@@ -166,6 +170,11 @@ public class SeederServiceImpl implements SeederService {
             {"Thu hái và phân loại", "Hái quả chín, phân loại theo kích cỡ và chất lượng", null},
             {"Cân và ghi nhật ký sản lượng", "Ghi lại sản lượng thu hoạch vào sổ theo dõi", null},
         });
+        put(EventType.ALERT_TRIGGERED, new String[][]{
+            {"Kiểm tra cảm biến hiện trường", "Xác minh trạng thái cảm biến và đọc giá trị thực tế tại hiện trường", null},
+            {"Xác nhận ngưỡng cảnh báo", "So sánh giá trị cảm biến với ngưỡng đã cấu hình trong IoT dashboard", null},
+            {"Xử lý cảnh báo", "Thực hiện hành động khắc phục: tưới bổ sung, che nắng, hoặc bón phân", null},
+        });
     }};
 
     @Override
@@ -209,10 +218,12 @@ public class SeederServiceImpl implements SeederService {
         long deletedEventCount = plantEventRepository.count();   // capture before deleting
         long deletedPlanCount = planRepository.count();
         long deletedPlanApplyCount = planApplyRepository.count();
+        long deletedIncidentCount = incidentRepository.count();   // capture before deleting
         long deletedProgressCount = eventProgressRepository.count();
         eventProgressRepository.deleteAll();    // progress must go first
         plantEventRepository.deleteAll();       // events must go first
         planApplyRepository.deleteAll();        // applies must go before plans
+        incidentRepository.deleteAll();         // incidents reference events/applies; delete after both
         planRepository.deleteAll();
         plantRepository.deleteAll();
 
@@ -252,7 +263,7 @@ public class SeederServiceImpl implements SeederService {
 
                 // Farm-scoped events with tracking granularity
                 List<PlantEvent> farmScopedEvents = seedFarmScopedEvents(
-                        userPlotIds, zonesByPlot, ownerProfileId, eventSeqIndex);
+                        userPlotIds, zonesByPlot, ownerProfileId, eventSeqIndex, random);
                 eventSeqIndex += farmScopedEvents.size();
 
                 allSeededPlants.addAll(seededPlants);
@@ -263,7 +274,12 @@ public class SeederServiceImpl implements SeederService {
         }
 
         // --- Plans + PlanApplies (seeded per-plant from freshly seeded events) ---
-        List<Plan> allSeededPlans = seedPlansFromEvents(allSeededPlants, allSeededEvents, effectivePlanCount);
+        PlanSeedResult planResult = seedPlansFromEvents(allSeededPlants, allSeededEvents, effectivePlanCount, random);
+        List<Plan> allSeededPlans = planResult.plans();
+        List<PlanApply> allSeededApplies = planResult.applies();
+
+        // --- Incidents (seeded for ~40% of COMPLETED applies with DISEASE_DETECTED events) ---
+        seedIncidents(allSeededApplies, allSeededEvents, random);
 
         // --- Generate EventProgress for all farm-scoped tracked events ---
         int totalProgressEntries = 0;
@@ -275,11 +291,12 @@ public class SeederServiceImpl implements SeederService {
         }
 
         long seededPlanApplyCount = planApplyRepository.count();
+        long seededIncidentCount = incidentRepository.count();
         int totalEventCount = allSeededEvents.size() + allFarmScopedEvents.size();
-        log.info("Plant seeder complete: species={}, plants={}, events={} ({}+{} farm-scoped), progress={}, plans={}, applies={}",
+        log.info("Plant seeder complete: species={}, plants={}, events={} ({}+{} farm-scoped), progress={}, plans={}, applies={}, incidents={}",
                 speciesIds.size(), allSeededPlants.size(), totalEventCount,
                 allSeededEvents.size(), allFarmScopedEvents.size(),
-                totalProgressEntries, allSeededPlans.size(), seededPlanApplyCount);
+                totalProgressEntries, allSeededPlans.size(), seededPlanApplyCount, seededIncidentCount);
 
         return PlantSeederResponse.builder()
                 .seededSpeciesCount(speciesCounts[0])
@@ -295,6 +312,8 @@ public class SeederServiceImpl implements SeederService {
                 .seededPlanCount(allSeededPlans.size())
                 .deletedPlanApplyCount(deletedPlanApplyCount)
                 .seededPlanApplyCount((int) seededPlanApplyCount)
+                .deletedIncidentCount(deletedIncidentCount)
+                .seededIncidentCount((int) seededIncidentCount)
                 .sourceFarmPlotCount(farmPlots.size())
                 .sourceFarmZoneCount(farmZones.size())
                 .build();
@@ -486,19 +505,13 @@ public class SeederServiceImpl implements SeederService {
         LocalDate today = LocalDate.now();
         int currentSeq = startSeqIndex;
 
-        // Guarantee all 12 EventType values are covered: first 12 plants each cover one type
-        for (int i = 0; i < Math.min(plants.size(), ALL_EVENT_TYPES.length); i++) {
-            Plant plant = plants.get(i);
-            EventType forcedType = ALL_EVENT_TYPES[i];
-            events.add(buildEvent(plant, forcedType, currentSeq++, today, random));
-        }
-
-        // Remaining events per plant (random types)
         for (int i = 0; i < plants.size(); i++) {
             Plant plant = plants.get(i);
-            int extraEvents = (i < ALL_EVENT_TYPES.length) ? eventsPerPlant - 1 : eventsPerPlant;
-            for (int e = 0; e < extraEvents; e++) {
-                EventType type = ALL_EVENT_TYPES[currentSeq % ALL_EVENT_TYPES.length];
+            // First |ALL_EVENT_TYPES| plants each contribute one event to each type
+            // (guarantees all 12 types are represented), plus the remaining events.
+            int eventCount = (i < ALL_EVENT_TYPES.length) ? eventsPerPlant - 1 : eventsPerPlant;
+            for (int e = 0; e < eventCount; e++) {
+                EventType type = ALL_EVENT_TYPES[(i * eventsPerPlant + e) % ALL_EVENT_TYPES.length];
                 events.add(buildEvent(plant, type, currentSeq++, today, random));
             }
         }
@@ -508,45 +521,39 @@ public class SeederServiceImpl implements SeederService {
 
     private PlantEvent buildEvent(Plant plant, EventType eventType, int seqIndex,
                                   LocalDate today, Random random) {
-        // Alternate planned (future) / actual (past)
-        boolean planned = seqIndex % 2 == 0;
-        int dayOffset = planned ? (5 + seqIndex % 30) : -(1 + seqIndex % 60);
+        // [-30, +30] day window around today — one month before and one month after.
+        int offset = random.nextInt(61) - 30;
         int durationDays = 1 + (seqIndex % 7);
+        int daysFromStartVal = seqIndex % 30;
 
-        LocalDate calcStart = today.plusDays(dayOffset);
+        LocalDate calcStart = today.plusDays(offset);
         LocalDate calcEnd = calcStart.plusDays(durationDays);
 
-        // Completed: only past events can be completed (~70% chance for past events)
-        boolean completed = !planned && (seqIndex % 10 < 7);
+        // planned = true only for future events; past events are historical/immediate.
+        // completed = true only for past events (~70% chance); future events are never completed.
+        boolean planned = !calcStart.isBefore(today);
+        boolean completed = planned ? false : (random.nextInt(100) < 70);
 
         String[] noteOptions = EVENT_NOTES.getOrDefault(eventType, new String[]{"Seeded event for " + eventType});
         String note = noteOptions[seqIndex % noteOptions.length];
         String description = "Auto-seeded " + eventType.name().toLowerCase().replace('_', ' ')
                 + " event #" + (seqIndex + 1);
 
-        // ~20% of events have a sourcePlanId (simulating RAG-generated plans)
-        // Must be a valid 24-character hex string because Plan uses @MongoId(FieldType.OBJECT_ID)
-        String sourcePlanId = (seqIndex % 5 == 0)
-                ? String.format("5eed0000000000000000%04x", seqIndex + 1)
-                : null;
-
         PlantEvent.PlantEventBuilder builder = PlantEvent.builder()
                 .plantId(plant.getId())
-                .farmPlotId(plant.getFarmPlotId())
-                .farmZoneId(plant.getFarmZoneId())
+                .farmPlotId(null)    // only plantId for PLANT targetType
+                .farmZoneId(null)   // only plantId for PLANT targetType
                 .eventType(eventType)
-                .targetType(TargetType.PLANT)   // plant-scoped events always target an individual plant
+                .targetType(TargetType.PLANT)
                 .note(note)
                 .description(description)
-                .daysFromNow(dayOffset)
+                .daysFromStart(daysFromStartVal)
                 .durationDays(durationDays)
                 .planned(planned)
                 .completed(completed)
                 .calculatedStartDate(calcStart)
-                .calculatedEndDate(calcEnd)
-                .sourcePlanId(sourcePlanId);
+                .calculatedEndDate(calcEnd);
 
-        // Chemical safety fields — only for TREATMENT_APPLICATION
         if (eventType == EventType.TREATMENT_APPLICATION) {
             int[] phiOptions = {7, 14, 21};
             String[] ppeOptions = {"Gloves and goggles", "Full protective suit", "Gloves and mask"};
@@ -572,7 +579,7 @@ public class SeederServiceImpl implements SeederService {
                 if (completed) {
                     taskDone = true;  // all tasks done when event is completed
                 } else if (!planned) {
-                    taskDone = t < taskCount - 1 && seqIndex % 2 == 0;  // earlier tasks done for in-progress
+                    taskDone = t < taskCount - 1 && seqIndex % 2 == 0;  // earlier tasks done for in-progress past events
                 } else {
                     taskDone = false; // future planned events: nothing done yet
                 }
@@ -585,6 +592,17 @@ public class SeederServiceImpl implements SeederService {
                         .build());
             }
             builder.tasks(tasks);
+        }
+
+        // Seed placeholder attachmentIds for ~50% of past/completed events.
+        // Real IDs come from file-service uploads at runtime.
+        if (!planned && seqIndex % 2 == 0) {
+            int count = 1 + (seqIndex % 3); // 1-3 attachments
+            List<String> attachmentIds = new ArrayList<>(count);
+            for (int a = 0; a < count; a++) {
+                attachmentIds.add(String.format("seed-attachment-%04d-%02d", seqIndex, a));
+            }
+            builder.attachmentIds(attachmentIds);
         }
 
         PlantEvent event = builder.build();
@@ -608,7 +626,7 @@ public class SeederServiceImpl implements SeederService {
      */
     private List<PlantEvent> seedFarmScopedEvents(List<String> farmPlotIds,
                                                    Map<String, List<String>> zonesByPlot,
-                                                   String ownerProfileId, int startSeqIndex) {
+                                                   String ownerProfileId, int startSeqIndex, Random random) {
         if (farmPlotIds.isEmpty()) {
             return List.of();
         }
@@ -626,19 +644,19 @@ public class SeederServiceImpl implements SeederService {
             // 1. Plot-scoped event tracked by zone
             events.add(buildFarmScopedEvent(farmPlotId, null,
                     farmEventTypes[seq % farmEventTypes.length],
-                    TrackingGranularity.ZONE, seq++, today));
+                    TrackingGranularity.ZONE, seq++, today, random));
 
             // 2. Plot-scoped event tracked by plant
             events.add(buildFarmScopedEvent(farmPlotId, null,
                     farmEventTypes[seq % farmEventTypes.length],
-                    TrackingGranularity.PLANT, seq++, today));
+                    TrackingGranularity.PLANT, seq++, today, random));
 
             // 3. One zone-scoped event tracked by plant per first zone of the plot
             List<String> zones = zonesByPlot.getOrDefault(farmPlotId, List.of());
             if (!zones.isEmpty()) {
                 events.add(buildFarmScopedEvent(farmPlotId, zones.get(0),
                         farmEventTypes[seq % farmEventTypes.length],
-                        TrackingGranularity.PLANT, seq++, today));
+                        TrackingGranularity.PLANT, seq++, today, random));
             }
         }
 
@@ -647,12 +665,17 @@ public class SeederServiceImpl implements SeederService {
 
     private PlantEvent buildFarmScopedEvent(String farmPlotId, String farmZoneId,
                                              EventType eventType, TrackingGranularity granularity,
-                                             int seqIndex, LocalDate today) {
-        boolean planned = seqIndex % 2 == 0;
-        int dayOffset = planned ? (5 + seqIndex % 30) : -(1 + seqIndex % 60);
+                                             int seqIndex, LocalDate today, Random random) {
+        // [-30, +30] day window — one month before and one month after today.
+        int offset = random.nextInt(61) - 30;
         int durationDays = 1 + (seqIndex % 7);
-        LocalDate calcStart = today.plusDays(dayOffset);
+        int daysFromStartVal = seqIndex % 30;
+
+        LocalDate calcStart = today.plusDays(offset);
         LocalDate calcEnd = calcStart.plusDays(durationDays);
+
+        boolean planned = !calcStart.isBefore(today);
+        boolean completed = planned ? false : (random.nextInt(100) < 70);
 
         String[] noteOptions = EVENT_NOTES.getOrDefault(eventType, new String[]{"Seeded event for " + eventType});
         String note = noteOptions[seqIndex % noteOptions.length];
@@ -661,20 +684,19 @@ public class SeederServiceImpl implements SeederService {
                 + eventType.name().toLowerCase().replace('_', ' ')
                 + " event #" + (seqIndex + 1) + " [tracking=" + granularity.name() + "]";
 
-        // Derive scope: zone-scoped if farmZoneId is present, otherwise farm-plot-scoped
         TargetType targetType = farmZoneId != null ? TargetType.FARM_ZONE : TargetType.FARM;
 
         PlantEvent event = PlantEvent.builder()
-                .farmPlotId(farmPlotId)
-                .farmZoneId(farmZoneId)
+                .farmZoneId(farmZoneId)           // zone-only for FARM_ZONE, null for FARM
+                .farmPlotId(farmZoneId == null ? farmPlotId : null)  // farmPlotId only for FARM
                 .eventType(eventType)
                 .targetType(targetType)
                 .note(note)
                 .description(description)
-                .daysFromNow(dayOffset)
+                .daysFromStart(daysFromStartVal)
                 .durationDays(durationDays)
                 .planned(planned)
-                .completed(false)
+                .completed(completed)
                 .calculatedStartDate(calcStart)
                 .calculatedEndDate(calcEnd)
                 .trackingGranularity(granularity)
@@ -685,7 +707,8 @@ public class SeederServiceImpl implements SeederService {
         return event;
     }
 
-    private List<Plan> seedPlansFromEvents(List<Plant> plants, List<PlantEvent> events, int planCount) {
+    private PlanSeedResult seedPlansFromEvents(List<Plant> plants, List<PlantEvent> events, int planCount, Random random) {
+        LocalDate today = LocalDate.now();
         // Build plantId -> ownerProfileId from freshly-seeded plants
         Map<String, String> ownerByPlant = plants.stream()
                 .filter(p -> p.getOwnerProfileId() != null)
@@ -740,11 +763,15 @@ public class SeederServiceImpl implements SeederService {
             String successInd     = disease[4];
             String planName       = "Kế hoạch " + diseaseName.split("\\(")[0].trim() + " - " + (i + 1);
 
+            String applyId = new org.bson.types.ObjectId().toString();
+
             // Link up to 3 events per plan as template events
             List<PlantEvent> linkedEvents = plantEvents.subList(0, Math.min(3, plantEvents.size()));
             linkedEvents.forEach(e -> {
-                e.setSourcePlanId(planId);
-                eventsToUpdate.add(e);
+                if (applyStatus != null) {
+                    e.setPlanApplyId(applyId);
+                    eventsToUpdate.add(e);
+                }
             });
 
             // Build EmbeddedPlanEvent list from the linked PlantEvents (up to 3)
@@ -754,7 +781,7 @@ public class SeederServiceImpl implements SeederService {
                             .targetType(e.getTargetType())   // carry scope from the source PlantEvent
                             .note(e.getNote())
                             .description(e.getDescription())
-                            .daysFromNow(e.getDaysFromNow())
+                            .daysFromStart(e.getDaysFromStart())
                             .durationDays(e.getDurationDays())
                             .phiDays(e.getPhiDays())
                             .ppeRequired(e.getPpeRequired())
@@ -764,19 +791,22 @@ public class SeederServiceImpl implements SeederService {
                             .build())
                     .collect(java.util.stream.Collectors.toList());
 
+            PlanSourceType[] types = PlanSourceType.values();
+            PlanSourceType sourceType = types[i % types.length];
+            
+            String ragId = sourceType == PlanSourceType.RAG_GEN ? "rag-" + planId : null;
+            String src = sourceType == PlanSourceType.RAG_GEN ? "RAG-SEEDER" : null;
+
             Plan plan = Plan.builder()
                     .id(planId)
                     .creatorId(ownerProfileId)
                     .ownerId(ownerProfileId)
-                    .isConsulted(false)
-                    .ragPlanId("rag-" + planId)
+                    .sourceType(sourceType)
                     .planName(planName)
-                    .question("Cách xử lý " + diseaseName + " cho cây " + plantId + "?")
-                    .source("RAG-SEEDER")
+                    .source(src)
                     .diseaseName(diseaseName)
                     .confidenceScore(0.75 + (i % 10) * 0.02)
-                    .severityLevel(severityLevel)
-                    .urgency(urgency)
+                    .severityLevel(SeverityLevel.valueOf(severityLevel.toUpperCase()))
                     .requiredInputs(List.of(requiredInput, "Bình phun 16L", "Bảo hộ lao động (găng tay, khẩu trang)"))
                     .safetyWarnings(List.of(
                         "Đeo đầy đủ bảo hộ lao động khi phun thuốc",
@@ -794,12 +824,15 @@ public class SeederServiceImpl implements SeederService {
             // Create a PlanApply for plans that have an apply status (non-PENDING)
             if (applyStatus != null) {
                 PlanApply apply = PlanApply.builder()
+                        .id(applyId)
                         .planId(planId)
                         .appliedById(ownerProfileId)
                         .plantId(plantId)
                         .farmPlotId(firstEvent.getFarmPlotId())
                         .farmZoneId(firstEvent.getFarmZoneId())
-                        .startDate(LocalDate.now().minusDays(30 + i))
+                        .startDate(applyStatus == PlanStatus.COMPLETED
+                                ? today.minusDays(5 + random.nextInt(26))  // firmly in the past
+                                : today)                                   // ACTIVE: today/very-recent
                         .plantEventIds(linkedEvents.stream().map(PlantEvent::getId).toList())
                         .status(applyStatus)
                         .build();
@@ -821,7 +854,74 @@ public class SeederServiceImpl implements SeederService {
         if (!planApplies.isEmpty()) {
             planApplyRepository.saveAll(planApplies);
         }
-        return savedPlans;
+        return new PlanSeedResult(savedPlans, planApplies);
+    }
+
+    // -------------------------------------------------------------------------
+    // Incident seeding — created only for COMPLETED applies with disease events
+    // -------------------------------------------------------------------------
+
+    /**
+     * Seeds representative {@link Incident} records for ~40% of COMPLETED applies
+     * whose linked events include a {@code DISEASE_DETECTED} event.  This mirrors the
+     * runtime behaviour where an Incident is created when a DISEASE_DETECTED event is
+     * completed.
+     *
+     * <p>Incidents are only created for COMPLETED applies because ACTIVE and PENDING
+     * applies represent unresolved in-flight disease cycles that have not yet been
+     * decided.
+     */
+    private List<Incident> seedIncidents(List<PlanApply> applies, List<PlantEvent> events, Random random) {
+        // Group events by planApplyId (only plant-scoped events carry a planApplyId)
+        Map<String, List<PlantEvent>> eventsByApply = events.stream()
+                .filter(e -> e.getPlanApplyId() != null)
+                .collect(Collectors.groupingBy(PlantEvent::getPlanApplyId));
+
+        List<Incident> incidents = new ArrayList<>();
+
+        for (PlanApply apply : applies) {
+            if (apply.getStatus() != PlanStatus.COMPLETED) continue;
+            // ~40% chance to seed an incident for this completed apply
+            if (random.nextInt(100) >= 40) continue;
+
+            List<PlantEvent> applyEvents = eventsByApply.getOrDefault(apply.getId(), List.of());
+            if (applyEvents.isEmpty()) continue;
+
+            // Find DISEASE_DETECTED and HEALTH_RECOVERY events among linked events
+            PlantEvent detectedEvent = applyEvents.stream()
+                    .filter(e -> e.getEventType() == EventType.DISEASE_DETECTED)
+                    .findFirst().orElse(null);
+            if (detectedEvent == null) continue;
+
+            PlantEvent recoveredEvent = applyEvents.stream()
+                    .filter(e -> e.getEventType() == EventType.HEALTH_RECOVERY)
+                    .findFirst().orElse(null);
+
+            boolean resolved = recoveredEvent != null;
+
+            Incident incident = Incident.builder()
+                    .planApplyId(apply.getId())
+                    .planId(apply.getPlanId())
+                    .diseaseName(apply.getDiseaseName())
+                    .plantId(apply.getPlantId())
+                    .farmZoneId(apply.getFarmZoneId())
+                    .farmPlotId(apply.getFarmPlotId())
+                    .detectedEventId(detectedEvent.getId())
+                    .recoveredEventId(recoveredEvent != null ? recoveredEvent.getId() : null)
+                    .detectedDate(detectedEvent.getCalculatedStartDate())
+                    .recoveredDate(recoveredEvent != null ? recoveredEvent.getCalculatedEndDate() : null)
+                    .outcome(resolved ? IncidentStatus.RESOLVED : IncidentStatus.FAILED)
+                    .success(resolved)
+                    .build();
+            incident.setActive(true);
+            incidents.add(incident);
+        }
+
+        if (!incidents.isEmpty()) {
+            log.info("Seeding {} incident records for completed applies", incidents.size());
+            return incidentRepository.saveAll(incidents);
+        }
+        return List.of();
     }
 
 

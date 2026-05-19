@@ -29,6 +29,7 @@ public interface PlantEventMapper {
     PlantEvent toEntity(PlantEventCreateRequest request);
 
     @Mapping(target = "children", ignore = true)
+    @Mapping(target = "isLastIncompleteEventForApply", ignore = true)
     PlantEventResponse toResponse(PlantEvent event);
 
     List<PlantEventResponse> toResponseList(List<PlantEvent> events);
@@ -57,6 +58,7 @@ public interface PlantEventMapper {
     @Mapping(target = "progressTotal", ignore = true)
     @Mapping(target = "progressCompleted", ignore = true)
     @Mapping(target = "parentPlantEventId", ignore = true)
+    @Mapping(target = "attachmentIds", ignore = true)
     // targetType is intentionally NOT ignored — allows scope correction via PATCH
     void updateEntityFromRequest(PlantEventUpdateRequest request, @MappingTarget PlantEvent event);
 

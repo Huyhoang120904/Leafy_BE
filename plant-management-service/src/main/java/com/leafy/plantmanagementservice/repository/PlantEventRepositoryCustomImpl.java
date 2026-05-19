@@ -185,18 +185,7 @@ public class PlantEventRepositoryCustomImpl implements PlantEventRepositoryCusto
         return mongoTemplate.find(new Query(criteria), PlantEvent.class);
     }
 
-    @Override
-    public List<PlantEvent> findBySourcePlanIdAndDateRange(
-            String sourcePlanId,
-            java.time.LocalDate startDate,
-            java.time.LocalDate endDate
-    ) {
-        Criteria criteria = new Criteria().andOperator(
-                buildDateOverlapCriteria(startDate, endDate),
-                Criteria.where("sourcePlanId").is(sourcePlanId)
-        );
-        return mongoTemplate.find(new Query(criteria), PlantEvent.class);
-    }
+
 
     @Override
     public List<PlantEvent> findByPlanApplyIdAndDateRange(
@@ -243,6 +232,32 @@ public class PlantEventRepositoryCustomImpl implements PlantEventRepositoryCusto
 
         Aggregation aggregation = Aggregation.newAggregation(
                 Aggregation.match(scopeCriteria),
+                Aggregation.group("eventType").count().as("count")
+        );
+
+        AggregationResults<Document> results = mongoTemplate.aggregate(
+                aggregation, "plant_events", Document.class);
+
+        Map<String, Long> breakdown = new LinkedHashMap<>();
+        for (Document doc : results.getMappedResults()) {
+            String type = doc.getString("_id");
+            Long count = doc.get("count", Number.class).longValue();
+            if (type != null) {
+                breakdown.put(type, count);
+            }
+        }
+        return breakdown;
+    }
+
+    @Override
+    public Map<String, Long> countByEventTypeForProfile(
+            List<String> farmPlotIds, List<String> farmZoneIds, List<String> plantIds,
+            LocalDate startDate, LocalDate endDate) {
+        Criteria scopeCriteria = buildProfileScopeCriteria(farmPlotIds, farmZoneIds, plantIds);
+        Criteria dateCriteria = buildDateOverlapCriteria(startDate, endDate);
+
+        Aggregation aggregation = Aggregation.newAggregation(
+                Aggregation.match(new Criteria().andOperator(scopeCriteria, dateCriteria)),
                 Aggregation.group("eventType").count().as("count")
         );
 

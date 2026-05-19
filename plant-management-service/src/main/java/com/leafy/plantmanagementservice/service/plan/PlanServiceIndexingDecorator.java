@@ -11,6 +11,7 @@ import com.leafy.plantmanagementservice.dto.request.plan.PlanUpdateRequest;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanApplyResponse;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
 import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.model.enums.PlanSourceType;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import lombok.AccessLevel;
 import lombok.RequiredArgsConstructor;
@@ -63,13 +64,8 @@ public class PlanServiceIndexingDecorator implements PlanService {
     }
 
     @Override
-    public Page<PlanResponse> getPlansByCurrentUser(Pageable pageable) {
-        return delegate.getPlansByCurrentUser(pageable);
-    }
-
-    @Override
-    public Page<PlanResponse> getMyPlans(String search, Pageable pageable) {
-        return delegate.getMyPlans(search, pageable);
+    public Page<PlanResponse> getMyPlans(String search, PlanSourceType sourceType, Pageable pageable) {
+        return delegate.getMyPlans(search, sourceType, pageable);
     }
 
     @Override
@@ -78,8 +74,8 @@ public class PlanServiceIndexingDecorator implements PlanService {
     }
 
     @Override
-    public Page<PlanResponse> getPublicPlans(String search, Pageable pageable) {
-        return delegate.getPublicPlans(search, pageable);
+    public Page<PlanResponse> getPublicPlans(String search, PlanSourceType sourceType, Pageable pageable) {
+        return delegate.getPublicPlans(search, sourceType, pageable);
     }
 
     @Override
@@ -149,6 +145,11 @@ public class PlanServiceIndexingDecorator implements PlanService {
     }
 
     @Override
+    public PlanApplyResponse cancelApply(String applyId) {
+        return delegate.cancelApply(applyId);
+    }
+
+    @Override
     public BulkOperationResult bulkUpdateApplyStatus(List<String> applyIds, PlanStatus status) {
         return delegate.bulkUpdateApplyStatus(applyIds, status);
     }
@@ -156,6 +157,11 @@ public class PlanServiceIndexingDecorator implements PlanService {
     @Override
     public BulkOperationResult bulkApplyCustom(List<PlanApplyItemRequest> items) {
         return delegate.bulkApplyCustom(items);
+    }
+
+    @Override
+    public PlanApplyResponse completeApply(String applyId, Boolean success) {
+        return delegate.completeApply(applyId, success);
     }
 
     // ── Kafka event helpers ──────────────────────────────────────────────────

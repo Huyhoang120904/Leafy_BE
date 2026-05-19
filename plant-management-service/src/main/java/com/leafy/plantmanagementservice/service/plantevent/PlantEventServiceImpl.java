@@ -4,20 +4,28 @@ import com.leafy.common.exception.AppException;
 import com.leafy.common.exception.ErrorCode;
 import com.leafy.plantmanagementservice.dto.request.plantevent.PlantEventCreateRequest;
 import com.leafy.plantmanagementservice.dto.request.plantevent.PlantEventUpdateRequest;
+import com.leafy.plantmanagementservice.dto.response.farmplot.FarmPlotResponse;
+import com.leafy.plantmanagementservice.dto.response.farmzone.FarmZoneResponse;
+import com.leafy.plantmanagementservice.dto.response.plan.IncidentResponse;
+import com.leafy.plantmanagementservice.dto.response.plan.PlanApplyResponse;
 import com.leafy.plantmanagementservice.dto.response.plantevent.PlantEventResponse;
+import com.leafy.plantmanagementservice.model.enums.PlantStatus;
+import com.leafy.plantmanagementservice.model.enums.TargetType;
 import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
 import com.leafy.plantmanagementservice.mapper.PlantEventMapper;
 import com.leafy.plantmanagementservice.model.EventTask;
 import com.leafy.plantmanagementservice.model.Plant;
 import com.leafy.plantmanagementservice.model.PlantEvent;
+import com.leafy.plantmanagementservice.model.enums.ConsultingDataType;
 import com.leafy.plantmanagementservice.model.enums.EventType;
 import com.leafy.common.utils.ServiceSecurityUtils;
-import com.leafy.plantmanagementservice.dto.response.farmplot.FarmPlotResponse;
-import com.leafy.plantmanagementservice.dto.response.farmzone.FarmZoneResponse;
 import com.leafy.plantmanagementservice.service.farmplot.FarmPlotService;
 import com.leafy.plantmanagementservice.service.farmzone.FarmZoneService;
+import com.leafy.plantmanagementservice.service.incident.IncidentService;
 import com.leafy.plantmanagementservice.repository.PlantEventRepository;
 import com.leafy.plantmanagementservice.repository.PlantRepository;
+import com.leafy.plantmanagementservice.repository.PlanApplyRepository;
+import com.leafy.plantmanagementservice.repository.IncidentRepository;
 import com.leafy.plantmanagementservice.service.eventprogress.EventProgressService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,6 +38,9 @@ import org.springframework.util.StringUtils;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -38,11 +49,14 @@ public class PlantEventServiceImpl implements PlantEventService {
 
     private final PlantEventRepository plantEventRepository;
     private final PlantRepository plantRepository;
+    private final PlanApplyRepository planApplyRepository;
+    private final IncidentRepository incidentRepository;
     private final PlantEventMapper plantEventMapper;
     private final FarmPlotService farmPlotService;
     private final FarmZoneService farmZoneService;
     private final ConsultingAccessHelper consultingAccessHelper;
     private final EventProgressService eventProgressService;
+    private final IncidentService incidentService;
 
     @Override
     @Transactional
@@ -51,11 +65,15 @@ public class PlantEventServiceImpl implements PlantEventService {
                 request.getEventType(), request.getPlantId(), request.getFarmPlotId(), request.getFarmZoneId());
         validateEventTarget(request);
         PlantEvent event = plantEventMapper.toEntity(request);
+        event.setAttachmentIds(request.getAttachmentIds());
+        resolveIncidentId(request, event);
         PlantEvent saved = plantEventRepository.save(event);
         eventProgressService.generateForEvent(saved);
         // Re-read in case generateForEvent updated counters on the parent document.
         PlantEvent finalEvent = plantEventRepository.findById(saved.getId()).orElse(saved);
-        return plantEventMapper.toResponse(finalEvent);
+        PlantEventResponse response = plantEventMapper.toResponse(finalEvent);
+        populateRelatedEntities(response);
+        return response;
     }
 
     @Override
@@ -66,14 +84,44 @@ public class PlantEventServiceImpl implements PlantEventService {
             return List.of();
         }
 
+        // ── Resolve incidentId for the bulk ────────────────────────────────────
+        // If any event in the batch already has an incidentId, use it.
+        // Otherwise, find the first DISEASE_DETECTED and generate a new UUID.
+        String bulkIncidentId = null;
+        for (PlantEventCreateRequest req : requests) {
+            if (StringUtils.hasText(req.getIncidentId())) {
+                bulkIncidentId = req.getIncidentId();
+                break;
+            }
+        }
+        if (bulkIncidentId == null) {
+            for (PlantEventCreateRequest req : requests) {
+                if (req.getEventType() == EventType.DISEASE_DETECTED) {
+                    bulkIncidentId = UUID.randomUUID().toString();
+                    break;
+                }
+            }
+        }
+
+        final String resolvedIncidentId = bulkIncidentId;
+
         List<PlantEvent> entities = requests.stream()
-                .map(plantEventMapper::toEntity)
+                .map(req -> {
+                    PlantEvent ev = plantEventMapper.toEntity(req);
+                    ev.setAttachmentIds(req.getAttachmentIds());
+                    if (resolvedIncidentId != null && !StringUtils.hasText(ev.getIncidentId())) {
+                        ev.setIncidentId(resolvedIncidentId);
+                    }
+                    return ev;
+                })
                 .toList();
         List<PlantEvent> saved = plantEventRepository.saveAll(entities);
         for (PlantEvent ev : saved) {
             eventProgressService.generateForEvent(ev);
         }
-        return plantEventMapper.toResponseList(saved);
+        List<PlantEventResponse> responses = plantEventMapper.toResponseList(saved);
+        populateRelatedEntities(responses);
+        return responses;
     }
 
     @Override
@@ -82,6 +130,9 @@ public class PlantEventServiceImpl implements PlantEventService {
         log.info("Updating PlantEvent id={}", eventId);
         PlantEvent event = getEventEntityById(eventId);
         plantEventMapper.updateEntityFromRequest(request, event);
+        if (request.getAttachmentIds() != null) {
+            event.setAttachmentIds(request.getAttachmentIds());
+        }
         if (Boolean.TRUE.equals(request.getCompleted())) {
             if (event.getTasks() != null) {
                 event.getTasks().forEach(task -> task.setCompleted(true));
@@ -114,8 +165,29 @@ public class PlantEventServiceImpl implements PlantEventService {
             bubbleUpCompletionState(updated.getParentPlantEventId());
         }
 
+        // ── Trigger Incident creation on HEALTH_RECOVERY completion ─────────────
+        if (updated.getEventType() == EventType.HEALTH_RECOVERY
+                && updated.isCompleted()
+                && StringUtils.hasText(updated.getPlanApplyId())) {
+            try {
+                incidentService.createIncidentFromHealthRecovery(updated.getId(), updated.getPlanApplyId());
+            } catch (Exception ex) {
+                log.warn("Failed to create Incident for HEALTH_RECOVERY event {}: {}", updated.getId(), ex.getMessage());
+            }
+        }
+
         PlantEventResponse response = plantEventMapper.toResponse(updated);
+
+        // ── Set isLastIncompleteEventForApply on the response ───────────────────
+        if (response != null && StringUtils.hasText(response.getPlanApplyId()) && updated.isCompleted()) {
+            long remaining = planApplyRepository.countIncompleteEventsByPlanApplyId(response.getPlanApplyId());
+            if (remaining == 0) {
+                response.setIsLastIncompleteEventForApply(true);
+            }
+        }
+
         populateChildren(response);
+        populateRelatedEntities(response);
         return response;
     }
 
@@ -124,6 +196,7 @@ public class PlantEventServiceImpl implements PlantEventService {
         log.info("Fetching PlantEvent id={}", eventId);
         PlantEventResponse response = plantEventMapper.toResponse(getEventEntityById(eventId));
         populateChildren(response);
+        populateRelatedEntities(response);
         return response;
     }
 
@@ -145,11 +218,6 @@ public class PlantEventServiceImpl implements PlantEventService {
         return plantEventMapper.toNestedResponsePage(plantEventRepository.findByPlantIdAndPlanned(plantId, isPlanned, pageable));
     }
 
-    @Override
-    public Page<PlantEventResponse> getEventsBySourcePlanId(String sourcePlanId, Pageable pageable) {
-        log.info("Fetching PlantEvents for sourcePlanId={}", sourcePlanId);
-        return plantEventMapper.toNestedResponsePage(plantEventRepository.findBySourcePlanId(sourcePlanId, pageable));
-    }
 
     @Override
     public Page<PlantEventResponse> getEventsByPlanApplyId(String planApplyId, Pageable pageable) {
@@ -181,25 +249,58 @@ public class PlantEventServiceImpl implements PlantEventService {
     }
 
     @Override
+    @Transactional
+    public void deleteIncompleteEventsByPlanApplyId(String planApplyId) {
+        log.info("Deleting incomplete events for planApplyId={}", planApplyId);
+        List<PlantEvent> incompleteEvents = plantEventRepository.findByPlanApplyIdAndCompletedFalse(planApplyId);
+        if (incompleteEvents.isEmpty()) {
+            log.info("No incomplete events found for planApplyId={}", planApplyId);
+            return;
+        }
+
+        // Recursively collect all events to delete (parent + children chain)
+        List<String> allEventIds = collectAllEventIdsRecursive(incompleteEvents);
+        log.info("Collected {} events to delete for planApplyId={}", allEventIds.size(), planApplyId);
+
+        // Delete all associated progress entries first
+        for (String eventId : allEventIds) {
+            eventProgressService.deleteByEventId(eventId);
+        }
+
+        // Delete all events
+        plantEventRepository.deleteAllById(allEventIds);
+        log.info("Deleted {} events for planApplyId={}", allEventIds.size(), planApplyId);
+    }
+
+    private List<String> collectAllEventIdsRecursive(List<PlantEvent> events) {
+        List<String> allIds = new java.util.ArrayList<>();
+        for (PlantEvent event : events) {
+            allIds.add(event.getId());
+            // Recursively collect children
+            List<PlantEvent> children = plantEventRepository.findByParentPlantEventId(event.getId());
+            if (!children.isEmpty()) {
+                allIds.addAll(collectAllEventIdsRecursive(children));
+            }
+        }
+        return allIds;
+    }
+
+    @Override
     public List<PlantEventResponse> getEventsForCalendar(String targetProfileId, String farmPlotId, String farmZoneId, String plantId,
-                                                          String sourcePlanId, String planApplyId,
+                                                          String planApplyId, String incidentId,
                                                           LocalDate startDate, LocalDate endDate) {
-        log.info("Fetching calendar events: profileId={}, farmPlotId={}, farmZoneId={}, plantId={}, sourcePlanId={}, planApplyId={}, range=[{}, {}]",
-                targetProfileId, farmPlotId, farmZoneId, plantId, sourcePlanId, planApplyId, startDate, endDate);
+        log.info("Fetching calendar events: profileId={}, farmPlotId={}, farmZoneId={}, plantId={}, planApplyId={}, incidentId={}, range=[{}, {}]",
+                targetProfileId, farmPlotId, farmZoneId, plantId, planApplyId, incidentId, startDate, endDate);
 
         List<PlantEvent> events;
         boolean hasPlantId    = StringUtils.hasText(plantId);
         boolean hasPlotId     = StringUtils.hasText(farmPlotId);
         boolean hasZoneId     = StringUtils.hasText(farmZoneId);
-        boolean hasPlanId     = StringUtils.hasText(sourcePlanId);
         boolean hasApplyId    = StringUtils.hasText(planApplyId);
 
         if (hasApplyId) {
             // Most precise — filter by the exact PlanApply instance
             events = plantEventRepository.findByPlanApplyIdAndDateRange(planApplyId, startDate, endDate);
-        } else if (hasPlanId) {
-            // Filter directly by source plan — broad plan-scoped view
-            events = plantEventRepository.findBySourcePlanIdAndDateRange(sourcePlanId, startDate, endDate);
         } else if (hasPlantId) {
             // Most specific — filter by a single plant
             events = plantEventRepository.findByPlantIdAndDateRange(plantId, startDate, endDate);
@@ -256,6 +357,13 @@ public class PlantEventServiceImpl implements PlantEventService {
         }
 
         if (!events.isEmpty()) {
+            // Filter by incidentId if provided
+            if (StringUtils.hasText(incidentId)) {
+                events = events.stream()
+                        .filter(e -> incidentId.equals(e.getIncidentId()))
+                        .toList();
+            }
+
             List<String> eventPlantIds = events.stream()
                     .map(PlantEvent::getPlantId)
                     .filter(StringUtils::hasText)
@@ -264,7 +372,7 @@ public class PlantEventServiceImpl implements PlantEventService {
 
             if (!eventPlantIds.isEmpty()) {
                 List<String> inactivePlantIds = plantRepository.findAllById(eventPlantIds).stream()
-                        .filter(p -> com.leafy.plantmanagementservice.model.enums.PlantStatus.INACTIVE.equals(p.getPlantStatus()))
+                        .filter(p -> PlantStatus.INACTIVE.equals(p.getPlantStatus()))
                         .map(Plant::getId)
                         .toList();
 
@@ -276,7 +384,9 @@ public class PlantEventServiceImpl implements PlantEventService {
             }
         }
 
-        return plantEventMapper.toNestedResponseList(events);
+        List<PlantEventResponse> responses = plantEventMapper.toNestedResponseList(events);
+        populateRelatedEntities(responses);
+        return responses;
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
@@ -292,7 +402,7 @@ public class PlantEventServiceImpl implements PlantEventService {
     @Override
     public Page<PlantEventResponse> getConsultingPlantEvents(String expertProfileId, String farmerProfileId, String plantId, Pageable pageable) {
         log.info("Expert {} fetching consulting plant events for farmer {}, plantId={}", expertProfileId, farmerProfileId, plantId);
-        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId, ConsultingDataType.PLANT_EVENTS);
         if (StringUtils.hasText(plantId)) {
             Plant plant = plantRepository.findById(plantId)
                     .orElseThrow(() -> new AppException(ErrorCode.PLANT_NOT_FOUND));
@@ -309,7 +419,7 @@ public class PlantEventServiceImpl implements PlantEventService {
     @Transactional
     public PlantEventResponse createConsultingPlantEvent(String expertProfileId, String farmerProfileId, PlantEventCreateRequest request) {
         log.info("Expert {} creating consulting plant event for farmer {}", expertProfileId, farmerProfileId);
-        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId, ConsultingDataType.PLANT_EVENTS);
         if (StringUtils.hasText(request.getPlantId())) {
             Plant plant = plantRepository.findById(request.getPlantId())
                     .orElseThrow(() -> new AppException(ErrorCode.PLANT_NOT_FOUND));
@@ -319,7 +429,56 @@ public class PlantEventServiceImpl implements PlantEventService {
         }
         validateEventTarget(request);
         PlantEvent event = plantEventMapper.toEntity(request);
-        return plantEventMapper.toResponse(plantEventRepository.save(event));
+        resolveIncidentId(request, event);
+        PlantEventResponse response = plantEventMapper.toResponse(plantEventRepository.save(event));
+        populateRelatedEntities(response);
+        return response;
+    }
+
+    @Override
+    public List<PlantEventResponse> getConsultingCalendarEvents(String expertProfileId, String farmerProfileId, LocalDate startDate, LocalDate endDate) {
+        log.info("Expert {} fetching consulting calendar events for farmer {}, range=[{}, {}]",
+                expertProfileId, farmerProfileId, startDate, endDate);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId, ConsultingDataType.PLANT_EVENTS);
+
+        // ── Resolve farmer's farm plots ────────────────────────────────────
+        List<String> plotIds = new java.util.ArrayList<>();
+        List<FarmPlotResponse> plots = farmPlotService.getByOwner(farmerProfileId);
+        if (plots != null) {
+            plotIds = plots.stream()
+                    .map(FarmPlotResponse::getId)
+                    .filter(id -> id != null && !id.isBlank())
+                    .toList();
+        }
+
+        // ── Resolve all zone IDs within those plots ────────────────────────
+        List<String> zoneIds = new java.util.ArrayList<>();
+        for (String plotId : plotIds) {
+            try {
+                farmZoneService.getByFarmPlot(plotId).stream()
+                        .map(FarmZoneResponse::getId)
+                        .filter(id -> id != null && !id.isBlank())
+                        .forEach(zoneIds::add);
+            } catch (Exception e) {
+                log.warn("Could not resolve zones for plot={}: {}", plotId, e.getMessage());
+            }
+        }
+
+        // ── Resolve all plant IDs within those plots and zones ────────────
+        List<String> plantIds = plotIds.isEmpty() && zoneIds.isEmpty()
+                ? List.of()
+                : plantRepository.findByFarmPlotIdInOrFarmZoneIdIn(plotIds, zoneIds).stream()
+                        .map(Plant::getId)
+                        .toList();
+
+        if (plotIds.isEmpty() && zoneIds.isEmpty() && plantIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<PlantEvent> events = plantEventRepository.findProfileCalendarEvents(plotIds, zoneIds, plantIds, startDate, endDate);
+        List<PlantEventResponse> responses = plantEventMapper.toResponseList(events);
+        populateRelatedEntities(responses);
+        return responses;
     }
 
     private PlantEvent getEventEntityById(String eventId) {
@@ -339,7 +498,9 @@ public class PlantEventServiceImpl implements PlantEventService {
         EventTask task = tasks.get(taskIndex);
         task.setCompleted(!task.isCompleted());
         PlantEvent updated = plantEventRepository.save(event);
-        return plantEventMapper.toResponse(updated);
+        PlantEventResponse response = plantEventMapper.toResponse(updated);
+        populateRelatedEntities(response);
+        return response;
     }
 
     /**
@@ -373,11 +534,11 @@ public class PlantEventServiceImpl implements PlantEventService {
         // Derive targetType if not already provided by the caller
         if (request.getTargetType() == null) {
             if (hasPlant) {
-                request.setTargetType(com.leafy.plantmanagementservice.model.enums.TargetType.PLANT);
+                request.setTargetType(TargetType.PLANT);
             } else if (hasFarmZone) {
-                request.setTargetType(com.leafy.plantmanagementservice.model.enums.TargetType.FARM_ZONE);
+                request.setTargetType(TargetType.FARM_ZONE);
             } else {
-                request.setTargetType(com.leafy.plantmanagementservice.model.enums.TargetType.FARM);
+                request.setTargetType(TargetType.FARM);
             }
         }
     }
@@ -486,6 +647,233 @@ public class PlantEventServiceImpl implements PlantEventService {
         // Recurse up to grandparent
         if (parent.getParentPlantEventId() != null) {
             bubbleUpCompletionState(parent.getParentPlantEventId());
+        }
+    }
+
+    /**
+     * Populates denormalized related entity summaries on the response.
+     * Collects all IDs first, batch fetches all entities, then populates.
+     */
+    private void populateRelatedEntities(PlantEventResponse response) {
+        if (response == null) return;
+        populateRelatedEntities(List.of(response));
+    }
+
+    /**
+     * Populates related entities on a list of responses.
+     * Collects all IDs first, batch fetches all entities, then populates.
+     */
+    private void populateRelatedEntities(List<PlantEventResponse> responses) {
+        if (responses == null || responses.isEmpty()) return;
+
+        // Collect all unique IDs
+        Set<String> plantIds = new java.util.HashSet<>();
+        Set<String> farmPlotIds = new java.util.HashSet<>();
+        Set<String> farmZoneIds = new java.util.HashSet<>();
+        Set<String> planApplyIds = new java.util.HashSet<>();
+        Set<String> incidentIds = new java.util.HashSet<>();
+
+        collectIds(responses, plantIds, farmPlotIds, farmZoneIds, planApplyIds, incidentIds);
+
+        // Batch fetch all entities
+        Map<String, Plant> plantsMap = fetchPlants(plantIds);
+        Map<String, FarmPlotResponse> plotsMap = fetchFarmPlots(farmPlotIds);
+        Map<String, FarmZoneResponse> zonesMap = fetchFarmZones(farmZoneIds);
+        Map<String, PlanApplyResponse> appliesMap = fetchPlanApplies(planApplyIds);
+        Map<String, IncidentResponse> incidentsMap = fetchIncidents(incidentIds);
+
+        // Populate summaries
+        for (PlantEventResponse response : responses) {
+            populateSingleResponse(response, plantsMap, plotsMap, zonesMap, appliesMap, incidentsMap);
+            if (response.getChildren() != null) {
+                populateRelatedEntities(response.getChildren());
+            }
+        }
+    }
+
+    private void collectIds(List<PlantEventResponse> responses,
+                           Set<String> plantIds, Set<String> farmPlotIds, Set<String> farmZoneIds,
+                           Set<String> planApplyIds, Set<String> incidentIds) {
+        for (PlantEventResponse response : responses) {
+            if (StringUtils.hasText(response.getPlantId())) plantIds.add(response.getPlantId());
+            if (StringUtils.hasText(response.getFarmPlotId())) farmPlotIds.add(response.getFarmPlotId());
+            if (StringUtils.hasText(response.getFarmZoneId())) farmZoneIds.add(response.getFarmZoneId());
+            if (StringUtils.hasText(response.getPlanApplyId())) planApplyIds.add(response.getPlanApplyId());
+            if (StringUtils.hasText(response.getIncidentId())) incidentIds.add(response.getIncidentId());
+        }
+    }
+
+    private Map<String, Plant> fetchPlants(Set<String> plantIds) {
+        if (plantIds.isEmpty()) return Map.of();
+        Map<String, Plant> map = new java.util.HashMap<>();
+        plantRepository.findAllById(plantIds).forEach(p -> map.put(p.getId(), p));
+        return map;
+    }
+
+    private Map<String, FarmPlotResponse> fetchFarmPlots(Set<String> plotIds) {
+        if (plotIds.isEmpty()) return Map.of();
+        Map<String, FarmPlotResponse> map = new java.util.HashMap<>();
+        for (String id : plotIds) {
+            try {
+                map.put(id, farmPlotService.getById(id));
+            } catch (Exception e) {
+                log.warn("Could not fetch farm plot {}: {}", id, e.getMessage());
+            }
+        }
+        return map;
+    }
+
+    private Map<String, FarmZoneResponse> fetchFarmZones(Set<String> zoneIds) {
+        if (zoneIds.isEmpty()) return Map.of();
+        Map<String, FarmZoneResponse> map = new java.util.HashMap<>();
+        for (String id : zoneIds) {
+            try {
+                map.put(id, farmZoneService.getById(id));
+            } catch (Exception e) {
+                log.warn("Could not fetch farm zone {}: {}", id, e.getMessage());
+            }
+        }
+        return map;
+    }
+
+    private Map<String, PlanApplyResponse> fetchPlanApplies(Set<String> applyIds) {
+        if (applyIds.isEmpty()) return Map.of();
+        Map<String, PlanApplyResponse> map = new java.util.HashMap<>();
+        planApplyRepository.findAllById(applyIds).forEach(apply -> {
+            PlanApplyResponse r = PlanApplyResponse.builder()
+                    .id(apply.getId())
+                    .planId(apply.getPlanId())
+                    .planName(apply.getPlanName())
+                    .diseaseName(apply.getDiseaseName())
+                    .targetName(apply.getTargetName())
+                    .status(apply.getStatus())
+                    .build();
+            map.put(apply.getId(), r);
+        });
+        return map;
+    }
+
+    private Map<String, IncidentResponse> fetchIncidents(Set<String> incIds) {
+        if (incIds.isEmpty()) return Map.of();
+        Map<String, IncidentResponse> map = new java.util.HashMap<>();
+        incidentRepository.findAllById(incIds).forEach(inc -> {
+            IncidentResponse r =
+                IncidentResponse.builder()
+                    .id(inc.getId())
+                    .diseaseName(inc.getDiseaseName())
+                    .outcome(inc.getOutcome())
+                    .build();
+            map.put(inc.getId(), r);
+        });
+        return map;
+    }
+
+    private void populateSingleResponse(PlantEventResponse response,
+                                       Map<String, Plant> plantsMap,
+                                       Map<String, FarmPlotResponse> plotsMap,
+                                       Map<String, FarmZoneResponse> zonesMap,
+                                       Map<String, PlanApplyResponse> appliesMap,
+                                       Map<String, IncidentResponse> incidentsMap) {
+
+        // Plant summary
+        String plantId = response.getPlantId();
+        if (plantId != null) {
+            Plant plant = plantsMap.get(plantId);
+            if (plant != null) {
+                response.setPlant(PlantEventResponse.PlantSummary.builder()
+                        .id(plant.getId())
+                        .plantNumber(plant.getPlantNumber())
+                        .nickName(plant.getNickName())
+                        .tagCode(plant.getTagCode())
+                        .speciesId(plant.getSpeciesId())
+                        .farmPlotId(plant.getFarmPlotId())
+                        .farmZoneId(plant.getFarmZoneId())
+                        .build());
+            }
+        }
+
+        // Farm plot summary
+        String farmPlotId = response.getFarmPlotId();
+        if (farmPlotId != null) {
+            FarmPlotResponse plot = plotsMap.get(farmPlotId);
+            if (plot != null) {
+                response.setFarmPlot(PlantEventResponse.FarmPlotSummary.builder()
+                        .id(plot.getId())
+                        .name(plot.getName())
+                        .code(plot.getCode())
+                        .addressLine(plot.getAddressLine())
+                        .build());
+            }
+        }
+
+        // Farm zone summary
+        String farmZoneId = response.getFarmZoneId();
+        if (farmZoneId != null) {
+            FarmZoneResponse zone = zonesMap.get(farmZoneId);
+            if (zone != null) {
+                response.setFarmZone(PlantEventResponse.FarmZoneSummary.builder()
+                        .id(zone.getId())
+                        .farmPlotId(zone.getFarmPlotId())
+                        .zoneName(zone.getZoneName())
+                        .zoneCode(zone.getZoneCode())
+                        .build());
+            }
+        }
+
+        // Plan apply summary
+        String planApplyId = response.getPlanApplyId();
+        if (planApplyId != null) {
+            PlanApplyResponse apply = appliesMap.get(planApplyId);
+            if (apply != null) {
+                response.setPlanApply(PlantEventResponse.PlanApplySummary.builder()
+                        .id(apply.getId())
+                        .planId(apply.getPlanId())
+                        .planName(apply.getPlanName())
+                        .diseaseName(apply.getDiseaseName())
+                        .targetName(apply.getTargetName())
+                        .status(apply.getStatus() != null ? apply.getStatus().name() : null)
+                        .build());
+            }
+        }
+
+        // Incident summary
+        String incidentId = response.getIncidentId();
+        if (incidentId != null) {
+            IncidentResponse incident = incidentsMap.get(incidentId);
+            if (incident != null) {
+                response.setIncident(PlantEventResponse.IncidentSummary.builder()
+                        .id(incident.getId())
+                        .diseaseName(incident.getDiseaseName())
+                        .outcome(incident.getOutcome() != null ? incident.getOutcome().name() : null)
+                        .build());
+            }
+        }
+    }
+
+    /**
+     * Assigns the incidentId to the event based on the request.
+     * <ul>
+     *   <li>If the request already carries an incidentId, use it as-is.</li>
+     *   <li>If eventType is DISEASE_DETECTED and no incidentId is set, generate a new UUID.</li>
+     *   <li>Otherwise, look up the DISEASE_DETECTED event for this planApplyId and inherit its incidentId.</li>
+     * </ul>
+     */
+    private void resolveIncidentId(PlantEventCreateRequest request, PlantEvent event) {
+        if (StringUtils.hasText(request.getIncidentId())) {
+            event.setIncidentId(request.getIncidentId());
+            return;
+        }
+        if (request.getEventType() == EventType.DISEASE_DETECTED) {
+            event.setIncidentId(UUID.randomUUID().toString());
+            log.info("Generated incidentId={} for DISEASE_DETECTED event", event.getIncidentId());
+            return;
+        }
+        if (StringUtils.hasText(request.getPlanApplyId())) {
+            List<PlantEvent> diseaseEvents = plantEventRepository
+                    .findByPlanApplyIdAndEventType(request.getPlanApplyId(), EventType.DISEASE_DETECTED);
+            if (!diseaseEvents.isEmpty() && StringUtils.hasText(diseaseEvents.get(0).getIncidentId())) {
+                event.setIncidentId(diseaseEvents.get(0).getIncidentId());
+            }
         }
     }
 }

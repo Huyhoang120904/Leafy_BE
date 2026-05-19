@@ -14,6 +14,7 @@ import com.leafy.plantmanagementservice.dto.request.plant.PlantUpdateRequest;
 import com.leafy.plantmanagementservice.dto.response.plant.PlantResponse;
 import com.leafy.plantmanagementservice.mapper.PlantMapper;
 import com.leafy.plantmanagementservice.model.Plant;
+import com.leafy.plantmanagementservice.model.enums.ConsultingDataType;
 import com.leafy.plantmanagementservice.model.enums.PlantStatus;
 import com.leafy.plantmanagementservice.repository.PlantRepository;
 import lombok.RequiredArgsConstructor;
@@ -24,6 +25,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.UUID;
+import com.leafy.plantmanagementservice.service.species.SpeciesService;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -40,10 +47,14 @@ public class PlantServiceImpl implements PlantService {
     private final FarmPlotService farmPlotService;
     private final FarmZoneService farmZoneService;
     private final ConsultingAccessHelper consultingAccessHelper;
+    private final SpeciesService speciesService;
 
     @Override
     @Transactional
     public PlantResponse createPlant(PlantCreateRequest request) {
+        // Validate speciesId exists
+        speciesService.getSpeciesEntityById(request.getSpeciesId());
+
         Plant plant = plantMapper.toEntity(request);
         plant.setPlantNumber(generatePlantNumber());
         FarmPlotResponse farmPlot = farmPlotService.getById(request.getFarmPlotId());
@@ -64,6 +75,11 @@ public class PlantServiceImpl implements PlantService {
     public PlantResponse updatePlant(String plantId, PlantUpdateRequest request) {
         log.info("Updating plant: {}", plantId);
         Plant plant = getPlantEntityById(plantId);
+
+        if (request.getSpeciesId() != null) {
+            speciesService.getSpeciesEntityById(request.getSpeciesId());
+        }
+
         plantMapper.updateEntityFromRequest(request, plant);
         Plant updatedPlant = plantRepository.save(plant);
         return plantMapper.toResponse(updatedPlant);
@@ -155,7 +171,7 @@ public class PlantServiceImpl implements PlantService {
     @Override
     public Page<PlantResponse> getConsultingPlants(String expertProfileId, String farmerProfileId, Pageable pageable) {
         log.info("Expert {} fetching consulting plants for farmer {}", expertProfileId, farmerProfileId);
-        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId);
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, farmerProfileId, ConsultingDataType.PLANTS);
         return plantRepository.findByOwnerProfileId(farmerProfileId, pageable)
                 .map(plantMapper::toResponse);
     }
@@ -164,7 +180,7 @@ public class PlantServiceImpl implements PlantService {
     public PlantResponse getConsultingPlantById(String plantId, String expertProfileId) {
         log.info("Expert {} fetching consulting plant {}", expertProfileId, plantId);
         Plant plant = getPlantEntityById(plantId);
-        consultingAccessHelper.requireConsultingAccess(expertProfileId, plant.getOwnerProfileId());
+        consultingAccessHelper.requireConsultingAccess(expertProfileId, plant.getOwnerProfileId(), ConsultingDataType.PLANTS);
         return plantMapper.toResponse(plant);
     }
 
