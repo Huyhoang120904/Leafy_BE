@@ -64,11 +64,6 @@ public class PlanServiceIndexingDecorator implements PlanService {
     }
 
     @Override
-    public Page<PlanResponse> getPlansByCurrentUser(Pageable pageable) {
-        return delegate.getPlansByCurrentUser(pageable);
-    }
-
-    @Override
     public Page<PlanResponse> getMyPlans(String search, PlanSourceType sourceType, Pageable pageable) {
         return delegate.getMyPlans(search, sourceType, pageable);
     }
@@ -162,6 +157,11 @@ public class PlanServiceIndexingDecorator implements PlanService {
     @Override
     public BulkOperationResult bulkApplyCustom(List<PlanApplyItemRequest> items) {
         return delegate.bulkApplyCustom(items);
+    }
+
+    @Override
+    public PlanApplyResponse completeApply(String applyId, Boolean success) {
+        return delegate.completeApply(applyId, success);
     }
 
     // ── Kafka event helpers ──────────────────────────────────────────────────

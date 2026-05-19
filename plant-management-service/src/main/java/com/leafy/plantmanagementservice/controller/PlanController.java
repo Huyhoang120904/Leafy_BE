@@ -5,6 +5,7 @@ import com.leafy.common.utils.ServiceSecurityUtils;
 import com.leafy.plantmanagementservice.dto.request.plan.BulkApplyCustomRequest;
 import com.leafy.plantmanagementservice.dto.request.plan.BulkPlanDeleteRequest;
 import com.leafy.plantmanagementservice.dto.request.plan.BulkPlanStatusUpdateRequest;
+import com.leafy.plantmanagementservice.dto.request.plan.CompleteApplyRequest;
 import com.leafy.plantmanagementservice.dto.request.plan.PlanApplyRequest;
 import com.leafy.plantmanagementservice.dto.request.plan.PlanCreateRequest;
 import com.leafy.plantmanagementservice.dto.request.plan.PlanUpdateRequest;
@@ -160,6 +161,15 @@ public class PlanController {
             @PathVariable String applyId) {
         log.info("POST /plans/applies/{}/cancel", applyId);
         return ResponseEntity.ok(ApiResponse.success(planService.cancelApply(applyId)));
+    }
+
+    @PatchMapping("/applies/{applyId}/complete")
+    public ResponseEntity<ApiResponse<PlanApplyResponse>> completeApply(
+            @PathVariable String applyId,
+            @Valid @RequestBody CompleteApplyRequest request) {
+        log.info("PATCH /plans/applies/{}/complete - success={}", applyId, request.getSuccess());
+        PlanApplyResponse response = planService.completeApply(applyId, request.getSuccess());
+        return ResponseEntity.ok(ApiResponse.success(response));
     }
 
     // ── Visibility ────────────────────────────────────────────────────────────

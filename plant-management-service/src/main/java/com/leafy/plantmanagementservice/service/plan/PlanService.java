@@ -22,6 +22,8 @@ public interface PlanService {
      */
     PlanResponse createPlan(PlanCreateRequest request);
 
+    PlanResponse getPlanById(String planId);
+
     /**
      * Updates an existing plan's metadata.
      * Only the owner or creator may update the plan.
@@ -30,11 +32,9 @@ public interface PlanService {
 
     /**
      * Applies an existing treatment plan to a target (plant, farmZone, or farmPlot).
-     * Creates a new {@link com.leafy.plantmanagementservice.model.PlanApply} record.
+     * Creates a new PlanApply record.
      */
     PlanApplyResponse applyPlan(String planId, PlanApplyRequest request);
-
-    PlanResponse getPlanById(String planId);
 
     /**
      * My plans (owner or creator) with optional search and sourceType filtering.
@@ -46,8 +46,6 @@ public interface PlanService {
     void deletePlan(String planId);
 
     PlanResponse createConsultingPlan(String expertProfileId, String farmerProfileId, PlanCreateRequest request);
-
-    PlanResponse getPlanById(String planId);
 
     Page<PlanResponse> getConsultingPlans(String expertProfileId, String farmerProfileId, Pageable pageable);
 
@@ -97,4 +95,11 @@ public interface PlanService {
      * Returns a BulkOperationResult summarising successes and failures.
      */
     BulkOperationResult bulkApplyCustom(List<PlanApplyItemRequest> items);
+
+    /**
+     * Mark a PlanApply as COMPLETED with the user's explicit success/failure decision.
+     * Called when the user completes the last remaining event of an apply.
+     * Also updates the linked Incident outcome.
+     */
+    PlanApplyResponse completeApply(String applyId, Boolean success);
 }

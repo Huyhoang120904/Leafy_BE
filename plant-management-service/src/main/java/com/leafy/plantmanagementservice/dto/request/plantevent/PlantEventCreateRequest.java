@@ -65,6 +65,13 @@ public class PlantEventCreateRequest {
     /** Optional: link to the PlanApply instance that produced this event. */
     String planApplyId;
 
+    /**
+     * Groups events in the same disease-detection cycle.
+     * Auto-generated as a UUID when eventType = DISEASE_DETECTED.
+     * Propagated to all sibling events in the same plan-apply.
+     */
+    String incidentId;
+
     /** Optional parent event ID for hierarchical plan-apply events. */
     String parentPlantEventId;
 
@@ -88,4 +95,7 @@ public class PlantEventCreateRequest {
 
     /** Farm zone IDs to exclude from progress generation. */
     List<String> excludedFarmZoneIds;
+
+    /** File IDs of images/videos attached to this event (stored in file-service). */
+    List<String> attachmentIds;
 }

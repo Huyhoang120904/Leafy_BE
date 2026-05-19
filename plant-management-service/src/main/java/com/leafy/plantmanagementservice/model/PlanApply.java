@@ -98,4 +98,13 @@ public class PlanApply extends BaseModel {
      */
     @Builder.Default
     Boolean canCancel = true;
+
+    // ── Outcome ──────────────────────────────────────────────────────────────
+
+    /**
+     * Whether the treatment plan succeeded from the user's perspective.
+     * Set by the user when they complete the last event of the apply.
+     * {@code null} while the plan is still in progress.
+     */
+    Boolean success;
 }

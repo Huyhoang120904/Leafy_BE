@@ -89,6 +89,14 @@ public class PlantEvent extends BaseModel {
     String planApplyId;
 
     /**
+     * Groups events in the same disease-detection cycle (DISEASE_DETECTED → HEALTH_RECOVERY).
+     * Auto-generated as a UUID when the first DISEASE_DETECTED event is created.
+     * All subsequent events in the same plan-apply inherit this value.
+     */
+    @Indexed
+    String incidentId;
+
+    /**
      * ID of the parent {@link PlantEvent} in the hierarchy created during plan apply.
      * <ul>
      *   <li>FARM_ZONE events point to their parent FARM event.</li>
@@ -135,4 +143,12 @@ public class PlantEvent extends BaseModel {
 
     /** Denormalized number of progress entries currently marked completed. */
     Integer progressCompleted;
+
+    // ── Attachments (images, videos from file-service) ────────────────────────
+    /**
+     * File IDs referencing attachments stored in file-service.
+     * These are the MongoDB {@code _id} values of {@code File} documents.
+     * May contain image URLs, video URLs, or any file type served by file-service.
+     */
+    List<String> attachmentIds;
 }

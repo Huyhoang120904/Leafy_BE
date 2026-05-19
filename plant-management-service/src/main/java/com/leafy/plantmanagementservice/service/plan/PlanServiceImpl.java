@@ -15,14 +15,17 @@ import com.leafy.plantmanagementservice.dto.response.plan.AuthorInfo;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanApplyResponse;
 import com.leafy.plantmanagementservice.dto.response.plan.PlanResponse;
 import com.leafy.plantmanagementservice.dto.response.plant.BulkOperationResult;
+import com.leafy.plantmanagementservice.service.incident.IncidentService;
 import com.leafy.plantmanagementservice.utils.ConsultingAccessHelper;
 import com.leafy.plantmanagementservice.mapper.PlanApplyMapper;
 import com.leafy.plantmanagementservice.mapper.PlanMapper;
 import com.leafy.plantmanagementservice.model.Plan;
 import com.leafy.plantmanagementservice.model.PlanApply;
 import com.leafy.plantmanagementservice.model.enums.ConsultingDataType;
+import com.leafy.plantmanagementservice.model.enums.IncidentStatus;
 import com.leafy.plantmanagementservice.model.enums.PlanSourceType;
 import com.leafy.plantmanagementservice.model.enums.PlanStatus;
+import com.leafy.plantmanagementservice.repository.IncidentRepository;
 import com.leafy.plantmanagementservice.repository.PlanApplyRepository;
 import com.leafy.plantmanagementservice.repository.PlanRepository;
 import lombok.AccessLevel;
@@ -49,6 +52,8 @@ public class PlanServiceImpl implements PlanService {
 
     PlanRepository planRepository;
     PlanApplyRepository planApplyRepository;
+    IncidentRepository incidentRepository;
+    IncidentService incidentService;
     PlanMapper planMapper;
     PlanApplyMapper planApplyMapper;
     KafkaTemplate<String, Object> kafkaTemplate;
@@ -170,13 +175,6 @@ public class PlanServiceImpl implements PlanService {
         response.setApplies(planApplyMapper.toResponseList(visibleApplies));
         response.setApplyCount(planApplyRepository.countByPlanId(planId));
         return response;
-    }
-
-    @Override
-    public Page<PlanResponse> getPlansByCurrentUser(Pageable pageable) {
-        String profileId = ServiceSecurityUtils.getCurrentProfileId();
-        return enrichPage(planRepository.findByOwnerIdOrCreatorId(profileId, profileId, pageable)
-                .map(planMapper::toResponse));
     }
 
     @Override
@@ -536,6 +534,34 @@ public class PlanServiceImpl implements PlanService {
                 .failedCount(failedIds.size())
                 .failedIds(failedIds)
                 .build();
+    }
+
+    @Override
+    @Transactional
+    public PlanApplyResponse completeApply(String applyId, Boolean success) {
+        log.info("Completing PlanApply id={} with success={}", applyId, success);
+        PlanApply apply = planApplyRepository.findById(applyId)
+                .orElseThrow(() -> new AppException(ErrorCode.PLAN_NOT_FOUND));
+
+        if (apply.getStatus() == PlanStatus.COMPLETED || apply.getStatus() == PlanStatus.CANCELLED) {
+            throw new IllegalStateException("Cannot complete an already terminal PlanApply: " + apply.getStatus());
+        }
+
+        apply.setStatus(PlanStatus.COMPLETED);
+        apply.setSuccess(success);
+        apply.setCanCancel(false);
+
+        // Update the linked Incident's outcome
+        incidentRepository.findByPlanApplyId(applyId).ifPresent(incident -> {
+            incident.setSuccess(success);
+            incident.setOutcome(success ? IncidentStatus.RESOLVED : IncidentStatus.FAILED);
+            incidentRepository.save(incident);
+            log.info("Updated Incident id={} outcome={} success={}", incident.getId(), incident.getOutcome(), success);
+        });
+
+        PlanApply saved = planApplyRepository.save(apply);
+        log.info("PlanApply id={} is now COMPLETED, success={}", applyId, success);
+        return planApplyMapper.toResponse(saved);
     }
 
     // ── Author enrichment ─────────────────────────────────────────────────────

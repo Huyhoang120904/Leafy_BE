@@ -9,7 +9,7 @@ public enum EventType {
 
     // --- Health & Medical ---
     SCOUTING, // Routine field check (may find nothing)
-    DISEASE_DETECTED, // Visual confirmation of a symptom (Rust, Berry Borer, etc.)
+    DISEASE_DETECTED, // Visual confirmation of a symptom (Rust, Berry Borer, etc.),
     TREATMENT_APPLICATION, // Curative action: spray fungicide, release beneficial insects
     QUARANTINE, // Isolate plant (nursery / pot) to prevent spread
     HEALTH_RECOVERY, // End of treatment cycle — plant declared recovered
@@ -17,5 +17,8 @@ public enum EventType {
     // --- Growth & Lifecycle ---
     PHENOLOGY, // Growth stage notes: Flowering, Pinhead, Fruit Filling, Ripening
     REPOT, // Move from nursery bag to larger pot or field
-    HARVEST // Cherry picking — used for totalYieldKg tracking
+    HARVEST, // Cherry picking — used for totalYieldKg tracking
+
+    // --- Automation & Alerts ---
+    ALERT_TRIGGERED // Automated sensor threshold crossed: soil moisture, temperature, light, etc.
 }

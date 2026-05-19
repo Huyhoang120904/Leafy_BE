@@ -193,12 +193,13 @@ public class PlantEventController {
             @RequestParam(required = false) String farmZoneId,
             @RequestParam(required = false) String plantId,
             @RequestParam(required = false) String planApplyId,
+            @RequestParam(required = false) String incidentId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        log.info("GET /plant-events/calendar - profileId={}, farmPlotId={}, farmZoneId={}, plantId={}, planApplyId={}, range=[{}, {}]",
-                profileId, farmPlotId, farmZoneId, plantId, planApplyId, startDate, endDate);
+        log.info("GET /plant-events/calendar - profileId={}, farmPlotId={}, farmZoneId={}, plantId={}, planApplyId={}, incidentId={}, range=[{}, {}]",
+                profileId, farmPlotId, farmZoneId, plantId, planApplyId, incidentId, startDate, endDate);
         List<PlantEventResponse> events = plantEventService.getEventsForCalendar(
-                profileId, farmPlotId, farmZoneId, plantId, planApplyId, startDate, endDate);
+                profileId, farmPlotId, farmZoneId, plantId, planApplyId, incidentId, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success(events));
     }
 

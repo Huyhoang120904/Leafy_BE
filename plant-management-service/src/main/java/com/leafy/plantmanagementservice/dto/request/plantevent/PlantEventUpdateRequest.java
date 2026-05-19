@@ -40,4 +40,7 @@ public class PlantEventUpdateRequest {
     /** Replace the entire task list when non-null. Null means "leave tasks unchanged". */
     @Valid
     List<EventTaskRequest> tasks;
+
+    /** Replace the attachment list when non-null. Null means "leave attachments unchanged". */
+    List<String> attachmentIds;
 }

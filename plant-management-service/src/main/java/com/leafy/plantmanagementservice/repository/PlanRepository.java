@@ -8,18 +8,14 @@ import org.springframework.data.mongodb.repository.MongoRepository;
 import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
-import java.util.Optional;
-
 @Repository
 public interface PlanRepository extends MongoRepository<Plan, String> {
-
 
     Page<Plan> findByOwnerId(String ownerId, Pageable pageable);
 
     Page<Plan> findByCreatorId(String creatorId, Pageable pageable);
 
     Page<Plan> findByOwnerIdOrCreatorId(String ownerId, String creatorId, Pageable pageable);
-
 
     // ── Public plan queries ───────────────────────────────────────────────────
 
