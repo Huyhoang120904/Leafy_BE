@@ -20,10 +20,7 @@ import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import com.leafy.plantmanagementservice.model.enums.TargetType;
 import com.leafy.plantmanagementservice.model.enums.TrackingGranularity;
 import com.leafy.plantmanagementservice.model.enums.SeverityLevel;
-import com.leafy.plantmanagementservice.model.enums.IncidentStatus;
-import com.leafy.plantmanagementservice.model.Incident;
 import com.leafy.plantmanagementservice.repository.EventProgressRepository;
-import com.leafy.plantmanagementservice.repository.IncidentRepository;
 import com.leafy.plantmanagementservice.repository.PlantEventRepository;
 import com.leafy.plantmanagementservice.repository.PlantRepository;
 import com.leafy.plantmanagementservice.repository.SpeciesRepository;
@@ -61,7 +58,6 @@ public class SeederServiceImpl implements SeederService {
     EventProgressService eventProgressService;
     PlanRepository planRepository;
     PlanApplyRepository planApplyRepository;
-    IncidentRepository incidentRepository;
     FarmPlotService farmPlotService;
     FarmZoneService farmZoneService;
     SeederProperties seederProperties;
@@ -218,12 +214,10 @@ public class SeederServiceImpl implements SeederService {
         long deletedEventCount = plantEventRepository.count();   // capture before deleting
         long deletedPlanCount = planRepository.count();
         long deletedPlanApplyCount = planApplyRepository.count();
-        long deletedIncidentCount = incidentRepository.count();   // capture before deleting
         long deletedProgressCount = eventProgressRepository.count();
         eventProgressRepository.deleteAll();    // progress must go first
         plantEventRepository.deleteAll();       // events must go first
         planApplyRepository.deleteAll();        // applies must go before plans
-        incidentRepository.deleteAll();         // incidents reference events/applies; delete after both
         planRepository.deleteAll();
         plantRepository.deleteAll();
 
@@ -278,9 +272,6 @@ public class SeederServiceImpl implements SeederService {
         List<Plan> allSeededPlans = planResult.plans();
         List<PlanApply> allSeededApplies = planResult.applies();
 
-        // --- Incidents (seeded for ~40% of COMPLETED applies with DISEASE_DETECTED events) ---
-        seedIncidents(allSeededApplies, allSeededEvents, random);
-
         // --- Generate EventProgress for all farm-scoped tracked events ---
         int totalProgressEntries = 0;
         for (PlantEvent event : allFarmScopedEvents) {
@@ -291,12 +282,11 @@ public class SeederServiceImpl implements SeederService {
         }
 
         long seededPlanApplyCount = planApplyRepository.count();
-        long seededIncidentCount = incidentRepository.count();
         int totalEventCount = allSeededEvents.size() + allFarmScopedEvents.size();
-        log.info("Plant seeder complete: species={}, plants={}, events={} ({}+{} farm-scoped), progress={}, plans={}, applies={}, incidents={}",
+        log.info("Plant seeder complete: species={}, plants={}, events={} ({}+{} farm-scoped), progress={}, plans={}, applies={}",
                 speciesIds.size(), allSeededPlants.size(), totalEventCount,
                 allSeededEvents.size(), allFarmScopedEvents.size(),
-                totalProgressEntries, allSeededPlans.size(), seededPlanApplyCount, seededIncidentCount);
+                totalProgressEntries, allSeededPlans.size(), seededPlanApplyCount);
 
         return PlantSeederResponse.builder()
                 .seededSpeciesCount(speciesCounts[0])
@@ -312,8 +302,6 @@ public class SeederServiceImpl implements SeederService {
                 .seededPlanCount(allSeededPlans.size())
                 .deletedPlanApplyCount(deletedPlanApplyCount)
                 .seededPlanApplyCount((int) seededPlanApplyCount)
-                .deletedIncidentCount(deletedIncidentCount)
-                .seededIncidentCount((int) seededIncidentCount)
                 .sourceFarmPlotCount(farmPlots.size())
                 .sourceFarmZoneCount(farmZones.size())
                 .build();
@@ -856,74 +844,6 @@ public class SeederServiceImpl implements SeederService {
         }
         return new PlanSeedResult(savedPlans, planApplies);
     }
-
-    // -------------------------------------------------------------------------
-    // Incident seeding — created only for COMPLETED applies with disease events
-    // -------------------------------------------------------------------------
-
-    /**
-     * Seeds representative {@link Incident} records for ~40% of COMPLETED applies
-     * whose linked events include a {@code DISEASE_DETECTED} event.  This mirrors the
-     * runtime behaviour where an Incident is created when a DISEASE_DETECTED event is
-     * completed.
-     *
-     * <p>Incidents are only created for COMPLETED applies because ACTIVE and PENDING
-     * applies represent unresolved in-flight disease cycles that have not yet been
-     * decided.
-     */
-    private List<Incident> seedIncidents(List<PlanApply> applies, List<PlantEvent> events, Random random) {
-        // Group events by planApplyId (only plant-scoped events carry a planApplyId)
-        Map<String, List<PlantEvent>> eventsByApply = events.stream()
-                .filter(e -> e.getPlanApplyId() != null)
-                .collect(Collectors.groupingBy(PlantEvent::getPlanApplyId));
-
-        List<Incident> incidents = new ArrayList<>();
-
-        for (PlanApply apply : applies) {
-            if (apply.getStatus() != PlanStatus.COMPLETED) continue;
-            // ~40% chance to seed an incident for this completed apply
-            if (random.nextInt(100) >= 40) continue;
-
-            List<PlantEvent> applyEvents = eventsByApply.getOrDefault(apply.getId(), List.of());
-            if (applyEvents.isEmpty()) continue;
-
-            // Find DISEASE_DETECTED and HEALTH_RECOVERY events among linked events
-            PlantEvent detectedEvent = applyEvents.stream()
-                    .filter(e -> e.getEventType() == EventType.DISEASE_DETECTED)
-                    .findFirst().orElse(null);
-            if (detectedEvent == null) continue;
-
-            PlantEvent recoveredEvent = applyEvents.stream()
-                    .filter(e -> e.getEventType() == EventType.HEALTH_RECOVERY)
-                    .findFirst().orElse(null);
-
-            boolean resolved = recoveredEvent != null;
-
-            Incident incident = Incident.builder()
-                    .planApplyId(apply.getId())
-                    .planId(apply.getPlanId())
-                    .diseaseName(apply.getDiseaseName())
-                    .plantId(apply.getPlantId())
-                    .farmZoneId(apply.getFarmZoneId())
-                    .farmPlotId(apply.getFarmPlotId())
-                    .detectedEventId(detectedEvent.getId())
-                    .recoveredEventId(recoveredEvent != null ? recoveredEvent.getId() : null)
-                    .detectedDate(detectedEvent.getCalculatedStartDate())
-                    .recoveredDate(recoveredEvent != null ? recoveredEvent.getCalculatedEndDate() : null)
-                    .outcome(resolved ? IncidentStatus.RESOLVED : IncidentStatus.FAILED)
-                    .success(resolved)
-                    .build();
-            incident.setActive(true);
-            incidents.add(incident);
-        }
-
-        if (!incidents.isEmpty()) {
-            log.info("Seeding {} incident records for completed applies", incidents.size());
-            return incidentRepository.saveAll(incidents);
-        }
-        return List.of();
-    }
-
 
     // -------------------------------------------------------------------------
     // Farm data fetching via Feign

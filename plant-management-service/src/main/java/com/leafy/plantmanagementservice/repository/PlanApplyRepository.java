@@ -5,7 +5,6 @@ import com.leafy.plantmanagementservice.model.enums.PlanStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.mongodb.repository.MongoRepository;
-import org.springframework.data.mongodb.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -36,8 +35,4 @@ public interface PlanApplyRepository extends MongoRepository<PlanApply, String> 
     Page<PlanApply> findByFarmZoneId(String farmZoneId, Pageable pageable);
 
     long countByPlanId(String planId);
-
-    /** Counts incomplete (not yet completed) plant events for a PlanApply. Used to detect the last event. */
-    @Query(value = "{ 'planApplyId': ?0, 'completed': false }", count = true)
-    long countIncompleteEventsByPlanApplyId(String planApplyId);
 }

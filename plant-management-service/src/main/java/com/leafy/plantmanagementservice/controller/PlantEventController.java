@@ -8,6 +8,7 @@ import com.leafy.plantmanagementservice.dto.request.plantevent.PlantEventUpdateR
 import com.leafy.plantmanagementservice.dto.response.plantevent.EventProgressResponse;
 import com.leafy.plantmanagementservice.dto.response.plantevent.PlantEventResponse;
 import com.leafy.plantmanagementservice.model.enums.EventType;
+import com.leafy.plantmanagementservice.model.enums.TargetType;
 import com.leafy.plantmanagementservice.service.eventprogress.EventProgressService;
 import com.leafy.plantmanagementservice.service.plantevent.PlantEventService;
 import jakarta.validation.Valid;
@@ -193,13 +194,14 @@ public class PlantEventController {
             @RequestParam(required = false) String farmZoneId,
             @RequestParam(required = false) String plantId,
             @RequestParam(required = false) String planApplyId,
-            @RequestParam(required = false) String incidentId,
+            @RequestParam(required = false) EventType eventType,
+            @RequestParam(required = false) TargetType targetType,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate startDate,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-        log.info("GET /plant-events/calendar - profileId={}, farmPlotId={}, farmZoneId={}, plantId={}, planApplyId={}, incidentId={}, range=[{}, {}]",
-                profileId, farmPlotId, farmZoneId, plantId, planApplyId, incidentId, startDate, endDate);
+        log.info("GET /plant-events/calendar - profileId={}, farmPlotId={}, farmZoneId={}, plantId={}, planApplyId={}, eventType={}, targetType={}, range=[{}, {}]",
+                profileId, farmPlotId, farmZoneId, plantId, planApplyId, eventType, targetType, startDate, endDate);
         List<PlantEventResponse> events = plantEventService.getEventsForCalendar(
-                profileId, farmPlotId, farmZoneId, plantId, planApplyId, incidentId, startDate, endDate);
+                profileId, farmPlotId, farmZoneId, plantId, planApplyId, eventType, targetType, startDate, endDate);
         return ResponseEntity.ok(ApiResponse.success(events));
     }
 
@@ -210,6 +212,33 @@ public class PlantEventController {
     public ResponseEntity<ApiResponse<Void>> deleteEvent(@PathVariable String eventId) {
         log.info("DELETE /plant-events/{} - Deleting event", eventId);
         plantEventService.deleteEvent(eventId);
+        return ResponseEntity.ok(ApiResponse.successWithoutData());
+    }
+
+    /**
+     * Returns all completed events in the subtree rooted at the given event,
+     * including the event itself (if completed) and all its completed descendants.
+     * The frontend uses this to show a confirmation list before issuing the
+     * cascading delete request.
+     */
+    @GetMapping("/{eventId}/deletable-children")
+    public ResponseEntity<ApiResponse<List<PlantEventResponse>>> getDeletableChildren(@PathVariable String eventId) {
+        log.info("GET /plant-events/{}/deletable-children - Listing completed children before delete", eventId);
+        return ResponseEntity.ok(ApiResponse.success(plantEventService.getDeletableChildren(eventId)));
+    }
+
+    /**
+     * Deletes the event and all its completed descendants.
+     * Callers must first fetch {@code /plant-events/{eventId}/deletable-children}
+     * and display the list to the user. Deletion proceeds only when
+     * {@code confirmDelete=true}.
+     */
+    @DeleteMapping("/{eventId}/with-children")
+    public ResponseEntity<ApiResponse<Void>> deleteWithChildren(
+            @PathVariable String eventId,
+            @RequestParam boolean confirmDelete) {
+        log.info("DELETE /plant-events/{}/with-children?confirmDelete={}", eventId, confirmDelete);
+        plantEventService.deleteWithChildren(eventId, confirmDelete);
         return ResponseEntity.ok(ApiResponse.successWithoutData());
     }
 

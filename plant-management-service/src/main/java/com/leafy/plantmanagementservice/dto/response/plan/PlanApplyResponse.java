@@ -40,6 +40,13 @@ public class PlanApplyResponse {
     // ── Generated events ─────────────────────────────────────────────────────
     List<String> plantEventIds;
 
+    /**
+     * The ID of the last event in the treatment sequence.
+     * When this event is completed, the frontend prompts the user to indicate
+     * whether the treatment was successful.
+     */
+    String lastEventId;
+
     // ── Lifecycle ────────────────────────────────────────────────────────────
     PlanStatus status;
 
