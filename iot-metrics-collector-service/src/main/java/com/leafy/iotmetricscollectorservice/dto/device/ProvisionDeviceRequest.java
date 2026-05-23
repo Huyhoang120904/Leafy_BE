@@ -10,4 +10,6 @@ public class ProvisionDeviceRequest {
     private String deviceCode;
     private String deviceName;
     private String deviceType;
+    private String farmPlotId;
+    private String zoneId;
 }

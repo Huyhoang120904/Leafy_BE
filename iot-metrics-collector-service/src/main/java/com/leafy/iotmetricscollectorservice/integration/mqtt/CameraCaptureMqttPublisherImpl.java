@@ -7,6 +7,7 @@ import com.leafy.iotmetricscollectorservice.dto.media.CameraCaptureRequest;
 import com.leafy.iotmetricscollectorservice.integration.mqtt.payload.CameraCaptureMqttPayload;
 import com.leafy.iotmetricscollectorservice.model.DeviceMediaEvent;
 import com.leafy.iotmetricscollectorservice.model.IoTDevice;
+import com.leafy.iotmetricscollectorservice.model.enums.TriggerType;
 import java.util.List;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -27,7 +28,7 @@ public class CameraCaptureMqttPublisherImpl implements CameraCaptureMqttPublishe
     private final ObjectMapper objectMapper;
     private final MqttProperties mqttProperties;
 
-    @Value("${app.file-service.upload-url:http://localhost:8080/files/upload}")
+    @Value("${app.file-service.upload-url:http://file-service:8084/internal/files/upload}")
     private String fileUploadEndpoint;
 
     @Override
@@ -52,15 +53,30 @@ public class CameraCaptureMqttPublisherImpl implements CameraCaptureMqttPublishe
         CameraCaptureMqttPayload payload = new CameraCaptureMqttPayload();
         payload.setRequestId(mediaEvent.getRequestId());
         payload.setDeviceUid(device.getDeviceUid());
+        payload.setTriggerType(resolveTriggerType(mediaEvent));
         payload.setRequestedAt(mediaEvent.getRequestedAt());
         payload.setResolution(request.getResolution().name());
         payload.setQuality(request.getQuality().name());
 
         CameraCaptureMqttPayload.Upload upload = new CameraCaptureMqttPayload.Upload();
         upload.setMode("FILE_SERVICE_MULTIPART");
-        upload.setEndpoint(fileUploadEndpoint);
+        upload.setEndpoint(resolveUploadEndpoint(request));
         payload.setUpload(upload);
         return payload;
+    }
+
+    private String resolveUploadEndpoint(CameraCaptureRequest request) {
+        String requestedEndpoint = request == null ? null : request.getUploadEndpoint();
+        if (requestedEndpoint != null && !requestedEndpoint.isBlank()) {
+            return requestedEndpoint.trim();
+        }
+        return fileUploadEndpoint == null ? "" : fileUploadEndpoint.trim();
+    }
+
+    private String resolveTriggerType(DeviceMediaEvent mediaEvent) {
+        return mediaEvent.getTriggerType() != null && !mediaEvent.getTriggerType().isBlank()
+            ? mediaEvent.getTriggerType()
+            : TriggerType.MANUAL.name();
     }
 
     private String buildCaptureTopic(String deviceUid) {
